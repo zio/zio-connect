@@ -14,12 +14,12 @@ package object s3 {
 
   def getObject(bucketName: String, key: String): ZStream[S3Connector, S3Exception, Byte] = ???
 
-  def putObject(bucketName: String, key: String): ZSink[S3Connector, S3Exception, Byte, Unit] = 
+  // def putObject(bucketName: String, key: String): ZSink[S3Connector, S3Exception, Byte, Unit] = 
     ???
 
-  def deleteObjects: ZSink[S3Connector, S3Exception, ObjectId, Unit] = 
+  // def deleteObjects: ZSink[S3Connector, S3Exception, ObjectId, Unit] = 
     ???
 
-    def move(locator: ObjectId => ObjectId): ZSink[S3Connector, S3Exception, ObjectId, Unit] = 
+    // def move(locator: ObjectId => ObjectId): ZSink[S3Connector, S3Exception, ObjectId, Unit] = 
     ???
 }
