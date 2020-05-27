@@ -42,7 +42,6 @@ package object file {
          def readFile(file: Path): Stream[IOException, Byte] =
            ZStream.fromEffect(Files.readAllBytes(zio.nio.core.file.Path.fromJava(file)).provideLayer(Blocking.live))
              .flatMap(r => ZStream.fromChunk[Byte](r))
-//           Is this the way to provide R to API underneath, and hide it?
 
 //         def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit] = ???
 
