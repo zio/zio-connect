@@ -9,7 +9,7 @@ import java.nio.file._
 object Example extends App {
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {
-    FileConnector.Service.live.tailFile(Paths.get("/Users/brian/dev/zio/test.log"), 1.second)
+    FileConnector.Service.live.tailFile(Paths.get("/Users/brian/dev/zio/test.log"), 500.milliseconds)
       .aggregate(ZTransducer.utf8Decode)
       .aggregate(ZTransducer.splitLines)
       .tap(r => putStrLn(r))

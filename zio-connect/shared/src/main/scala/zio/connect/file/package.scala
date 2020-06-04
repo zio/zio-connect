@@ -25,6 +25,7 @@ package object file {
       
       def tailFile(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte]
 
+      def tailFileUsingWatchService(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte]
       // def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit]
 
     }
@@ -33,28 +34,61 @@ package object file {
        val live: Service = new Service {
 
          def listDir(dir: Path): ZStream[Blocking, IOException, Path] = {
-             ZStream.fromEffect(effectBlocking(java.nio.file.Files.list(dir).iterator()))
-               .flatMap(Files.fromJavaIterator)
-               .refineOrDie{ case e: IOException => e }
+           ZStream.fromEffect(effectBlocking(java.nio.file.Files.list(dir).iterator()))
+             .flatMap(Files.fromJavaIterator)
+             .refineOrDie { case e: IOException => e }
          }
 
          def readFile(file: Path): ZStream[Blocking, IOException, Byte] =
            ZStream.fromEffect(Files.readAllBytes(zio.nio.core.file.Path.fromJava(file)))
              .flatMap(r => ZStream.fromChunk[Byte](r))
 
-//         def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit] = ???
+         //         def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit] = ???
 
          def tailFile(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte] = {
            ZStream.unwrap(for {
-             queue        <- Queue.bounded[Byte](BUFFER_SIZE)
-             ref          <- Ref.make(0L)
-             _            <- initialRead(file, queue, ref)
-             watchService <- registerWatchService(file.getParent)
-             _            <- pollUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+             queue  <- Queue.bounded[Byte](BUFFER_SIZE)
+             cursor <- ZIO.effect {
+                         val fileSize = file.toFile.length
+                         if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
+                       }.refineOrDie { case e: IOException => e }
+             ref    <- Ref.make(cursor)
+             _      <- pollUpdates(file, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
            } yield ZStream.fromQueueWithShutdown[Blocking with Clock, IOException, Byte](queue))
          }
 
          lazy val BUFFER_SIZE = 4096
+
+         def pollUpdates(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] =
+           for {
+             cursor <- ref.get
+             data   <- effectBlocking {
+                         if (file.toFile.length > cursor) {
+                           val reader = new RandomAccessFile(file.toFile, "r")
+                           val channel = reader.getChannel
+                           val dataSize: Long = channel.size - cursor
+                           val bufSize = if (dataSize > BUFFER_SIZE) BUFFER_SIZE else dataSize.toInt
+                           val buffer = ByteBuffer.allocate(bufSize)
+                           val numBytesRead = channel.read(buffer, cursor)
+                           reader.close
+                           if (numBytesRead > 0) Some(buffer.array()) else None
+                         } else None
+                       }.refineOrDie { case e: IOException => e }
+             _      <- ZIO.foreach(data)(d => queue.offerAll(d.toIterable))
+             _      <- ZIO.foreach(data)(d => ref.update(_ => cursor + d.size))
+           } yield ()
+
+
+         def tailFileUsingWatchService(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte] = {
+           ZStream.unwrap(for {
+             queue <- Queue.bounded[Byte](BUFFER_SIZE)
+             ref <- Ref.make(0L)
+             _ <- initialRead(file, queue, ref)
+             watchService <- registerWatchService(file.getParent)
+             _ <- watchUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+           } yield ZStream.fromQueueWithShutdown[Blocking with Clock, IOException, Byte](queue))
+         }
+
          lazy val EVENT_NAME  = StandardWatchEventKinds.ENTRY_MODIFY.name
 
          def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] = {
@@ -77,7 +111,7 @@ package object file {
              watchService
            }.refineOrDie { case e: IOException => e }
 
-         def pollUpdates(file: Path, watchService: WatchService, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] =
+         def watchUpdates(file: Path, watchService: WatchService, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] =
            for {
              cursor <- ref.get
              data   <- readData(file, watchService, cursor)
