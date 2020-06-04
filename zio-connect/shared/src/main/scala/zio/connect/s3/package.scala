@@ -2,13 +2,11 @@ package zio.connect
 
 import zio._
 import zio.stream._
+import zio.s3._
+import software.amazon.awssdk.services.s3.model.S3Exception
 
 package object s3 {
-  // Powered by ZIO S3
   type S3Connector
-  type S3Credentials 
-  type S3Exception
-  type ConnectionError
 
   def s3Layer: ZLayer[S3Credentials, ConnectionError, S3Connector] = ???
 

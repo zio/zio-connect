@@ -19,11 +19,11 @@ package object file {
   
   object FileConnector {
     trait Service {
-      def listDir(dir: Path): Stream[IOException, Path]
+      def listDir(dir: Path): ZStream[Blocking, IOException, Path]
 
-      def readFile(file: Path): Stream[IOException, Byte]
+      def readFile(file: Path): ZStream[Blocking, IOException, Byte]
       
-      def tailFile(file: Path): Stream[IOException, Byte]
+      def tailFile(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte]
 
       // def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit]
 
@@ -32,27 +32,26 @@ package object file {
      object Service {
        val live: Service = new Service {
 
-         def listDir(dir: Path): Stream[IOException, Path] = {
+         def listDir(dir: Path): ZStream[Blocking, IOException, Path] = {
              ZStream.fromEffect(effectBlocking(java.nio.file.Files.list(dir).iterator()))
                .flatMap(Files.fromJavaIterator)
-               .provideLayer(Blocking.live)
                .refineOrDie{ case e: IOException => e }
          }
 
-         def readFile(file: Path): Stream[IOException, Byte] =
-           ZStream.fromEffect(Files.readAllBytes(zio.nio.core.file.Path.fromJava(file)).provideLayer(Blocking.live))
+         def readFile(file: Path): ZStream[Blocking, IOException, Byte] =
+           ZStream.fromEffect(Files.readAllBytes(zio.nio.core.file.Path.fromJava(file)))
              .flatMap(r => ZStream.fromChunk[Byte](r))
 
 //         def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit] = ???
 
-         def tailFile(file: Path): Stream[IOException, Byte] = {
+         def tailFile(file: Path, freq: Duration): ZStream[Blocking with Clock, IOException, Byte] = {
            ZStream.unwrap(for {
              queue        <- Queue.bounded[Byte](BUFFER_SIZE)
              ref          <- Ref.make(0L)
              _            <- initialRead(file, queue, ref)
              watchService <- registerWatchService(file.getParent)
-             _            <- pollUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(1000.milliseconds)).forever.fork
-           } yield ZStream.fromQueueWithShutdown[Clock, IOException, Byte](queue)).provideLayer(Clock.live)
+             _            <- pollUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+           } yield ZStream.fromQueueWithShutdown[Blocking with Clock, IOException, Byte](queue))
          }
 
          lazy val BUFFER_SIZE = 8192
@@ -78,7 +77,7 @@ package object file {
              watchService
            }.refineOrDie { case e: IOException => e }
 
-         def pollUpdates(file: Path, watchService: WatchService, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
+         def pollUpdates(file: Path, watchService: WatchService, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] =
            for {
              cursor <- ref.get
              data   <- readData(file, watchService, cursor)
@@ -86,8 +85,8 @@ package object file {
              _      <- ZIO.foreach(data)(d => ref.update(_ + d.size))
            } yield ()
 
-         def readData(file: Path, watchService: WatchService, cursor: Long): ZIO[Any, IOException, Option[Array[Byte]]] =
-           ZIO.effect {
+         def readData(file: Path, watchService: WatchService, cursor: Long): ZIO[Blocking, IOException, Option[Array[Byte]]] =
+           effectBlocking {
              Option(watchService.poll) match {
                case Some(key) => {
                  val events = key.pollEvents.asScala
@@ -126,14 +125,14 @@ package object file {
      val live: Layer[Nothing, FileConnector] = ZLayer.succeed(Service.live)
   }
 
-  def listDir(dir: Path): ZStream[FileConnector, IOException, Path] = 
-    ZStream.accessStream[FileConnector](_.get.listDir(dir))
+  def listDir(dir: Path): ZStream[FileConnector with Blocking, IOException, Path] =
+    ZStream.accessStream(_.get.listDir(dir))
 
-  def readFile(file: Path): ZStream[FileConnector, IOException, Byte] =
-    ZStream.accessStream[FileConnector](_.get.readFile(file))
+  def readFile(file: Path): ZStream[FileConnector with Blocking, IOException, Byte] =
+    ZStream.accessStream(_.get.readFile(file))
 
-  def tailFile(file: Path): ZStream[FileConnector, IOException, Byte] = 
-    ZStream.accessStream[FileConnector](_.get.tailFile(file))
+  def tailFile(file: Path, freq: Duration): ZStream[FileConnector with Blocking with Clock, IOException, Byte] =
+    ZStream.accessStream(_.get.tailFile(file, freq))
 
   // def writeFile(file: Path): ZSink[FileConnector, IOException, Chunk[Byte], Unit] = 
     // ZIO.accessM[FileConnector](_.get.writeFile(file))
