@@ -54,17 +54,17 @@ package object file {
            } yield ZStream.fromQueueWithShutdown[Blocking with Clock, IOException, Byte](queue))
          }
 
-         lazy val BUFFER_SIZE = 8192
+         lazy val BUFFER_SIZE = 4096
          lazy val EVENT_NAME  = StandardWatchEventKinds.ENTRY_MODIFY.name
 
-         def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] = {
+         def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Blocking, IOException, Unit] = {
            (for {
              cursor <- ZIO.effect {
                val fileSize = file.toFile.length
                if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
              }
              _      <- ref.update(_ + cursor)
-             data   <- ZIO.effect(readBytes(file, cursor))
+             data   <- effectBlocking(readBytes(file, cursor))
              _      <- ZIO.foreach(data)(d => queue.offerAll(d.toIterable))
              _      <- ZIO.foreach(data)(d => ref.update(_ + d.size))
            } yield ()).refineOrDie { case e: IOException => e }
