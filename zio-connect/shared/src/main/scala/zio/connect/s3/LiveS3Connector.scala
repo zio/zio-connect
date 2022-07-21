@@ -1,12 +1,12 @@
 package zio.connect.s3
 
 import software.amazon.awssdk.services.s3.model.S3Exception
-import zio.ZLayer
+import zio.{Trace, ZLayer}
 import zio.s3.{ConnectionError, S3Credentials}
 import zio.stream.ZStream
 
 case class LiveS3Connector(s3Credentials: S3Credentials) extends S3Connector {
-  override def getObject(bucketName: String, key: String): ZStream[Any, S3Exception, Byte] = ???
+  override def getObject(bucketName: => String, key: => String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte] = ???
 }
 
 object LiveS3Connector {

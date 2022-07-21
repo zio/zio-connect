@@ -1,6 +1,6 @@
 package zio.connect.file
 
-import zio.{Duration, Queue, Ref, Schedule, ZIO, ZLayer}
+import zio.{Duration, Queue, Ref, Schedule, Trace, ZIO, ZLayer}
 import zio.ZIO.attemptBlocking
 import zio.nio.file.Files
 import zio.stream.ZStream
@@ -18,17 +18,17 @@ case class LiveFileConnector() extends FileConnector {
 
   //         def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit] = ???
 
-  def listDir(dir: Path): ZStream[Any, IOException, Path] = {
+  def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] = {
     ZStream.fromZIO(attemptBlocking(java.nio.file.Files.list(dir).iterator()))
       .flatMap(s => ZStream.fromJavaIterator(s))
       .refineOrDie { case e: IOException => e }
   }
 
-  def readFile(file: Path): ZStream[Any, IOException, Byte] =
+  def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.fromZIO(Files.readAllBytes(zio.nio.file.Path.fromJava(file)))
       .flatMap(r => ZStream.fromChunk[Byte](r))
 
-  def tailFile(file: Path, freq: Duration): ZStream[Any, IOException, Byte] = {
+  def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] = {
     ZStream.unwrap(for {
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       cursor <- ZIO.attempt {
@@ -59,7 +59,7 @@ case class LiveFileConnector() extends FileConnector {
       _ <- ZIO.foreach(data)(d => ref.update(_ => cursor + d.size))
     } yield ()
 
-  def tailFileUsingWatchService(file: Path, freq: Duration): ZStream[Any, IOException, Byte] = {
+  def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] = {
     ZStream.unwrap(for {
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       ref <- Ref.make(0L)
