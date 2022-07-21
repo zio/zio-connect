@@ -6,7 +6,7 @@ import zio.stream._
 package object kafka {
 // Powered by ZIO Kafka
   type KafkaSettings 
-  type KafkaConnector = Has[KafkaConnector.Service]
+  type KafkaConnector = KafkaConnector.Service
   type ConnectionError 
 
   object KafkaConnector {

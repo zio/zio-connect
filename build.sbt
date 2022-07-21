@@ -27,7 +27,8 @@ inThisBuild(
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 
-val zioVersion = "1.0.0-RC20"
+val zioVersion = "2.0.0"
+val zioNioVersion = "2.0.0"
 
 lazy val root = project
   .in(file("."))
@@ -47,11 +48,11 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.connect"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"          % zioVersion,
-      "dev.zio" %% "zio-streams"  % zioVersion,
-      "dev.zio" %% "zio-nio"      % "1.0.0-RC7",
-      "dev.zio" %% "zio-s3"       % "0.2.1",
-      "dev.zio" %% "zio-test"     % zioVersion % "test",
+      "dev.zio" %% "zio" % zioVersion,
+      "dev.zio" %% "zio-streams" % zioVersion,
+      "dev.zio" %% "zio-nio" % zioNioVersion,
+      "dev.zio" %% "zio-s3" % "0.2.1",
+      "dev.zio" %% "zio-test" % zioVersion % "test",
       "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
     )
   )
@@ -73,9 +74,9 @@ lazy val docs = project
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % zioVersion
     ),
-    unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(root),
-    target in (ScalaUnidoc, unidoc) := (baseDirectory in LocalRootProject).value / "website" / "static" / "api",
-    cleanFiles += (target in (ScalaUnidoc, unidoc)).value,
+    unidocProjectFilter in(ScalaUnidoc, unidoc) := inProjects(root),
+    target in(ScalaUnidoc, unidoc) := (baseDirectory in LocalRootProject).value / "website" / "static" / "api",
+    cleanFiles += (target in(ScalaUnidoc, unidoc)).value,
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(unidoc in Compile).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(unidoc in Compile).value
   )

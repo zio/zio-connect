@@ -1,18 +1,20 @@
 package zio.connect.file
 
 import zio._
-import zio.console._
+
 import zio.stream._
-import zio.duration._
+
 import java.nio.file._
+import zio.ZIOAppDefault
+import zio.Console.printLine
 
-object Example extends App {
+object Example extends ZIOAppDefault {
 
-  def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {
+  def run = {
     FileConnector.Service.live.tailFile(Paths.get("/Users/brian/dev/zio/test.log"), 500.milliseconds)
-      .aggregate(ZTransducer.utf8Decode)
-      .aggregate(ZTransducer.splitLines)
-      .tap(r => putStrLn(r))
+      .via(ZPipeline.utf8Decode)
+      .via(ZPipeline.splitLines)
+      .tap(r => printLine(r))
       .runDrain
       .fold(e => {
         e.printStackTrace
