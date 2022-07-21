@@ -11,7 +11,7 @@ import zio.Console.printLine
 object Example extends ZIOAppDefault {
 
   def run = {
-    FileConnector.Service.live.tailFile(Paths.get("/Users/brian/dev/zio/test.log"), 500.milliseconds)
+    FileConnector.tailFile(Paths.get("/Users/brian/dev/zio/test.log"), 500.milliseconds)
       .via(ZPipeline.utf8Decode)
       .via(ZPipeline.splitLines)
       .tap(r => printLine(r))
@@ -20,6 +20,7 @@ object Example extends ZIOAppDefault {
         e.printStackTrace
         ExitCode.failure
       }, _ => ExitCode.success)
+      .provide(LiveFileConnector.layer)
   }
 
 }
