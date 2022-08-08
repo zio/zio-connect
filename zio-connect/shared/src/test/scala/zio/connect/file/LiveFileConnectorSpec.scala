@@ -1,8 +1,9 @@
 package zio.connect.file
 
 import zio.nio.file.{ Files, Path }
-import zio.{ Cause, Scope, ZIO }
+import zio.{ Cause, Chunk, Scope, ZIO }
 import zio.stream.ZStream
+import zio.test.assert
 import zio.test.Assertion.{ equalTo, failsCause, failsWithA }
 import zio.test.{ assertZIO, ZIOSpecDefault }
 
@@ -17,16 +18,28 @@ object LiveFileConnectorSpec extends ZIOSpecDefault {
     suite("LiveFileConnectorSpec")(
       suite("writeFile")(
         test("fails when IOException") {
-          val s = target.writeFile(Path(""))
-          assertZIO(ZStream("1".toByte).run(s).exit)(failsWithA[IOException])
+          val ioException: IOException = new IOException("test ioException")
+          val prog = tempFile.flatMap { path =>
+            val s = target.writeFile(path)
+            ZStream(1).mapZIO(_ => ZIO.fail(ioException)).run(s).exit
+          }
+          assertZIO(prog)(failsWithA[IOException])
         },
         test("dies when not IOException") {
           object NonIOException extends Throwable
           val prog = tempFile.flatMap { path =>
-            val s = target.writeFile(path).mapZIO(_ => ZIO.fail(NonIOException))
-            ZStream("1".toByte).mapZIO(_ => ZIO.fail(NonIOException)).run(s).exit
+            val s = target.writeFile(path)
+            ZStream(1).mapZIO(_ => ZIO.fail(NonIOException)).run(s).exit
           }
           assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
+        },
+        test("succeeds") {
+          for {
+            path   <- tempFile
+            s      = target.writeFile(path)
+            _      <- ZStream.fromChunk(Chunk[Byte](1, 2, 3)).run(s)
+            actual <- ZStream.fromPath(path.toFile.toPath).runCollect
+          } yield assert(actual)(equalTo(Chunk[Byte](1, 2, 3)))
         }
       )
     )
