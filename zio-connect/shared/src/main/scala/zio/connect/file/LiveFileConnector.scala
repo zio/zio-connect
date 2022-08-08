@@ -2,11 +2,12 @@ package zio.connect.file
 
 import zio.{ Cause, Duration, Queue, Ref, Schedule, Trace, ZIO, ZLayer }
 import zio.ZIO.attemptBlocking
+import zio.nio.file.Path
 import zio.stream.{ Sink, ZChannel, ZSink, ZStream }
 
 import java.io.{ IOException, RandomAccessFile }
 import java.nio.ByteBuffer
-import java.nio.file.{ Path, StandardWatchEventKinds, WatchService }
+import java.nio.file.{ StandardWatchEventKinds, WatchService }
 import scala.jdk.CollectionConverters._
 
 case class LiveFileConnector() extends FileConnector {
@@ -16,13 +17,10 @@ case class LiveFileConnector() extends FileConnector {
   lazy val EVENT_NAME = StandardWatchEventKinds.ENTRY_MODIFY.name
 
   def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
-    ZStream
-      .fromZIO(attemptBlocking(java.nio.file.Files.list(dir).iterator()))
-      .flatMap(s => ZStream.fromJavaIterator(s))
-      .refineOrDie { case e: IOException => e }
+    zio.nio.file.Files.list(dir).refineOrDie { case e: IOException => e }
 
   def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    ZStream.fromPath(file).refineOrDie { case e: IOException => e }
+    ZStream.fromPath(file.toFile.toPath).refineOrDie { case e: IOException => e }
 
   def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.unwrap(for {
@@ -61,7 +59,7 @@ case class LiveFileConnector() extends FileConnector {
       queue        <- Queue.bounded[Byte](BUFFER_SIZE)
       ref          <- Ref.make(0L)
       _            <- initialRead(file, queue, ref)
-      watchService <- registerWatchService(file.getParent)
+      watchService <- registerWatchService(Path.fromJava(file.toFile.toPath.getParent))
       _            <- watchUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
@@ -79,8 +77,8 @@ case class LiveFileConnector() extends FileConnector {
 
   private def registerWatchService(file: Path): ZIO[Any, IOException, WatchService] =
     ZIO.attempt {
-      val watchService = file.getFileSystem.newWatchService
-      file.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+      val watchService = file.toFile.toPath.getFileSystem.newWatchService
+      file.toFile.toPath.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
       watchService
     }.refineOrDie { case e: IOException => e }
 
@@ -107,7 +105,11 @@ case class LiveFileConnector() extends FileConnector {
         case Some(key) => {
           val events = key.pollEvents.asScala
           key.reset
-          if (events.exists(r => r.kind.name == EVENT_NAME && r.context.asInstanceOf[Path].endsWith(file.getFileName)))
+          if (events.exists(r =>
+                r.kind.name == EVENT_NAME && r.context
+                  .asInstanceOf[Path]
+                  .endsWith(Path.fromJava(file.toFile.toPath.getFileName))
+              ))
             readBytes(file, cursor)
           else None
         }
@@ -134,7 +136,7 @@ case class LiveFileConnector() extends FileConnector {
   override def writeFile(file: => Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
     ZSink.fromChannel(
       ZSink
-        .fromPath(file)
+        .fromPath(file.toFile.toPath)
         .map(_ => ())
         .ignoreLeftover
         .channel

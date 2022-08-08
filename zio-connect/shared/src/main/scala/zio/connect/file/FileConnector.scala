@@ -1,10 +1,10 @@
 package zio.connect.file
 
-import zio.{ Duration, Trace }
-import zio.stream.{ ZSink, ZStream }
+import zio.nio.file.Path
+import zio.{Duration, Trace}
+import zio.stream.{ZSink, ZStream}
 
 import java.io.IOException
-import java.nio.file.Path
 
 trait FileConnector {
   def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
