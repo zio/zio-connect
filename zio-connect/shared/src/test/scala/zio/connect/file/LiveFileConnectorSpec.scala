@@ -20,8 +20,8 @@ object LiveFileConnectorSpec extends ZIOSpecDefault {
           val prog = {
             for {
               path <- tempFile
-              s    <- ZIO.serviceWith[FileConnector](_.writeFile(path))
-              r    <- ZStream(1).mapZIO(_ => ZIO.fail(ioException)).run(s).exit
+              sink <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+              r    <- ZStream(1).mapZIO(_ => ZIO.fail(ioException)).run(sink).exit
             } yield r
           }
           assertZIO(prog)(fails(equalTo(ioException)))
@@ -30,16 +30,16 @@ object LiveFileConnectorSpec extends ZIOSpecDefault {
           object NonIOException extends Throwable
           val prog = for {
             path <- tempFile
-            s    <- ZIO.serviceWith[FileConnector](_.writeFile(path))
-            r    <- ZStream(1).mapZIO(_ => ZIO.fail(NonIOException)).run(s).exit
+            sink <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+            r    <- ZStream(1).mapZIO(_ => ZIO.fail(NonIOException)).run(sink).exit
           } yield r
           assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
         },
         test("succeeds") {
           for {
             path   <- tempFile
-            s      <- ZIO.serviceWith[FileConnector](_.writeFile(path))
-            _      <- ZStream.fromChunk(Chunk[Byte](1, 2, 3)).run(s)
+            sink   <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+            _      <- ZStream.fromChunk(Chunk[Byte](1, 2, 3)).run(sink)
             actual <- ZStream.fromPath(path.toFile.toPath).runCollect
           } yield assert(Chunk[Byte](1, 2, 3))(equalTo(actual))
         }
