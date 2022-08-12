@@ -13,7 +13,7 @@ object BuildHelper {
 
   private val Scala211 = "2.11.12"
   private val Scala212 = "2.12.10"
-  private val Scala213 = "2.13.1"
+  private val Scala213 = "2.13.8"
   val DottyVersion     = "0.23.0-RC1"
 
   def buildInfoSettings(packageName: String) =
@@ -133,7 +133,7 @@ object BuildHelper {
         Seq()
     },
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
+    Compile / doc / sources := {
       val old = (Compile / doc / sources).value
       if (isDotty.value) {
         Nil
@@ -141,7 +141,7 @@ object BuildHelper {
         old
       }
     },
-    parallelExecution in Test := {
+    Test / parallelExecution := {
       val old = (Test / parallelExecution).value
       if (isDotty.value) {
         false
@@ -183,19 +183,19 @@ object BuildHelper {
     name := s"$prjName",
     scalacOptions := stdOptions,
     crossScalaVersions := Seq(Scala213, Scala212, Scala211),
-    scalaVersion in ThisBuild := crossScalaVersions.value.head,
+    ThisBuild / scalaVersion := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
-      if (isDotty.value)
-        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided)
-      else
+//      if (isDotty.value)
+//        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided)
+//      else
         Seq(
-          "com.github.ghik" % "silencer-lib" % "1.4.4" % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.4.4" cross CrossVersion.full),
+          "com.github.ghik" % "silencer-lib" % "1.7.9" % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.9" cross CrossVersion.full),
           compilerPlugin(scalafixSemanticdb)
         )
     },
-    parallelExecution in Test := true,
+    Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),

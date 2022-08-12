@@ -1,10 +1,10 @@
 package zio.connect.file
 
+import zio.nio.file.Path
 import zio.{Duration, Trace}
-import zio.stream.ZStream
+import zio.stream.{ZSink, ZStream}
 
 import java.io.IOException
-import java.nio.file.Path
 
 trait FileConnector {
   def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
@@ -13,8 +13,11 @@ trait FileConnector {
 
   def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
-  // def writeFile(file: Path): Sink[IOException, Chunk[Byte], Unit]
+  def tailFileUsingWatchService(file: => Path, freq: => Duration)(
+    implicit trace: Trace
+  ): ZStream[Any, IOException, Byte]
+
+  def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
 
 }
 
@@ -32,8 +35,8 @@ object FileConnector {
   def tailFileUsingWatchService(file: => Path, freq: => Duration): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailFileUsingWatchService(file, freq))
 
-  // def writeFile(file: Path): ZSink[FileConnector, IOException, Chunk[Byte], Unit] =
-  // ZIO.accessM[FileConnector](_.get.writeFile(file))
+  def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.writeFile(file))
 
   // def delete: ZSink[FileConnector, IOException, Path, Unit] = ???  // Should it be Stream or Sink?
 
