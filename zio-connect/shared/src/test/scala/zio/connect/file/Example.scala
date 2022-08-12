@@ -8,17 +8,20 @@ import zio.nio.file.Path
 
 object Example extends ZIOAppDefault {
 
-  def run = {
-    FileConnector.tailFile(Path("/Users/brian/dev/zio/test.log"), 500.milliseconds)
+  def run =
+    FileConnector
+      .tailFile(Path("/Users/brian/dev/zio/test.log"), 500.milliseconds)
       .via(ZPipeline.utf8Decode)
       .via(ZPipeline.splitLines)
       .tap(r => printLine(r))
       .runDrain
-      .fold(e => {
-        e.printStackTrace
-        ExitCode.failure
-      }, _ => ExitCode.success)
+      .fold(
+        e => {
+          e.printStackTrace
+          ExitCode.failure
+        },
+        _ => ExitCode.success
+      )
       .provide(LiveFileConnector.layer)
-  }
 
 }

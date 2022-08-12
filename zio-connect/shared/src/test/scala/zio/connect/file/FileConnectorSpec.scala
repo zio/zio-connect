@@ -1,10 +1,10 @@
 package zio.connect.file
 
-import zio.nio.file.{ Files, Path }
-import zio.{ Cause, Chunk, Scope, ZIO }
+import zio.nio.file.{Files, Path}
+import zio.{Cause, Chunk, Scope, ZIO}
 import zio.stream.ZStream
-import zio.test.{ assert, assertZIO, Spec, ZIOSpecDefault }
-import zio.test.Assertion.{ equalTo, fails, failsCause }
+import zio.test.{assert, assertZIO, Spec, ZIOSpecDefault}
+import zio.test.Assertion.{equalTo, fails, failsCause}
 
 import java.io.IOException
 import java.util.UUID
