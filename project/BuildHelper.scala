@@ -18,9 +18,9 @@ object BuildHelper {
 
   def buildInfoSettings(packageName: String) =
     Seq(
-      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoKeys    := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
       buildInfoPackage := packageName,
-      buildInfoObject := "BuildInfo"
+      buildInfoObject  := "BuildInfo"
     )
 
   private val stdOptions = Seq(
@@ -180,20 +180,20 @@ object BuildHelper {
   )
 
   def stdSettings(prjName: String) = Seq(
-    name := s"$prjName",
-    scalacOptions := stdOptions,
-    crossScalaVersions := Seq(Scala213, Scala212, Scala211),
+    name                     := s"$prjName",
+    scalacOptions            := stdOptions,
+    crossScalaVersions       := Seq(Scala213, Scala212, Scala211),
     ThisBuild / scalaVersion := crossScalaVersions.value.head,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions            := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
 //      if (isDotty.value)
 //        Seq("com.github.ghik" % "silencer-lib_2.13.1" % "1.6.0" % Provided)
 //      else
-        Seq(
-          "com.github.ghik" % "silencer-lib" % "1.7.9" % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.9" cross CrossVersion.full),
-          compilerPlugin(scalafixSemanticdb)
-        )
+      Seq(
+        "com.github.ghik" % "silencer-lib" % "1.7.9" % Provided cross CrossVersion.full,
+        compilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.9" cross CrossVersion.full),
+        compilerPlugin(scalafixSemanticdb)
+      )
     },
     Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),

@@ -13,8 +13,8 @@ trait FileConnector {
 
   def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def tailFileUsingWatchService(file: => Path, freq: => Duration)(
-    implicit trace: Trace
+  def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
+    trace: Trace
   ): ZStream[Any, IOException, Byte]
 
   def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
