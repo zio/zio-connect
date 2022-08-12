@@ -5,7 +5,7 @@ import zio.ZIO.attemptBlocking
 import zio.nio.file.Path
 import zio.stream.{Sink, ZChannel, ZSink, ZStream}
 
-import java.io.{IOException, RandomAccessFile}
+import java.io.{ IOException, RandomAccessFile }
 import java.nio.ByteBuffer
 import java.nio.file.{StandardWatchEventKinds, WatchService}
 import scala.jdk.CollectionConverters._
