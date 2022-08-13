@@ -12,7 +12,7 @@ import java.util.UUID
 trait FileConnectorSpec extends ZIOSpecDefault {
 
   val fileConnectorSpec: Spec[FileConnector with Scope, Throwable] =
-    writeFileSuite + listDirSuite
+    writeFileSuite + listDirSuite + readFileSpec
 
   private lazy val writeFileSuite: Spec[FileConnector with Scope, Throwable] =
     suite("writeFile")(
@@ -70,6 +70,28 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           createdFilesPaths = Chunk(file1, file2, file3).map(_.toFile.getAbsolutePath).sorted
           r                <- stream.runCollect.map(files => files.map(_.toFile.getAbsolutePath).sorted)
         } yield assert(createdFilesPaths)(equalTo(r))
+      }
+    )
+
+  private lazy val readFileSpec: Spec[FileConnector with Scope, Throwable] =
+    suite("readFile")(
+      test("fails when IOException") {
+        val prog = for {
+          file   <- tempFile
+          stream <- ZIO.serviceWith[FileConnector](_.readFile(file))
+          _ <- Files.delete(file) // delete the file to cause an IOException
+          r <- stream.runDrain.exit
+        } yield r
+        assertZIO(prog)(failsWithA[IOException])
+      },
+      test("succeeds") {
+        for {
+          file   <- tempFile
+          content = Chunk[Byte](1, 2, 3)
+          _      <- Files.writeBytes(file, content)
+          stream <- ZIO.serviceWith[FileConnector](_.readFile(file))
+          r      <- stream.runCollect
+        } yield assert(content)(equalTo(r))
       }
     )
 
