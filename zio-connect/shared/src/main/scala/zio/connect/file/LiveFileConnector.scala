@@ -1,11 +1,11 @@
 package zio.connect.file
 
 import zio.{Cause, Duration, Queue, Ref, Schedule, Trace, ZIO, ZLayer}
-import zio.ZIO.attemptBlocking
-import zio.nio.file.Path
+import zio.ZIO.{attemptBlocking, whenZIO}
+import zio.nio.file.{Files, Path}
 import zio.stream.{Sink, ZChannel, ZSink, ZStream}
 
-import java.io.{ IOException, RandomAccessFile }
+import java.io.{FileNotFoundException, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.nio.file.{StandardWatchEventKinds, WatchService}
 import scala.jdk.CollectionConverters._
@@ -24,6 +24,7 @@ case class LiveFileConnector() extends FileConnector {
 
   def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.unwrap(for {
+      _     <- whenZIO(Files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       cursor <- ZIO.attempt {
                   val fileSize = file.toFile.length

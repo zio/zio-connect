@@ -1,18 +1,19 @@
 package zio.connect.file
 
 import zio.nio.file.{Files, Path}
-import zio.{Cause, Chunk, Scope, ZIO}
-import zio.stream.ZStream
-import zio.test.{Spec, ZIOSpecDefault, assert, assertZIO}
+import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
+import zio.stream.{ZPipeline, ZStream}
+import zio.test.{Spec, TestClock, ZIOSpecDefault, assert, assertZIO}
 import zio.test.Assertion.{equalTo, fails, failsCause, failsWithA}
 
 import java.io.IOException
+import java.nio.file.StandardOpenOption
 import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
 
   val fileConnectorSpec: Spec[FileConnector with Scope, Throwable] =
-    writeFileSuite + listDirSuite + readFileSpec
+    writeFileSuite + listDirSuite + readFileSpec + tailFileSpec
 
   private lazy val writeFileSuite: Spec[FileConnector with Scope, Throwable] =
     suite("writeFile")(
@@ -92,6 +93,42 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           stream <- ZIO.serviceWith[FileConnector](_.readFile(file))
           r      <- stream.runCollect
         } yield assert(content)(equalTo(r))
+      }
+    )
+
+  private lazy val tailFileSpec =
+    suite("tailFile")(
+      test("fails when IOException") {
+        val prog = for {
+          file   <- tempFile
+          stream <- ZIO.serviceWith[FileConnector](_.tailFile(file, Duration.fromMillis(500)))
+          _ <- Files.delete(file) // delete the file to cause an IOException
+          fiber <- stream.runDrain.exit.fork
+          _ <- TestClock
+                 .adjust(Duration.fromMillis(3000))
+          r <- fiber.join
+        } yield r
+        assertZIO(prog)(failsWithA[IOException])
+      },
+      test("succeeds") {
+        val str = "test-value"
+        val prog = for {
+          file <- tempFile
+          _ <- Files
+                 .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
+                 .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
+                 .fork
+          stream <- ZIO.serviceWith[FileConnector](_.tailFile(file, Duration.fromMillis(1000)))
+          fiber <- stream
+                     .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+                     .take(3)
+                     .runCollect
+                     .fork
+          _ <- TestClock
+                 .adjust(Duration.fromMillis(3000))
+          r <- fiber.join
+        } yield r
+        assertZIO(prog)(equalTo(Chunk(str, str, str)))
       }
     )
 
