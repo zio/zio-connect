@@ -1,14 +1,13 @@
 package zio.connect.file
 
-import zio.{Cause, Duration, Queue, Ref, Schedule, Trace, ZIO, ZLayer}
+import zio.{Cause, Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-import zio.nio.file.{Files, Path}
+import zio.nio.file.{Files, Path, WatchService}
 import zio.stream.{Sink, ZChannel, ZSink, ZStream}
 
 import java.io.{FileNotFoundException, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
-import java.nio.file.{StandardWatchEventKinds, WatchService}
-import scala.jdk.CollectionConverters._
+import java.nio.file.StandardWatchEventKinds
 
 case class LiveFileConnector() extends FileConnector {
 
@@ -55,13 +54,18 @@ case class LiveFileConnector() extends FileConnector {
 
   def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
-  ): ZStream[Any, IOException, Byte] =
+  ): ZStream[Scope, IOException, Byte] =
     ZStream.unwrap(for {
-      queue        <- Queue.bounded[Byte](BUFFER_SIZE)
-      ref          <- Ref.make(0L)
-      _            <- initialRead(file, queue, ref)
-      watchService <- registerWatchService(Path.fromJava(file.toFile.toPath.getParent))
-      _            <- watchUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+      _     <- whenZIO(Files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
+      queue <- Queue.bounded[Byte](BUFFER_SIZE)
+      ref   <- Ref.make(0L)
+      _     <- initialRead(file, queue, ref)
+      watchService <-
+        ZIO
+          .fromOption(file.parent)
+          .flatMap(a => registerWatchService(a))
+          .refineOrDieWith { case e: IOException => e }(er => new RuntimeException(er.toString))
+      _ <- watchUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
   private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
@@ -76,12 +80,11 @@ case class LiveFileConnector() extends FileConnector {
       _    <- ZIO.foreach(data)(d => ref.update(_ + d.size))
     } yield ()).refineOrDie { case e: IOException => e }
 
-  private def registerWatchService(file: Path): ZIO[Any, IOException, WatchService] =
-    ZIO.attempt {
-      val watchService = file.toFile.toPath.getFileSystem.newWatchService
-      file.toFile.toPath.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
-      watchService
-    }.refineOrDie { case e: IOException => e }
+  private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
+    (for {
+      watchService <- WatchService.forDefaultFileSystem
+      _            <- file.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+    } yield watchService).refineOrDie { case e: IOException => e }
 
   private def watchUpdates(
     file: Path,
@@ -101,23 +104,16 @@ case class LiveFileConnector() extends FileConnector {
     watchService: WatchService,
     cursor: Long
   ): ZIO[Any, IOException, Option[Array[Byte]]] =
-    attemptBlocking {
-      Option(watchService.poll) match {
-        case Some(key) => {
-          val events = key.pollEvents.asScala
-          key.reset
-          if (
-            events.exists(r =>
-              r.kind.name == EVENT_NAME && r.context
-                .asInstanceOf[Path]
-                .endsWith(Path.fromJava(file.toFile.toPath.getFileName))
-            )
-          )
-            readBytes(file, cursor)
-          else None
-        }
-        case _ => None
-      }
+    watchService.poll.flatMap {
+      case Some(key) =>
+        for {
+          events <- key.pollEvents
+          _      <- key.reset
+          r <- if (events.exists(r => r.kind.name == EVENT_NAME && file.toString().endsWith(r.context.toString)))
+                 ZIO.attempt(readBytes(file, cursor))
+               else ZIO.none
+        } yield r
+      case _ => ZIO.none
     }.refineOrDie { case e: IOException => e }
 
   private def readBytes(file: Path, cursor: Long): Option[Array[Byte]] = {

@@ -1,7 +1,7 @@
 package zio.connect.file
 
 import zio.nio.file.Path
-import zio.{Duration, Trace}
+import zio.{Duration, Scope, Trace}
 import zio.stream.{ZSink, ZStream}
 
 import java.io.IOException
@@ -15,7 +15,7 @@ trait FileConnector {
 
   def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
-  ): ZStream[Any, IOException, Byte]
+  ): ZStream[Scope, IOException, Byte]
 
   def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
 
@@ -32,8 +32,11 @@ object FileConnector {
   def tailFile(file: => Path, freq: => Duration): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailFile(file, freq))
 
-  def tailFileUsingWatchService(file: => Path, freq: => Duration): ZStream[FileConnector, IOException, Byte] =
-    ZStream.environmentWithStream(_.get.tailFileUsingWatchService(file, freq))
+  def tailFileUsingWatchService(
+    file: => Path,
+    freq: => Duration
+  ): ZStream[FileConnector with Scope, IOException, Byte] =
+    ZStream.environmentWithStream[FileConnector](_.get.tailFileUsingWatchService(file, freq))
 
   def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
