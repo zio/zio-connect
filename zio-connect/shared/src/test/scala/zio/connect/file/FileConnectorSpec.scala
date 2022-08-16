@@ -3,8 +3,9 @@ package zio.connect.file
 import zio.nio.file.{Files, Path}
 import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
 import zio.stream.{ZPipeline, ZStream}
-import zio.test.{Spec, TestClock, ZIOSpecDefault, assert, assertZIO}
+import zio.test.{TestClock, ZIOSpecDefault, assert, assertZIO}
 import zio.test.Assertion.{equalTo, fails, failsCause, failsWithA}
+import zio.test.TestAspect.{flaky, withLiveClock}
 
 import java.io.IOException
 import java.nio.file.StandardOpenOption
@@ -12,10 +13,10 @@ import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
 
-  val fileConnectorSpec: Spec[FileConnector with Scope, Throwable] =
-    writeFileSuite + listDirSuite + readFileSpec + tailFileSpec
+  val fileConnectorSpec =
+    writeFileSuite + listDirSuite + readFileSpec + tailFileSpec + tailFileUsingWatchServiceSpec
 
-  private lazy val writeFileSuite: Spec[FileConnector with Scope, Throwable] =
+  private lazy val writeFileSuite =
     suite("writeFile")(
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
@@ -50,7 +51,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val listDirSuite: Spec[FileConnector with Scope, Throwable] =
+  private lazy val listDirSuite =
     suite("listDir")(
       test("fails when IOException") {
         val prog = for {
@@ -74,7 +75,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val readFileSpec: Spec[FileConnector with Scope, Throwable] =
+  private lazy val readFileSpec =
     suite("readFile")(
       test("fails when IOException") {
         val prog = for {
@@ -130,6 +131,41 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield r
         assertZIO(prog)(equalTo(Chunk(str, str, str)))
       }
+    )
+
+  private lazy val tailFileUsingWatchServiceSpec =
+    suite("tailFileUsingWatchService")(
+      test("fails when IOException") {
+        val prog = for {
+          file   <- tempFile
+          stream <- ZIO.serviceWith[FileConnector](_.tailFileUsingWatchService(file, Duration.fromMillis(500)))
+          _ <- Files.delete(file) // delete the file to cause an IOException
+          fiber <- stream.runDrain.exit.fork
+          _ <- TestClock
+                 .adjust(Duration.fromMillis(3000))
+          r <- fiber.join
+        } yield r
+        assertZIO(prog)(failsWithA[IOException])
+      },
+      test("succeeds") {
+        val str = "test-value"
+        val prog = for {
+          file   <- tempFile
+          stream <- ZIO.serviceWith[FileConnector](_.tailFileUsingWatchService(file, Duration.fromMillis(500)))
+          fiber <- stream
+                     .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+                     .take(3)
+                     .runCollect
+                     .fork
+          _ <- Files
+                 .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
+                 .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(500)))
+                 .fork
+          r <- fiber.join.timeout(Duration.fromMillis(30000))
+        } yield r
+        assertZIO(prog)(equalTo(Some(Chunk(str, str, str))))
+        //flaky as a backup to account for WatchService & fileSystem handling events eventually
+      } @@ withLiveClock @@ flaky
     )
 
   lazy val tempFile: ZIO[Scope, Throwable, Path] =
