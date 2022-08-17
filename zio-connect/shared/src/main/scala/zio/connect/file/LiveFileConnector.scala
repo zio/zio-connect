@@ -54,8 +54,8 @@ case class LiveFileConnector() extends FileConnector {
 
   def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
-  ): ZStream[Scope, IOException, Byte] =
-    ZStream.unwrap(for {
+  ): ZStream[Any, IOException, Byte] =
+    ZStream.unwrapScoped(for {
       _     <- whenZIO(Files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       ref   <- Ref.make(0L)
@@ -144,6 +144,10 @@ case class LiveFileConnector() extends FileConnector {
           case e              => ZChannel.failCause(Cause.die(e))
         }
     )
+
+  override def deleteFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach(file => Files.delete(file))
+
 }
 
 object LiveFileConnector {

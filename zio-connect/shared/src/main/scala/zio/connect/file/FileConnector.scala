@@ -15,9 +15,11 @@ trait FileConnector {
 
   def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
-  ): ZStream[Scope, IOException, Byte]
+  ): ZStream[Any, IOException, Byte]
 
   def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
+
+  def deleteFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
 }
 
@@ -41,7 +43,8 @@ object FileConnector {
   def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
 
-  // def delete: ZSink[FileConnector, IOException, Path, Unit] = ???  // Should it be Stream or Sink?
+  def deleteFile(file: => Path): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteFile(file))
 
   // def move(locator: Path => Path): ZSink[FileConnector, IOException, Path, Unit] = ???
 
