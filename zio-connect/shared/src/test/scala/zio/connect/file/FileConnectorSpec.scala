@@ -14,7 +14,8 @@ import java.util.UUID
 trait FileConnectorSpec extends ZIOSpecDefault {
 
   val fileConnectorSpec =
-    writeFileSuite + listDirSuite + readFileSpec + tailFileSpec + tailFileUsingWatchServiceSpec
+    writeFileSuite + listDirSuite + readFileSpec +
+      tailFileSpec + tailFileUsingWatchServiceSpec + deleteFileSpec
 
   private lazy val writeFileSuite =
     suite("writeFile")(
@@ -166,6 +167,40 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         assertZIO(prog)(equalTo(Some(Chunk(str, str, str))))
         //flaky as a backup to account for WatchService & fileSystem handling events eventually
       } @@ withLiveClock @@ flaky
+    )
+
+  private lazy val deleteFileSpec =
+    suite("deleteFile")(
+      test("fails when IOException") {
+        val ioException: IOException = new IOException("test ioException")
+        val prog = {
+          for {
+            path         <- tempFile
+            failingStream = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
+            sink         <- ZIO.serviceWith[FileConnector](_.deleteFile(path))
+            r            <- (failingStream >>> sink).exit
+          } yield r
+        }
+        assertZIO(prog)(fails(equalTo(ioException)))
+      },
+      test("dies when failing without IOException") {
+        object NonIOException extends Throwable
+        val prog = for {
+          path         <- tempFile
+          failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
+          sink         <- ZIO.serviceWith[FileConnector](_.deleteFile(path))
+          r            <- (failingStream >>> sink).exit
+        } yield r
+        assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
+      },
+      test("succeeds") {
+        for {
+          file        <- tempFile
+          sink        <- ZIO.serviceWith[FileConnector](_.deleteFile(file))
+          _           <- ZStream.succeed(file) >>> sink
+          fileDeleted <- Files.exists(file).map(!_)
+        } yield assert(fileDeleted)(equalTo(true))
+      }
     )
 
   lazy val tempFile: ZIO[Scope, Throwable, Path] =
