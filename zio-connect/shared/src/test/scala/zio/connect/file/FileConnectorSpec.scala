@@ -217,7 +217,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           directoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(directoryIsDeleted)
       },
-      test("fails when not empty directory ") {
+      test("fails for directory not empty") {
         val prog = for {
           sourceDir <- tempDir
           _         <- tempFileInDir(sourceDir)
