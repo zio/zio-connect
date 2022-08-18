@@ -42,14 +42,24 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield r
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
-      test("succeeds") {
+      test("overwrites existing file") {
+        for {
+          path            <- tempFile
+          existingContents = Chunk[Byte](4, 5, 6, 7)
+          _               <- Files.writeBytes(path, existingContents)
+          input            = Chunk[Byte](1, 2, 3)
+          _               <- ZStream.fromChunk(input) >>> FileConnector.writeFile(path)
+          actual          <- ZStream.fromPath(path.toFile.toPath).runCollect
+        } yield assert(input)(equalTo(actual))
+      },
+      test("creates and writes to file") {
         for {
           path   <- tempFile
-          stream  = ZStream.fromChunk(Chunk[Byte](1, 2, 3))
-          sink    = FileConnector.writeFile(path)
-          _      <- stream >>> sink
+          _      <- Files.delete(path)
+          input   = Chunk[Byte](1, 2, 3)
+          _      <- ZStream.fromChunk(input) >>> FileConnector.writeFile(path)
           actual <- ZStream.fromPath(path.toFile.toPath).runCollect
-        } yield assert(Chunk[Byte](1, 2, 3))(equalTo(actual))
+        } yield assert(input)(equalTo(actual))
       }
     )
 
@@ -173,15 +183,14 @@ trait FileConnectorSpec extends ZIOSpecDefault {
   private lazy val deleteFileSuite =
     suite("deleteFile")(
       test("fails when IOException") {
-        val ioException: IOException = new IOException("test ioException")
         val prog = {
           for {
-            path         <- tempFile
-            failingStream = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
-            r            <- (failingStream >>> FileConnector.deleteFile).exit
+            path <- tempFile
+            _    <- Files.delete(path)
+            r    <- (ZStream(path) >>> FileConnector.deleteFile).exit
           } yield r
         }
-        assertZIO(prog)(fails(equalTo(ioException)))
+        assertZIO(prog)(failsWithA[IOException])
       },
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable

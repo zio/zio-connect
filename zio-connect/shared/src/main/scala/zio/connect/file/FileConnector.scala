@@ -42,10 +42,14 @@ object FileConnector {
   ): ZStream[FileConnector with Scope, IOException, Byte] =
     ZStream.environmentWithStream[FileConnector](_.get.tailFileUsingWatchService(file, freq))
 
+  /**
+   * Creates a file at given path and writes to it. If the path is to an already
+   * existing file then the file contents will be overwritten.
+   */
   def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
 
-  def deleteFile: ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+  val deleteFile: ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteFile)
 
   def moveFile(locator: Path => Path): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
