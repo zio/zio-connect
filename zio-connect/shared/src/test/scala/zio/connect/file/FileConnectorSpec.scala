@@ -26,7 +26,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           for {
             path         <- tempFile
             failingStream = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
-            sink         <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+            sink          = FileConnector.writeFile(path)
             r            <- (failingStream >>> sink).exit
           } yield r
         }
@@ -37,7 +37,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val prog = for {
           path         <- tempFile
           failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
-          sink         <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+          sink          = FileConnector.writeFile(path)
           r            <- (failingStream >>> sink).exit
         } yield r
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
@@ -46,7 +46,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         for {
           path   <- tempFile
           stream  = ZStream.fromChunk(Chunk[Byte](1, 2, 3))
-          sink   <- ZIO.serviceWith[FileConnector](_.writeFile(path))
+          sink    = FileConnector.writeFile(path)
           _      <- stream >>> sink
           actual <- ZStream.fromPath(path.toFile.toPath).runCollect
         } yield assert(Chunk[Byte](1, 2, 3))(equalTo(actual))
@@ -57,8 +57,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("listDir")(
       test("fails when IOException") {
         val prog = for {
-          dir    <- tempDir
-          stream <- ZIO.serviceWith[FileConnector](_.listDir(dir))
+          dir   <- tempDir
+          stream = FileConnector.listDir(dir)
           _ <- Files.delete(dir) // delete the directory to cause an IOException
           r <- stream.runDrain.exit
         } yield r
@@ -67,7 +67,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("succeeds") {
         for {
           dir              <- tempDir
-          stream           <- ZIO.serviceWith[FileConnector](_.listDir(dir))
+          stream            = FileConnector.listDir(dir)
           file1            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
           file2            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
           file3            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
@@ -81,8 +81,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("readFile")(
       test("fails when IOException") {
         val prog = for {
-          file   <- tempFile
-          stream <- ZIO.serviceWith[FileConnector](_.readFile(file))
+          file  <- tempFile
+          stream = FileConnector.readFile(file)
           _ <- Files.delete(file) // delete the file to cause an IOException
           r <- stream.runDrain.exit
         } yield r
@@ -93,7 +93,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           file   <- tempFile
           content = Chunk[Byte](1, 2, 3)
           _      <- Files.writeBytes(file, content)
-          stream <- ZIO.serviceWith[FileConnector](_.readFile(file))
+          stream  = FileConnector.readFile(file)
           r      <- stream.runCollect
         } yield assert(content)(equalTo(r))
       }
@@ -103,8 +103,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("tailFile")(
       test("fails when IOException") {
         val prog = for {
-          file   <- tempFile
-          stream <- ZIO.serviceWith[FileConnector](_.tailFile(file, Duration.fromMillis(500)))
+          file  <- tempFile
+          stream = FileConnector.tailFile(file, Duration.fromMillis(500))
           _ <- Files.delete(file) // delete the file to cause an IOException
           fiber <- stream.runDrain.exit.fork
           _ <- TestClock
@@ -121,7 +121,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                  .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
                  .fork
-          stream <- ZIO.serviceWith[FileConnector](_.tailFile(file, Duration.fromMillis(1000)))
+          stream = FileConnector.tailFile(file, Duration.fromMillis(1000))
           fiber <- stream
                      .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                      .take(3)
@@ -139,8 +139,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("tailFileUsingWatchService")(
       test("fails when IOException") {
         val prog = for {
-          file   <- tempFile
-          stream <- ZIO.serviceWith[FileConnector](_.tailFileUsingWatchService(file, Duration.fromMillis(500)))
+          file  <- tempFile
+          stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
           _ <- Files.delete(file) // delete the file to cause an IOException
           fiber <- stream.runDrain.exit.fork
           _ <- TestClock
@@ -152,8 +152,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("succeeds") {
         val str = "test-value"
         val prog = for {
-          file   <- tempFile
-          stream <- ZIO.serviceWith[FileConnector](_.tailFileUsingWatchService(file, Duration.fromMillis(500)))
+          file  <- tempFile
+          stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
           fiber <- stream
                      .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                      .take(3)
@@ -178,7 +178,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           for {
             path         <- tempFile
             failingStream = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
-            sink         <- ZIO.serviceWith[FileConnector](_.deleteFile(path))
+            sink          = FileConnector.deleteFile(path)
             r            <- (failingStream >>> sink).exit
           } yield r
         }
@@ -189,7 +189,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val prog = for {
           path         <- tempFile
           failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
-          sink         <- ZIO.serviceWith[FileConnector](_.deleteFile(path))
+          sink          = FileConnector.deleteFile(path)
           r            <- (failingStream >>> sink).exit
         } yield r
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
@@ -197,7 +197,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("succeeds") {
         for {
           file        <- tempFile
-          sink        <- ZIO.serviceWith[FileConnector](_.deleteFile(file))
+          sink         = FileConnector.deleteFile(file)
           _           <- ZStream.succeed(file) >>> sink
           fileDeleted <- Files.exists(file).map(!_)
         } yield assert(fileDeleted)(equalTo(true))
@@ -214,7 +214,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             newDir         <- tempDir
             destinationPath = Path(newDir.toString(), path.toFile.getName)
             failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
-            sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+            sink            = FileConnector.moveFile(_ => destinationPath)
             r              <- (failingStream >>> sink).exit
           } yield r
         }
@@ -228,7 +228,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             newDir         <- tempDir
             destinationPath = Path(newDir.toString(), path.toFile.getName)
             failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
-            sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+            sink            = FileConnector.moveFile(_ => destinationPath)
             r              <- (failingStream >>> sink).exit
           } yield r
         }
@@ -243,7 +243,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           destinationDir <- tempDir
           newFilename     = UUID.randomUUID().toString
           destinationPath = Path(destinationDir.toString(), newFilename)
-          sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+          sink            = FileConnector.moveFile(_ => destinationPath)
           _              <- (stream >>> sink).exit
           linesInNewFile <- ZStream
                               .fromPath(destinationPath.toFile.toPath)
