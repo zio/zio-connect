@@ -4,11 +4,11 @@ import zio.nio.file.{Files, Path}
 import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.test.Assertion.{containsString, equalTo, fails, failsCause, failsWithA, isSome}
+import zio.test.Assertion.{anything, containsString, equalTo, fails, failsCause, failsWithA, isSome, isSubtype}
 import zio.test.TestAspect.{flaky, withLiveClock}
 
 import java.io.IOException
-import java.nio.file.StandardOpenOption
+import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption}
 import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
@@ -201,12 +201,30 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield r
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
-      test("succeeds") {
+      test("delete file") {
         for {
           file        <- tempFile
           _           <- ZStream.succeed(file) >>> FileConnector.deleteFile
           fileDeleted <- Files.exists(file).map(!_)
         } yield assert(fileDeleted)(equalTo(true))
+      },
+      test("delete empty directory ") {
+        for {
+          sourceDir <- tempDir
+
+          r                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
+          _                   = println(r)
+          directoryIsDeleted <- Files.notExists(sourceDir)
+        } yield assertTrue(directoryIsDeleted)
+      },
+      test("fails for directory not empty") {
+        val prog = for {
+          sourceDir <- tempDir
+          _         <- tempFileInDir(sourceDir)
+
+          r <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
+        } yield r
+        assertZIO(prog)(fails(isSubtype[DirectoryNotEmptyException](anything)))
       }
     )
 
