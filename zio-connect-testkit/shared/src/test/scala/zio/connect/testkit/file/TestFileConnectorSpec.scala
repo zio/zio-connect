@@ -36,13 +36,7 @@ object TestFileConnectorSpec extends ZIOSpecDefault {
         } yield assert(children)(equalTo(Chunk(file1.path, dir1.path)))
       },
       test("fails when IOException") {
-        val prog = for {
-          dir <- tempDir
-          stream = FileConnector.listDir(dir)
-          _ <- Files.delete(dir) // delete the directory to cause an IOException
-          r <- stream.runDrain.exit
-        } yield r
-        assertZIO(prog)(failsWithA[IOException])
+        ???
       },
     )
 }
