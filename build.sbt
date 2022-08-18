@@ -38,7 +38,9 @@ lazy val root = project
   )
   .aggregate(
     zioConnectJVM,
-    zioConnectJS
+    zioConnectJS,
+    zioConnectTestkitJVM,
+    zioConnectTestkitJS
   )
 
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
@@ -62,6 +64,26 @@ lazy val zioConnectJS = zioConnect.js
   .settings(scalaJSUseMainModuleInitializer := true)
 
 lazy val zioConnectJVM = zioConnect.jvm
+  .settings(dottySettings)
+
+lazy val zioConnectTestkit = crossProject(JSPlatform, JVMPlatform)
+  .in(file("zio-connect-testkit"))
+  .settings(stdSettings("zioConnectTestkit"))
+  .settings(crossProjectSettings)
+  .settings(buildInfoSettings("zio.connect.testkit"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-test"     % zioVersion % "test",
+      "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+    )
+  )
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(zioConnect)
+
+lazy val zioConnectTestkitJS = zioConnectTestkit.js
+  .settings(scalaJSUseMainModuleInitializer := true)
+
+lazy val zioConnectTestkitJVM = zioConnectTestkit.jvm
   .settings(dottySettings)
 
 lazy val docs = project
