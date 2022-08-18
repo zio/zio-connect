@@ -3,8 +3,8 @@ package zio.connect.file
 import zio.nio.file.{Files, Path}
 import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
 import zio.stream.{ZPipeline, ZStream}
-import zio.test.{TestClock, ZIOSpecDefault, assert, assertZIO}
-import zio.test.Assertion.{equalTo, fails, failsCause, failsWithA}
+import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
+import zio.test.Assertion.{containsString, equalTo, fails, failsCause, failsWithA, isSome}
 import zio.test.TestAspect.{flaky, withLiveClock}
 
 import java.io.IOException
@@ -240,7 +240,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         }
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
-      test("succeeds") {
+      test("move a file") {
         for {
           sourcePath     <- tempFile
           lines           = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
@@ -255,7 +255,40 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                               .fromPath(destinationPath.toFile.toPath)
                               .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                               .runCollect
-        } yield assert(linesInNewFile)(equalTo(lines))
+          sourceIsDeleted <- Files.notExists(sourcePath)
+        } yield assertTrue(sourceIsDeleted) && assert(linesInNewFile)(equalTo(lines))
+      },
+      test("move a directory") {
+        for {
+          sourceDir     <- tempDir
+          sourceFile    <- tempFileInDir(sourceDir)
+          sourceFileName = sourceFile.toFile.getName
+          lines          = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+          _             <- Files.writeLines(sourceFile, lines)
+
+          destinationDir    <- tempDir
+          newDirname         = UUID.randomUUID().toString
+          destinationDirPath = Path(destinationDir.toString(), newDirname)
+
+          _ <- (ZStream(sourceDir) >>> FileConnector.moveFile(_ => destinationDirPath)).exit
+
+          targetChildren <- ZIO
+                              .attempt(destinationDirPath.toFile.listFiles())
+          destinationFileName = targetChildren.headOption.map(_.getName)
+          linesInNewFile <- targetChildren.headOption match {
+                              case Some(f) =>
+                                ZStream
+                                  .fromPath(f.toPath)
+                                  .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+                                  .runCollect
+                              case None => ZIO.succeed(Chunk.empty)
+                            }
+
+          originalDirectoryIsDeleted <- Files.notExists(sourceDir)
+        } yield assertTrue(originalDirectoryIsDeleted) &&
+          assertTrue(targetChildren.size == 1) &&
+          assert(destinationFileName)(isSome(containsString(sourceFileName))) &&
+          assert(linesInNewFile)(equalTo(lines))
       }
     )
 
@@ -264,5 +297,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
 
   lazy val tempDir: ZIO[Scope, Throwable, Path] =
     Files.createTempDirectoryScoped(Some(UUID.randomUUID().toString), List.empty)
+
+  def tempFileInDir(dir: Path): ZIO[Scope, Throwable, Path] =
+    Files.createTempFileInScoped(dir, UUID.randomUUID().toString, None, List.empty)
 
 }
