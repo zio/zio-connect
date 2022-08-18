@@ -19,7 +19,7 @@ trait FileConnector {
 
   def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
 
-  def deleteFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
+  def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
   def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
@@ -45,8 +45,8 @@ object FileConnector {
   def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
 
-  def deleteFile(file: => Path): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.deleteFile(file))
+  def deleteFile: ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteFile)
 
   def moveFile(locator: Path => Path): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFile(locator))
