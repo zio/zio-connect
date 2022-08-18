@@ -14,8 +14,9 @@ import java.util.UUID
 trait FileConnectorSpec extends ZIOSpecDefault {
 
   val fileConnectorSpec =
-    writeFileSuite + listDirSuite + readFileSpec +
-      tailFileSpec + tailFileUsingWatchServiceSpec + deleteFileSpec
+    writeFileSuite + listDirSuite + readFileSuite +
+      tailFileSuite + tailFileUsingWatchServiceSuite +
+      deleteFileSuite + moveFileSuite
 
   private lazy val writeFileSuite =
     suite("writeFile")(
@@ -31,7 +32,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         }
         assertZIO(prog)(fails(equalTo(ioException)))
       },
-      test("dies when failing without IOException") {
+      test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val prog = for {
           path         <- tempFile
@@ -76,7 +77,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val readFileSpec =
+  private lazy val readFileSuite =
     suite("readFile")(
       test("fails when IOException") {
         val prog = for {
@@ -98,7 +99,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val tailFileSpec =
+  private lazy val tailFileSuite =
     suite("tailFile")(
       test("fails when IOException") {
         val prog = for {
@@ -134,7 +135,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val tailFileUsingWatchServiceSpec =
+  private lazy val tailFileUsingWatchServiceSuite =
     suite("tailFileUsingWatchService")(
       test("fails when IOException") {
         val prog = for {
@@ -169,7 +170,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       } @@ withLiveClock @@ flaky
     )
 
-  private lazy val deleteFileSpec =
+  private lazy val deleteFileSuite =
     suite("deleteFile")(
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
@@ -183,7 +184,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         }
         assertZIO(prog)(fails(equalTo(ioException)))
       },
-      test("dies when failing without IOException") {
+      test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val prog = for {
           path         <- tempFile
@@ -200,6 +201,55 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           _           <- ZStream.succeed(file) >>> sink
           fileDeleted <- Files.exists(file).map(!_)
         } yield assert(fileDeleted)(equalTo(true))
+      }
+    )
+
+  private lazy val moveFileSuite =
+    suite("moveFile")(
+      test("fails when IOException") {
+        val ioException: IOException = new IOException("test ioException")
+        val prog = {
+          for {
+            path           <- tempFile
+            newDir         <- tempDir
+            destinationPath = Path(newDir.toString(), path.toFile.getName)
+            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
+            sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+            r              <- (failingStream >>> sink).exit
+          } yield r
+        }
+        assertZIO(prog)(fails(equalTo(ioException)))
+      },
+      test("dies when non-IOException exception") {
+        object NonIOException extends Throwable
+        val prog = {
+          for {
+            path           <- tempFile
+            newDir         <- tempDir
+            destinationPath = Path(newDir.toString(), path.toFile.getName)
+            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
+            sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+            r              <- (failingStream >>> sink).exit
+          } yield r
+        }
+        assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
+      },
+      test("succeeds") {
+        for {
+          sourcePath     <- tempFile
+          lines           = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+          _              <- Files.writeLines(sourcePath, lines)
+          stream          = ZStream(sourcePath)
+          destinationDir <- tempDir
+          newFilename     = UUID.randomUUID().toString
+          destinationPath = Path(destinationDir.toString(), newFilename)
+          sink           <- ZIO.serviceWith[FileConnector](_.moveFile(_ => destinationPath))
+          _              <- (stream >>> sink).exit
+          linesInNewFile <- ZStream
+                              .fromPath(destinationPath.toFile.toPath)
+                              .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+                              .runCollect
+        } yield assert(linesInNewFile)(equalTo(lines))
       }
     )
 
