@@ -145,7 +145,7 @@ case class LiveFileConnector() extends FileConnector {
         }
     )
 
-  override def deleteFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+  override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(file => Files.delete(file))
 
   override def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =

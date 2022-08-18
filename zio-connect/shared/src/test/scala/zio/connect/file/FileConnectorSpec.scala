@@ -177,9 +177,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val prog = {
           for {
             path         <- tempFile
-            failingStream = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
-            sink          = FileConnector.deleteFile(path)
-            r            <- (failingStream >>> sink).exit
+            failingStream = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
+            r            <- (failingStream >>> FileConnector.deleteFile).exit
           } yield r
         }
         assertZIO(prog)(fails(equalTo(ioException)))
@@ -188,17 +187,15 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         object NonIOException extends Throwable
         val prog = for {
           path         <- tempFile
-          failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
-          sink          = FileConnector.deleteFile(path)
-          r            <- (failingStream >>> sink).exit
+          failingStream = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
+          r            <- (failingStream >>> FileConnector.deleteFile).exit
         } yield r
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
       test("succeeds") {
         for {
           file        <- tempFile
-          sink         = FileConnector.deleteFile(file)
-          _           <- ZStream.succeed(file) >>> sink
+          _           <- ZStream.succeed(file) >>> FileConnector.deleteFile
           fileDeleted <- Files.exists(file).map(!_)
         } yield assert(fileDeleted)(equalTo(true))
       }
