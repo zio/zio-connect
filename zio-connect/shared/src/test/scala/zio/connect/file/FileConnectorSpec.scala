@@ -211,9 +211,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("delete empty directory ") {
         for {
           sourceDir <- tempDir
-
-          r                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
-          _                   = println(r)
+          _                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
           directoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(directoryIsDeleted)
       },
