@@ -1,9 +1,9 @@
 package zio.connect.file
 
-import zio.{Cause, Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
+import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
 import zio.nio.file.{Files, Path, WatchService}
-import zio.stream.{Sink, ZChannel, ZSink, ZStream}
+import zio.stream.{Sink, ZSink, ZStream}
 
 import java.io.{FileNotFoundException, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
@@ -133,17 +133,13 @@ case class LiveFileConnector() extends FileConnector {
   }
 
   override def writeFile(file: => Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
-    ZSink.fromChannel(
-      ZSink
-        .fromPath(file.toFile.toPath)
-        .map(_ => ())
-        .ignoreLeftover
-        .channel
-        .catchAll {
-          case e: IOException => ZChannel.fail(e)
-          case e              => ZChannel.failCause(Cause.die(e))
-        }
-    )
+    ZSink
+      .fromPath(file.toFile.toPath)
+      .refineOrDie { case e: IOException =>
+        e
+      }
+      .as(())
+      .ignoreLeftover
 
   override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(file => Files.delete(file))
