@@ -2,28 +2,30 @@ package zio.connect.file
 
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-import zio.nio.file.{Files, Path, WatchService}
+//todo also provide a watch service
+import zio.nio.file.{Path, WatchService}
 import zio.stream.{Sink, ZSink, ZStream}
+import zio.nio.connect.Files
 
 import java.io.{FileNotFoundException, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.nio.file.StandardWatchEventKinds
 
-case class LiveFileConnector() extends FileConnector {
+case class LiveFileConnector(files: Files) extends FileConnector {
 
   lazy val BUFFER_SIZE = 4096
 
   lazy val EVENT_NAME = StandardWatchEventKinds.ENTRY_MODIFY.name
 
   def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
-    zio.nio.file.Files.list(dir).refineOrDie { case e: IOException => e }
+    files.list(dir).refineOrDie { case e: IOException => e }
 
   def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.fromPath(file.toFile.toPath).refineOrDie { case e: IOException => e }
 
   def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.unwrap(for {
-      _     <- whenZIO(Files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
+      _     <- whenZIO(files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       cursor <- ZIO.attempt {
                   val fileSize = file.toFile.length
@@ -56,7 +58,7 @@ case class LiveFileConnector() extends FileConnector {
     trace: Trace
   ): ZStream[Any, IOException, Byte] =
     ZStream.unwrapScoped(for {
-      _     <- whenZIO(Files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
+      _     <- whenZIO(files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       ref   <- Ref.make(0L)
       _     <- initialRead(file, queue, ref)
@@ -142,14 +144,16 @@ case class LiveFileConnector() extends FileConnector {
       .ignoreLeftover
 
   override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach(file => Files.delete(file))
+    ZSink.foreach(file => files.delete(file))
 
   override def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach(file => Files.move(file, locator(file)))
+    ZSink.foreach(file => files.move(file, locator(file)))
 
 }
 
 object LiveFileConnector {
-  def layer: ZLayer[Any, Nothing, FileConnector] =
-    ZLayer.succeed(new LiveFileConnector)
+  def layer: ZLayer[Files, Nothing, FileConnector] =
+    ZLayer.fromZIO {
+      ZIO.serviceWith[Files](files => new LiveFileConnector(files))
+    }
 }

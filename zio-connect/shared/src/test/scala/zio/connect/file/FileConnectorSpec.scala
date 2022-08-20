@@ -1,6 +1,6 @@
 package zio.connect.file
 
-import zio.nio.file.{Files, Path}
+import zio.nio.file.Path
 import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
@@ -10,6 +10,7 @@ import zio.test.TestAspect.{flaky, withLiveClock}
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption}
 import java.util.UUID
+import zio.nio.connect.Files
 
 trait FileConnectorSpec extends ZIOSpecDefault {
 
@@ -205,12 +206,12 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         for {
           file        <- tempFile
           _           <- ZStream.succeed(file) >>> FileConnector.deleteFile
-          fileDeleted <- Files.exists(file).map(!_)
+          fileDeleted <- Files.notExists(file)
         } yield assert(fileDeleted)(equalTo(true))
       },
       test("delete empty directory ") {
         for {
-          sourceDir <- tempDir
+          sourceDir          <- tempDir
           _                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
           directoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(directoryIsDeleted)
@@ -308,13 +309,13 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val tempFile: ZIO[Scope, Throwable, Path] =
+  lazy val tempFile: ZIO[Scope with Files, Throwable, Path] =
     Files.createTempFileScoped(UUID.randomUUID().toString, None, List.empty)
 
-  lazy val tempDir: ZIO[Scope, Throwable, Path] =
+  lazy val tempDir: ZIO[Scope with Files, Throwable, Path] =
     Files.createTempDirectoryScoped(Some(UUID.randomUUID().toString), List.empty)
 
-  def tempFileInDir(dir: Path): ZIO[Scope, Throwable, Path] =
+  def tempFileInDir(dir: Path): ZIO[Scope with Files, Throwable, Path] =
     Files.createTempFileInScoped(dir, UUID.randomUUID().toString, None, List.empty)
 
 }
