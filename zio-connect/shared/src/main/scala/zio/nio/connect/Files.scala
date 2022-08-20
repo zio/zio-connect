@@ -9,8 +9,6 @@ import java.io.IOException
 import java.nio.file.{CopyOption, LinkOption, OpenOption}
 import java.nio.file.attribute.FileAttribute
 
-//todo - will add mirror operators here as necessary so I can eventually use this in FileConnectorSpec
-//todo - also need a version of FileSystem and WatchService
 trait Files {
 
   def list(path: Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
