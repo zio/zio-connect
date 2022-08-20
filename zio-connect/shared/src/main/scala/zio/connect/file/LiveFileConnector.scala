@@ -2,7 +2,6 @@ package zio.connect.file
 
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-//todo also provide a watch service
 import zio.nio.file.{Path, WatchService}
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.nio.connect.Files
