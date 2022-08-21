@@ -27,14 +27,11 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     ZStream.unwrap(for {
       _     <- whenZIO(files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
-      _     <- ZIO.debug("tailing file")
       cursor <- ZIO.attempt {
                   val fileSize = java.nio.file.Files.size(file)
                   if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
                 }.refineOrDie { case e: IOException => e }
       ref <- Ref.make(cursor)
-      _   <- ZIO.debug("after cursor")
-      _   <- ZIO.debug("before pollUpdates")
       _   <- pollUpdates(file, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
