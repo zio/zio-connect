@@ -2,7 +2,7 @@ package zio.connect.file
 
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-import zio.nio.file.{Path, WatchService}
+import zio.nio.file.{Path, WatchService => WatchService}
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.nio.connect.Files
 
@@ -36,9 +36,10 @@ case class LiveFileConnector(files: Files) extends FileConnector {
 
   private def pollUpdates(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     for {
-      cursor <- ref.get
+      cursor   <- ref.get
+      fileSize <- files.size(file)
       data <- attemptBlocking {
-                if (file.toFile.length > cursor) {
+                if (fileSize > cursor) {
                   val reader         = new RandomAccessFile(file.toFile, "r")
                   val channel        = reader.getChannel
                   val dataSize: Long = channel.size - cursor
@@ -118,6 +119,7 @@ case class LiveFileConnector(files: Files) extends FileConnector {
     }.refineOrDie { case e: IOException => e }
 
   private def readBytes(file: Path, cursor: Long): Option[Array[Byte]] = {
+    //todo: this will have to be reimplemented to work with the in memory file system
     val reader         = new RandomAccessFile(file.toFile, "r")
     val channel        = reader.getChannel
     val dataSize: Long = channel.size - cursor

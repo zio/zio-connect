@@ -50,6 +50,8 @@ trait Files {
     fileAttributes: Iterable[FileAttribute[_]]
   )(implicit trace: Trace): ZIO[Scope, IOException, Path]
 
+  def size(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Long]
+
 }
 
 object Files {
@@ -104,6 +106,9 @@ object Files {
   def writeBytes(path: Path, bytes: Chunk[Byte], openOptions: OpenOption*): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.writeBytes(path, bytes, openOptions: _*))
 
+  def size(path: Path)(implicit trace: Trace): ZIO[Files, IOException, Long] =
+    ZIO.environmentWithZIO(_.get.size(path))
+
   val live: ZLayer[Any, Nothing, Files] = ZLayer.succeed(new Files {
     override def createTempFileInScoped(
       dir: Path,
@@ -149,6 +154,9 @@ object Files {
       fileAttributes: Iterable[FileAttribute[_]]
     )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
       ZFiles.createTempDirectoryScoped(prefix, fileAttributes)
+
+    override def size(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
+      ZFiles.size(path)
   })
 
 }
