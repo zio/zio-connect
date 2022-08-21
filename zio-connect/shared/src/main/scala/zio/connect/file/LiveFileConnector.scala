@@ -142,7 +142,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
   override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, java.nio.file.Path, Nothing, Unit] =
     ZSink.foreach(file => files.delete(file))
 
-  override def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+  override def moveFile(locator: java.nio.file.Path => java.nio.file.Path)(implicit trace: Trace): ZSink[Any, IOException, java.nio.file.Path, Nothing, Unit] =
     ZSink.foreach(file => files.move(file, locator(file)))
 
 }

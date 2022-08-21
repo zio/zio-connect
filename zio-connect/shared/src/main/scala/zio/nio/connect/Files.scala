@@ -25,7 +25,7 @@ trait Files {
 
   def notExists(path: java.nio.file.Path, linkOptions: LinkOption*)(implicit trace: Trace): ZIO[Any, Nothing, Boolean]
 
-  def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
+  def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*)(implicit
     trace: Trace
   ): ZIO[Any, IOException, Unit]
 
@@ -94,7 +94,7 @@ object Files {
   def list(path: java.nio.file.Path): ZStream[Files, IOException, java.nio.file.Path] =
     ZStream.environmentWithStream(_.get.list(path))
 
-  def move(source: Path, target: Path, copyOptions: CopyOption*): ZIO[Files, IOException, Unit] =
+  def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.move(source, target, copyOptions: _*))
 
   def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Files, IOException, Unit] =
@@ -135,10 +135,10 @@ object Files {
     override def list(path: java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, java.nio.file.Path] =
       ZFiles.list(Path.fromJava(path)).map(_.javaPath)
 
-    override def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
+    override def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*)(implicit
       trace: Trace
     ): ZIO[Any, IOException, Unit] =
-      ZFiles.move(source, target, copyOptions: _*)
+      ZFiles.move(Path.fromJava(source), Path.fromJava(target), copyOptions: _*)
 
     override def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
       ZFiles.delete(Path.fromJava(path))
@@ -218,7 +218,7 @@ object Files {
                       case _ => ZIO.die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
                     }
 
-                  override def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
+                  override def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*)(implicit
                     trace: Trace
                   ): ZIO[Any, IOException, Unit] =
                     for {
@@ -228,7 +228,7 @@ object Files {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
                              .unless(target.getClass.getName.contains("Jimfs"))
-                      _ <- ZFiles.move(source, target, copyOptions: _*)
+                      _ <- ZFiles.move(Path.fromJava(source), Path.fromJava(target), copyOptions: _*)
                     } yield ()
 
                   override def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
