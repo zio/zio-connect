@@ -188,9 +188,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails when IOException") {
         val prog = {
           for {
-            path <- tempFile
-            _    <- Files.delete(path.toFile.toPath)
-            r    <- (ZStream(path.toFile.toPath) >>> FileConnector.deleteFile).exit
+            path <- tempFileJava
+            _    <- Files.delete(path)
+            r    <- (ZStream(path) >>> FileConnector.deleteFile).exit
           } yield r
         }
         assertZIO(prog)(failsWithA[IOException])
@@ -198,7 +198,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val prog = for {
-          path         <- tempFile
+          path         <- tempFileJava
           failingStream = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
           r            <- (failingStream >>> FileConnector.deleteFile).exit
         } yield r
@@ -206,24 +206,24 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       },
       test("delete file") {
         for {
-          file        <- tempFile
-          _           <- ZStream.succeed(file.toFile.toPath) >>> FileConnector.deleteFile
+          file        <- tempFileJava
+          _           <- ZStream.succeed(file) >>> FileConnector.deleteFile
           fileDeleted <- Files.notExists(file)
         } yield assert(fileDeleted)(equalTo(true))
       },
       test("delete empty directory ") {
         for {
-          sourceDir          <- tempDir
-          _                  <- (ZStream(sourceDir.toFile.toPath) >>> FileConnector.deleteFile).exit
+          sourceDir          <- tempDirJava
+          _                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
           directoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(directoryIsDeleted)
       },
       test("fails for directory not empty") {
         val prog = for {
-          sourceDir <- tempDir
-          _         <- tempFileInDir(sourceDir.toFile.toPath)
+          sourceDir <- tempDirJava
+          _         <- tempFileInDir(sourceDir)
 
-          r <- (ZStream(sourceDir.toFile.toPath) >>> FileConnector.deleteFile).exit
+          r <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
         } yield r
         assertZIO(prog)(fails(isSubtype[DirectoryNotEmptyException](anything)))
       }
@@ -274,7 +274,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                               .fromPath(destinationPath.toFile.toPath)
                               .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                               .runCollect
-          sourceIsDeleted <- Files.notExists(sourcePath)
+          sourceIsDeleted <- Files.notExists(sourcePath.toFile.toPath)
         } yield assertTrue(sourceIsDeleted) && assert(linesInNewFile)(equalTo(lines))
       },
       test("move a directory") {
@@ -303,7 +303,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                               case None => ZIO.succeed(Chunk.empty)
                             }
 
-          originalDirectoryIsDeleted <- Files.notExists(sourceDir)
+          originalDirectoryIsDeleted <- Files.notExists(sourceDir.toFile.toPath)
         } yield assertTrue(originalDirectoryIsDeleted) &&
           assertTrue(targetChildren.size == 1) &&
           assert(destinationFileName)(isSome(containsString(sourceFileName))) &&

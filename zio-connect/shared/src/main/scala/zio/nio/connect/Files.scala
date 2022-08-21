@@ -88,8 +88,8 @@ object Files {
       service.createTempDirectoryScoped(prefix, fileAttributes)
     }
 
-  def notExists(path: Path, linkOptions: LinkOption*): ZIO[Files, Nothing, Boolean] =
-    ZIO.environmentWithZIO(_.get.notExists(path.javaPath, linkOptions: _*))
+  def notExists(path: java.nio.file.Path, linkOptions: LinkOption*): ZIO[Files, Nothing, Boolean] =
+    ZIO.environmentWithZIO(_.get.notExists(path, linkOptions: _*))
 
   def list(path: java.nio.file.Path): ZStream[Files, IOException, java.nio.file.Path] =
     ZStream.environmentWithStream(_.get.list(path))
@@ -236,7 +236,7 @@ object Files {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
                              .unless(path.getClass.getName.contains("Jimfs"))
-                      _ <- ZIO.attempt(java.nio.file.Files.delete(path)).orDie
+                      _ <- ZIO.attempt(java.nio.file.Files.delete(path)).refineToOrDie[IOException]
                     } yield ()
 
                   override def writeLines(
