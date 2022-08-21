@@ -6,7 +6,7 @@ import zio.nio.file.{Path, WatchService}
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.nio.connect.Files
 
-import java.io.{FileNotFoundException, IOException, RandomAccessFile}
+import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.{StandardOpenOption, StandardWatchEventKinds}
@@ -50,7 +50,6 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
                   val buffer         = ByteBuffer.allocate(bufSize)
                   val numBytesRead   = channel.read(buffer, cursor)
                   channel.close
-                  println("aaa")
                   if (numBytesRead > 0) Some(buffer.array()) else None
                 } else None
               }.tapError(e => ZIO.debug(e.toString)).refineOrDie { case e: IOException => e }
@@ -78,18 +77,12 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     (for {
       cursor <- ZIO.attempt {
                   val fileSize = java.nio.file.Files.size(file)
-                  println(s"SIZE IS: $fileSize")
                   if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
                 }
-      _    <- ZIO.debug("aaa")
       _    <- ref.update(_ + cursor)
-      _    <- ZIO.debug("bbb")
       data <- attemptBlocking(readBytes(file, cursor))
-      _    <- ZIO.debug("ccc")
       _    <- ZIO.foreach(data)(d => queue.offerAll(d))
-      _    <- ZIO.debug("ddd")
       _    <- ZIO.foreach(data)(d => ref.update(_ + d.size))
-      _    <- ZIO.debug("eee")
     } yield ()).refineOrDie { case e: IOException => e }
 
   private def registerWatchService(file: java.nio.file.Path): ZIO[Scope, IOException, WatchService] =
@@ -128,21 +121,16 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     }.refineOrDie { case e: IOException => e }
 
   private def readBytes(file: java.nio.file.Path, cursor: Long): Option[Array[Byte]] = {
-    println("Before the raf")
-    //todo - file.toFile here makes it hang (in memory fs doesn't support this) - reimplement this
-    val reader = new RandomAccessFile(file.toFile, "r")
-    println("After the raf")
-    val channel = reader.getChannel
-//    val channel = java.nio.channels.FileChannel.open(file, Seq(StandardOpenOption.READ): _*)
+    val channel        = FileChannel.open(file, Seq(StandardOpenOption.READ): _*)
     val dataSize: Long = channel.size - cursor
     if (dataSize > 0) {
       val bufSize      = if (dataSize > BUFFER_SIZE) BUFFER_SIZE else dataSize.toInt
       val buffer       = ByteBuffer.allocate(bufSize)
       val numBytesRead = channel.read(buffer, cursor)
-      reader.close
+      channel.close
       if (numBytesRead > 0) Some(buffer.array()) else None
     } else {
-      reader.close
+      channel.close
       None
     }
   }

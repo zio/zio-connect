@@ -15,11 +15,11 @@ object Tests extends ZIOAppDefault {
       fs        <- ZIO.attempt(Jimfs.newFileSystem(Configuration.forCurrentPlatform()))
       dir       <- ZIO.attempt(fs.getPath("/tmp"))
       _         <- ZIO.attempt(java.nio.file.Files.createDirectory(dir))
-      fileInDir <- java.nio.file.Files.createTempFile(dir, "test")
-      _         <- ZIO.debug(fileInDir)
-      _          = java.nio.file.Files.newBufferedReader(fileInDir.toFile.toPath)
-      _          = java.nio.file.Files.newByteChannel(fileInDir.toFile.toPath, Seq.empty: _*)
-      channel    = java.nio.channels.FileChannel.open(fileInDir.toFile.toPath, Seq(StandardOpenOption.READ): _*)
+//      fileInDir <- java.nio.file.Files.createTempFile(dir, "test")
+//      _         <- ZIO.debug(fileInDir)
+//      _          = java.nio.file.Files.newBufferedReader(fileInDir.toFile.toPath)
+//      _          = java.nio.file.Files.newByteChannel(fileInDir.toFile.toPath, Seq.empty: _*)
+//      channel    = java.nio.channels.FileChannel.open(fileInDir.toFile.toPath, Seq(StandardOpenOption.READ): _*)
     } yield ()
 
   def run2 =

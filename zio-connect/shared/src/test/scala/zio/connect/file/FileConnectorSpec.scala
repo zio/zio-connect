@@ -124,7 +124,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield r
         assertZIO(prog)(failsWithA[IOException])
       },
-      test("succeeds XXX") {
+      test("succeeds") {
         val str = "test-value"
         val prog = for {
           parentDir <- tempDirJava
