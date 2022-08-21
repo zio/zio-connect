@@ -40,9 +40,7 @@ lazy val root = project
     zioConnectJVM,
     zioConnectJS,
     zioConnectTestkitJVM,
-    zioConnectTestkitJS,
-    zioNioTestkitJVM,
-    zioNioTestkitJS
+    zioConnectTestkitJS
   )
 
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
@@ -52,15 +50,16 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.connect"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"          % zioVersion,
-      "dev.zio" %% "zio-streams"  % zioVersion,
-      "dev.zio" %% "zio-s3"       % "0.2.1",
-      "dev.zio" %% "zio-test"     % zioVersion % "test",
-      "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+      "dev.zio"         %% "zio"          % zioVersion,
+      "dev.zio"         %% "zio-streams"  % zioVersion,
+      "dev.zio"         %% "zio-nio"      % zioNioVersion,
+      "com.google.jimfs" % "jimfs"        % "1.2",
+      "dev.zio"         %% "zio-s3"       % "0.2.1",
+      "dev.zio"         %% "zio-test"     % zioVersion % "test",
+      "dev.zio"         %% "zio-test-sbt" % zioVersion % "test"
     )
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(zioNioTestkit)
 
 lazy val zioConnectJS = zioConnect.js
   .settings(scalaJSUseMainModuleInitializer := true)
@@ -75,32 +74,13 @@ lazy val zioConnectTestkit = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.connect.testkit"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-test"     % zioVersion % "test",
-      "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+      "com.google.jimfs" % "jimfs"        % "1.2",
+      "dev.zio"         %% "zio-test"     % zioVersion % "test",
+      "dev.zio"         %% "zio-test-sbt" % zioVersion % "test"
     )
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(zioConnect)
-
-lazy val zioNioTestkitJS = zioNioTestkit.js
-  .settings(scalaJSUseMainModuleInitializer := true)
-
-lazy val zioNioTestkitJVM = zioNioTestkit.jvm
-  .settings(dottySettings)
-
-lazy val zioNioTestkit = crossProject(JSPlatform, JVMPlatform)
-  .in(file("zio-nio-testkit"))
-  .settings(stdSettings("zioNioTestkit"))
-  .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.nio.testkit"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-nio"      % zioNioVersion,
-      "dev.zio" %% "zio-test"     % zioVersion % "test",
-      "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
-    )
-  )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
 
 lazy val zioConnectTestkitJS = zioConnectTestkit.js
   .settings(scalaJSUseMainModuleInitializer := true)

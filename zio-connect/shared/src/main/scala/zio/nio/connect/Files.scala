@@ -1,41 +1,44 @@
 package zio.nio.connect
 
+import zio.ZIO.attemptBlocking
 import zio.nio.charset.Charset
 import zio.{Chunk, Scope, Trace, ZIO, ZLayer}
-import zio.nio.file.{Path, Files => ZFiles}
+import zio.nio.file.{FileSystem, Path, Files => ZFiles}
 import zio.stream.ZStream
 
 import java.io.IOException
 import java.nio.file.{CopyOption, LinkOption, OpenOption}
 import java.nio.file.attribute.FileAttribute
+import java.nio.file.{Files => JFiles}
+import java.util.UUID
 
 trait Files {
 
-  def list(path: Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
+  def list(path: java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, java.nio.file.Path]
 
   def createTempFileInScoped(
-    dir: Path,
+    dir: java.nio.file.Path,
     suffix: String = ".tmp",
     prefix: Option[String] = None,
     fileAttributes: Iterable[FileAttribute[_]] = Nil
-  )(implicit trace: Trace): ZIO[Scope, IOException, Path]
+  )(implicit trace: Trace): ZIO[Scope, IOException, java.nio.file.Path]
 
-  def notExists(path: Path, linkOptions: LinkOption*)(implicit trace: Trace): ZIO[Any, Nothing, Boolean]
+  def notExists(path: java.nio.file.Path, linkOptions: LinkOption*)(implicit trace: Trace): ZIO[Any, Nothing, Boolean]
 
   def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
     trace: Trace
   ): ZIO[Any, IOException, Unit]
 
-  def delete(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Unit]
+  def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Unit]
 
   def writeLines(
-    path: Path,
+    path: java.nio.file.Path,
     lines: Iterable[CharSequence],
     charset: Charset = Charset.Standard.utf8,
     openOptions: Set[OpenOption] = Set.empty
   )(implicit trace: Trace): ZIO[Any, IOException, Unit]
 
-  def writeBytes(path: Path, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
+  def writeBytes(path: java.nio.file.Path, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
     trace: Trace
   ): ZIO[Any, IOException, Unit]
 
@@ -50,18 +53,20 @@ trait Files {
     fileAttributes: Iterable[FileAttribute[_]]
   )(implicit trace: Trace): ZIO[Scope, IOException, Path]
 
-  def size(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Long]
+  def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long]
+
+  def deleteIfExists(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Boolean]
 
 }
 
 object Files {
 
   def createTempFileInScoped(
-    dir: Path,
+    dir: java.nio.file.Path,
     suffix: String = ".tmp",
     prefix: Option[String] = None,
     fileAttributes: Iterable[FileAttribute[_]] = Nil
-  ): ZIO[Scope with Files, IOException, Path] =
+  ): ZIO[Scope with Files, IOException, java.nio.file.Path] =
     ZIO.serviceWithZIO[Files] { service =>
       service.createTempFileInScoped(dir, suffix, prefix, fileAttributes)
     }
@@ -84,63 +89,74 @@ object Files {
     }
 
   def notExists(path: Path, linkOptions: LinkOption*): ZIO[Files, Nothing, Boolean] =
-    ZIO.environmentWithZIO(_.get.notExists(path, linkOptions: _*))
+    ZIO.environmentWithZIO(_.get.notExists(path.javaPath, linkOptions: _*))
 
-  def list(path: Path): ZStream[Files, IOException, Path] =
+  def list(path: java.nio.file.Path): ZStream[Files, IOException, java.nio.file.Path] =
     ZStream.environmentWithStream(_.get.list(path))
 
   def move(source: Path, target: Path, copyOptions: CopyOption*): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.move(source, target, copyOptions: _*))
 
-  def delete(path: Path)(implicit trace: Trace): ZIO[Files, IOException, Unit] =
+  def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.delete(path))
 
   def writeLines(
-    path: Path,
+    path: java.nio.file.Path,
     lines: Iterable[CharSequence],
     charset: Charset = Charset.Standard.utf8,
     openOptions: Set[OpenOption] = Set.empty
   ): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.writeLines(path, lines, charset, openOptions))
 
-  def writeBytes(path: Path, bytes: Chunk[Byte], openOptions: OpenOption*): ZIO[Files, IOException, Unit] =
+  def writeBytes(
+    path: java.nio.file.Path,
+    bytes: Chunk[Byte],
+    openOptions: OpenOption*
+  ): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.writeBytes(path, bytes, openOptions: _*))
 
   def size(path: Path)(implicit trace: Trace): ZIO[Files, IOException, Long] =
-    ZIO.environmentWithZIO(_.get.size(path))
+    ZIO.environmentWithZIO(_.get.size(path.javaPath))
 
   val live: ZLayer[Any, Nothing, Files] = ZLayer.succeed(new Files {
     override def createTempFileInScoped(
-      dir: Path,
+      dir: java.nio.file.Path,
       suffix: String,
       prefix: Option[String],
       fileAttributes: Iterable[FileAttribute[_]]
-    )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
-      ZFiles.createTempFileInScoped(dir, suffix, prefix, fileAttributes)
+    )(implicit trace: Trace): ZIO[Scope, IOException, java.nio.file.Path] =
+      ZFiles.createTempFileInScoped(Path.fromJava(dir), suffix, prefix, fileAttributes).map(_.javaPath)
 
-    override def notExists(path: Path, linkOptions: LinkOption*)(implicit trace: Trace): ZIO[Any, Nothing, Boolean] =
-      ZFiles.notExists(path, linkOptions: _*)
+    override def notExists(path: java.nio.file.Path, linkOptions: LinkOption*)(implicit
+      trace: Trace
+    ): ZIO[Any, Nothing, Boolean] =
+      ZFiles.notExists(Path.fromJava(path), linkOptions: _*)
 
-    override def list(path: Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
-      ZFiles.list(path)
+    override def list(path: java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, java.nio.file.Path] =
+      ZFiles.list(Path.fromJava(path)).map(_.javaPath)
 
     override def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
       trace: Trace
     ): ZIO[Any, IOException, Unit] =
       ZFiles.move(source, target, copyOptions: _*)
 
-    override def delete(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
-      ZFiles.delete(path)
+    override def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+      ZFiles.delete(Path.fromJava(path))
 
-    override def writeLines(path: Path, lines: Iterable[CharSequence], charset: Charset, openOptions: Set[OpenOption])(
-      implicit trace: Trace
-    ): ZIO[Any, IOException, Unit] =
-      ZFiles.writeLines(path, lines, charset, openOptions)
-
-    override def writeBytes(path: Path, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
+    override def writeLines(
+      path: java.nio.file.Path,
+      lines: Iterable[CharSequence],
+      charset: Charset,
+      openOptions: Set[OpenOption]
+    )(implicit
       trace: Trace
     ): ZIO[Any, IOException, Unit] =
-      ZFiles.writeBytes(path, bytes, openOptions: _*)
+      ZFiles.writeLines(Path.fromJava(path), lines, charset, openOptions)
+
+    override def writeBytes(path: java.nio.file.Path, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
+      trace: Trace
+    ): ZIO[Any, IOException, Unit] =
+      ZFiles.writeBytes(Path.fromJava(path), bytes, openOptions: _*)
 
     override def createTempFileScoped(
       suffix: String,
@@ -155,8 +171,143 @@ object Files {
     )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
       ZFiles.createTempDirectoryScoped(prefix, fileAttributes)
 
-    override def size(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
-      ZFiles.size(path)
+    override def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
+      ZFiles.size(Path.fromJava(path))
+
+    override def deleteIfExists(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Boolean] =
+      ZFiles.deleteIfExists(path)
   })
+
+  val inMemory: ZLayer[FileSystem, Nothing, Files] =
+    ZLayer.fromZIO(
+      for {
+        fs <- ZIO.service[FileSystem]
+        files = new Files {
+                  override def list(path: java.nio.file.Path)(implicit
+                    trace: Trace
+                  ): ZStream[Any, IOException, java.nio.file.Path] =
+                    path match {
+                      case a if a.getClass.getName.contains("Jimfs") =>
+                        ZStream.fromJavaStreamZIO(ZIO.attempt(java.nio.file.Files.list(path))).refineOrDie {
+                          case a: IOException => a
+                        }
+                      case _ => ZStream.die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                    }
+
+                  override def createTempFileInScoped(
+                    dir: java.nio.file.Path,
+                    suffix: String,
+                    prefix: Option[String],
+                    fileAttributes: Iterable[FileAttribute[_]]
+                  )(implicit trace: Trace): ZIO[Scope, IOException, java.nio.file.Path] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(dir.getClass.getName.contains("Jimfs"))
+                      r <- ZFiles
+                             .createTempFileInScoped(Path.fromJava(dir), suffix, prefix, fileAttributes)
+                             .map(_.javaPath)
+                    } yield r
+
+                  override def notExists(path: java.nio.file.Path, linkOptions: LinkOption*)(implicit
+                    trace: Trace
+                  ): ZIO[Any, Nothing, Boolean] =
+                    path match {
+                      case a if a.getClass.getName.contains("Jimfs") =>
+                        ZIO.attempt(java.nio.file.Files.notExists(path)).orDie
+                      case _ => ZIO.die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                    }
+
+                  override def move(source: Path, target: Path, copyOptions: CopyOption*)(implicit
+                    trace: Trace
+                  ): ZIO[Any, IOException, Unit] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(source.getClass.getName.contains("Jimfs"))
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(target.getClass.getName.contains("Jimfs"))
+                      _ <- ZFiles.move(source, target, copyOptions: _*)
+                    } yield ()
+
+                  override def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(path.getClass.getName.contains("Jimfs"))
+                      _ <- ZIO.attempt(java.nio.file.Files.delete(path)).orDie
+                    } yield ()
+
+                  override def writeLines(
+                    path: java.nio.file.Path,
+                    lines: Iterable[CharSequence],
+                    charset: Charset,
+                    openOptions: Set[OpenOption]
+                  )(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(path.getClass.getName.contains("Jimfs"))
+                      _ <- ZFiles.writeLines(Path.fromJava(path), lines, charset, openOptions)
+                    } yield ()
+
+                  override def writeBytes(path: java.nio.file.Path, bytes: Chunk[Byte], openOptions: OpenOption*)(
+                    implicit trace: Trace
+                  ): ZIO[Any, IOException, Unit] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(path.getClass.getName.contains("Jimfs"))
+                      _ <- ZFiles.writeBytes(Path.fromJava(path), bytes, openOptions: _*)
+                    } yield ()
+
+                  override def createTempFileScoped(
+                    suffix: String,
+                    prefix: Option[String],
+                    fileAttributes: Iterable[FileAttribute[_]]
+                  )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
+                    ZIO.acquireRelease(createTempFile(suffix, prefix, fileAttributes))(release =
+                      deleteIfExists(_).ignore
+                    )
+
+                  override def createTempDirectoryScoped(
+                    prefix: Option[String],
+                    fileAttributes: Iterable[FileAttribute[_]]
+                  )(implicit trace: Trace): ZIO[Scope, IOException, Path] = ???
+
+                  override def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(path.getClass.getName.contains("Jimfs"))
+                      r <- ZIO.attempt(java.nio.file.Files.size(path)).orDie
+                    } yield r
+
+                  override def deleteIfExists(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Boolean] =
+                    for {
+                      _ <- ZIO
+                             .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                             .unless(path.getClass.getName.contains("Jimfs"))
+                      r <- ZFiles.deleteIfExists(path)
+                    } yield r
+
+                  def createTempFile(
+                    suffix: String = ".tmp",
+                    prefix: Option[String],
+                    fileAttributes: Iterable[FileAttribute[_]]
+                  )(implicit trace: Trace): ZIO[Any, IOException, Path] =
+                    ZIO.attempt {
+                      val p = prefix.getOrElse("")
+
+                      val fileName = s"$p${UUID.randomUUID().toString}$suffix"
+                      val path     = fs.getPath(fileName).javaPath
+                      println(path.getClass)
+                      path
+                    }.flatMap(path => attemptBlocking(Path.fromJava(JFiles.createFile(path, fileAttributes.toSeq: _*))))
+                      .refineToOrDie[IOException]
+                }
+      } yield files
+    )
 
 }

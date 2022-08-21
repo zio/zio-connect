@@ -7,19 +7,19 @@ import zio.stream.{ZSink, ZStream}
 import java.io.IOException
 
 trait FileConnector {
-  def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
+  def listDir(dir: => java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, java.nio.file.Path]
 
-  def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte]
+  def readFile(file: => java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
+  def tailFile(file: => java.nio.file.Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
+  def tailFileUsingWatchService(file: => java.nio.file.Path, freq: => Duration)(implicit
     trace: Trace
   ): ZStream[Any, IOException, Byte]
 
-  def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
+  def writeFile(file: => java.nio.file.Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
 
-  def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
+  def deleteFile(implicit trace: Trace): ZSink[Any, IOException, java.nio.file.Path, Nothing, Unit]
 
   def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
@@ -27,17 +27,17 @@ trait FileConnector {
 
 object FileConnector {
 
-  def listDir(dir: => Path): ZStream[FileConnector, IOException, Path] =
+  def listDir(dir: => java.nio.file.Path): ZStream[FileConnector, IOException, java.nio.file.Path] =
     ZStream.environmentWithStream(_.get.listDir(dir))
 
-  def readFile(file: => Path): ZStream[FileConnector, IOException, Byte] =
+  def readFile(file: => java.nio.file.Path): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.readFile(file))
 
-  def tailFile(file: => Path, freq: => Duration): ZStream[FileConnector, IOException, Byte] =
+  def tailFile(file: => java.nio.file.Path, freq: => Duration): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailFile(file, freq))
 
   def tailFileUsingWatchService(
-    file: => Path,
+    file: => java.nio.file.Path,
     freq: => Duration
   ): ZStream[FileConnector with Scope, IOException, Byte] =
     ZStream.environmentWithStream[FileConnector](_.get.tailFileUsingWatchService(file, freq))
@@ -46,10 +46,10 @@ object FileConnector {
    * Creates a file at given path and writes to it. If the path is to an already
    * existing file then the file contents will be overwritten.
    */
-  def writeFile(file: => Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
+  def writeFile(file: => java.nio.file.Path): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
 
-  val deleteFile: ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+  val deleteFile: ZSink[FileConnector, IOException, java.nio.file.Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteFile)
 
   def moveFile(locator: Path => Path): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
