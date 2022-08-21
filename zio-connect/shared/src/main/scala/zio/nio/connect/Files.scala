@@ -302,7 +302,6 @@ object Files {
 
                       val fileName = s"$p${UUID.randomUUID().toString}$suffix"
                       val path     = fs.getPath(fileName).javaPath
-                      println(path.getClass)
                       path
                     }.flatMap(path => attemptBlocking(Path.fromJava(JFiles.createFile(path, fileAttributes.toSeq: _*))))
                       .refineToOrDie[IOException]
