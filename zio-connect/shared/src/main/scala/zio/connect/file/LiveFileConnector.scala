@@ -8,7 +8,8 @@ import zio.nio.connect.Files
 
 import java.io.{FileNotFoundException, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
-import java.nio.file.StandardWatchEventKinds
+import java.nio.channels.FileChannel
+import java.nio.file.{StandardOpenOption, StandardWatchEventKinds}
 
 case class LiveFileConnector(files: Files, watchService: WatchService) extends FileConnector {
 
@@ -32,8 +33,8 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
                   if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
                 }.refineOrDie { case e: IOException => e }
       ref <- Ref.make(cursor)
-      _     <- ZIO.debug("after cursor")
-      _     <- ZIO.debug("before pollUpdates")
+      _   <- ZIO.debug("after cursor")
+      _   <- ZIO.debug("before pollUpdates")
       _   <- pollUpdates(file, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
@@ -42,17 +43,14 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       cursor   <- ref.get
       fileSize <- files.size(file)
       data <- attemptBlocking {
-                  println(s"fileSize $fileSize > cursor $cursor ???")
                 if (fileSize > cursor) {
-                  println("fileSize > cursor")
-                  //todo - file.toFile here makes it hang (in memory fs doesn't support this) - reimplement this
-                  val reader         = new RandomAccessFile(file.toFile, "r")
-                  val channel        = reader.getChannel
+                  val channel        = FileChannel.open(file, Seq(StandardOpenOption.READ): _*)
                   val dataSize: Long = channel.size - cursor
                   val bufSize        = if (dataSize > BUFFER_SIZE) BUFFER_SIZE else dataSize.toInt
                   val buffer         = ByteBuffer.allocate(bufSize)
                   val numBytesRead   = channel.read(buffer, cursor)
-                  reader.close
+                  channel.close
+                  println("aaa")
                   if (numBytesRead > 0) Some(buffer.array()) else None
                 } else None
               }.tapError(e => ZIO.debug(e.toString)).refineOrDie { case e: IOException => e }
@@ -134,7 +132,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     //todo - file.toFile here makes it hang (in memory fs doesn't support this) - reimplement this
     val reader = new RandomAccessFile(file.toFile, "r")
     println("After the raf")
-    val channel        = reader.getChannel
+    val channel = reader.getChannel
 //    val channel = java.nio.channels.FileChannel.open(file, Seq(StandardOpenOption.READ): _*)
     val dataSize: Long = channel.size - cursor
     if (dataSize > 0) {

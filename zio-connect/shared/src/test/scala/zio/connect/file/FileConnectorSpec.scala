@@ -131,13 +131,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           file      <- tempFileInDir(parentDir)
           _ <- Files
                  .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
-                 .repeat(Schedule.recurs(30) && Schedule.spaced(Duration.fromMillis(1000)))
-                 .fork
-          //todo - delete me when the test works for both specs
-          _ <- ZIO
-                 .attempt(java.nio.file.Files.size(file))
-                 .tap(s => ZIO.debug(s":::::$s"))
-                 .repeat(Schedule.recurs(30) && Schedule.spaced(Duration.fromMillis(1000)))
+                 .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
                  .fork
           stream = FileConnector.tailFile(file, Duration.fromMillis(1000))
           fiber <- stream
@@ -145,12 +139,12 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                      .take(3)
                      .runCollect
                      .fork
-//          _ <- TestClock
-//                 .adjust(Duration.fromMillis(3000))
+          _ <- TestClock
+                 .adjust(Duration.fromMillis(3000))
           r <- fiber.join
         } yield r
         assertZIO(prog)(equalTo(Chunk(str, str, str)))
-      } @@ withLiveClock
+      }
     )
 
   private lazy val tailFileUsingWatchServiceSuite =
