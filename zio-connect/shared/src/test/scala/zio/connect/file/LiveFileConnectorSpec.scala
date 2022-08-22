@@ -11,9 +11,9 @@ object LiveFileConnectorSpec extends FileConnectorSpec {
   override def spec =
     suite("LiveFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope with Live with Annotations with TestConfig](
+        Files.live,
         ZLayer.succeed(FileSystems.getDefault),
         WatchServiceLayers.live,
-        Files.live,
         LiveFileConnector.layer
       )
 

@@ -11,10 +11,10 @@ object InMemoryFileConnectorSpec extends FileConnectorSpec {
   override def spec =
     suite("InMemoryFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope with Live with Annotations with TestConfig](
+        Files.inMemory,
         ZLayer.succeed(Jimfs.newFileSystem(Configuration.forCurrentPlatform())),
         zioFileSystem,
         WatchServiceLayers.inMemory,
-        Files.inMemory,
         LiveFileConnector.layer
       )
 
