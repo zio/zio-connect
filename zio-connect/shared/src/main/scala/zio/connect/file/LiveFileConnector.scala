@@ -2,7 +2,7 @@ package zio.connect.file
 
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-import zio.nio.file.{WatchService}
+import zio.nio.file.WatchService
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.nio.connect.Files
 
@@ -10,7 +10,6 @@ import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.{Path, StandardOpenOption, StandardWatchEventKinds}
-
 
 case class LiveFileConnector(files: Files, watchService: WatchService) extends FileConnector {
 
