@@ -2,7 +2,7 @@ package zio.nio.connect
 
 import zio.nio.charset.Charset
 import zio.{Chunk, Scope, Trace, ZIO, ZLayer}
-import zio.nio.file.{FileSystem, Path, Files => ZFiles}
+import zio.nio.file.{Path, Files => ZFiles}
 import zio.stream.ZStream
 
 import java.io.IOException
@@ -135,100 +135,97 @@ object Files {
 
   })
 
-  val inMemory: ZLayer[FileSystem, Nothing, Files] =
-    ZLayer.fromZIO(
-      for {
-        fs                <- ZIO.service[FileSystem]
-        jimfsPathClassName = "com.google.common.jimfs.JimfsPath"
-        files = new Files {
-                  private def validatePath(path: JPath): ZIO[Any, Nothing, Any] =
-                    ZIO
-                      .die(
-                        new RuntimeException(
-                          s"Only $jimfsPathClassName are accepted in the inMemoryLayer. Instead was provided: ${path.getClass.getName}"
-                        )
-                      )
-                      .unless(path.getClass.getName.equals(jimfsPathClassName))
+  val inMemory: ZLayer[Any, Nothing, Files] =
+    ZLayer.succeed(
+      new Files {
+        val jimfsPathClassName = "com.google.common.jimfs.JimfsPath"
+        private def validatePath(path: JPath): ZIO[Any, Nothing, Any] =
+          ZIO
+            .die(
+              new RuntimeException(
+                s"Only $jimfsPathClassName are accepted in the inMemoryLayer. Instead was provided: ${path.getClass.getName}"
+              )
+            )
+            .unless(path.getClass.getName.equals(jimfsPathClassName))
 
-                  override def list(path: JPath)(implicit
-                    trace: Trace
-                  ): ZStream[Any, IOException, JPath] =
-                    path match {
-                      case a if a.getClass.getName.equals(jimfsPathClassName) =>
-                        ZStream.fromJavaStreamZIO(ZIO.attempt(JFiles.list(path))).refineOrDie { case a: IOException =>
-                          a
-                        }
-                      case a =>
-                        ZStream.die(
-                          new RuntimeException(
-                            s"Only $jimfsPathClassName are accepted in the inMemoryLayer. Instead was provided: ${a.getClass.getName}"
-                          )
-                        )
-                    }
+        override def list(path: JPath)(implicit
+          trace: Trace
+        ): ZStream[Any, IOException, JPath] =
+          path match {
+            case a if a.getClass.getName.equals(jimfsPathClassName) =>
+              ZStream.fromJavaStreamZIO(ZIO.attempt(JFiles.list(path))).refineOrDie { case a: IOException =>
+                a
+              }
+            case a =>
+              ZStream.die(
+                new RuntimeException(
+                  s"Only $jimfsPathClassName are accepted in the inMemoryLayer. Instead was provided: ${a.getClass.getName}"
+                )
+              )
+          }
 
-                  override def createTempFileInScoped(
-                    dir: JPath,
-                    suffix: String,
-                    prefix: Option[String],
-                    fileAttributes: Iterable[FileAttribute[_]]
-                  )(implicit trace: Trace): ZIO[Scope, IOException, JPath] =
-                    for {
-                      _ <- validatePath(dir)
-                      r <- ZFiles
-                             .createTempFileInScoped(Path.fromJava(dir), suffix, prefix, fileAttributes)
-                             .map(_.javaPath)
-                    } yield r
+        override def createTempFileInScoped(
+          dir: JPath,
+          suffix: String,
+          prefix: Option[String],
+          fileAttributes: Iterable[FileAttribute[_]]
+        )(implicit trace: Trace): ZIO[Scope, IOException, JPath] =
+          for {
+            _ <- validatePath(dir)
+            r <- ZFiles
+                   .createTempFileInScoped(Path.fromJava(dir), suffix, prefix, fileAttributes)
+                   .map(_.javaPath)
+          } yield r
 
-                  override def notExists(path: JPath, linkOptions: LinkOption*)(implicit
-                    trace: Trace
-                  ): ZIO[Any, Nothing, Boolean] =
-                    for {
-                      _ <- validatePath(path)
-                      r <- ZIO.attempt(JFiles.notExists(path)).orDie
-                    } yield r
+        override def notExists(path: JPath, linkOptions: LinkOption*)(implicit
+          trace: Trace
+        ): ZIO[Any, Nothing, Boolean] =
+          for {
+            _ <- validatePath(path)
+            r <- ZIO.attempt(JFiles.notExists(path)).orDie
+          } yield r
 
-                  override def move(source: JPath, target: JPath, copyOptions: CopyOption*)(implicit
-                    trace: Trace
-                  ): ZIO[Any, IOException, Unit] =
-                    for {
-                      _ <- validatePath(source)
-                      _ <- validatePath(target)
-                      _ <- ZFiles.move(Path.fromJava(source), Path.fromJava(target), copyOptions: _*)
-                    } yield ()
+        override def move(source: JPath, target: JPath, copyOptions: CopyOption*)(implicit
+          trace: Trace
+        ): ZIO[Any, IOException, Unit] =
+          for {
+            _ <- validatePath(source)
+            _ <- validatePath(target)
+            _ <- ZFiles.move(Path.fromJava(source), Path.fromJava(target), copyOptions: _*)
+          } yield ()
 
-                  override def delete(path: JPath)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
-                    for {
-                      _ <- validatePath(path)
-                      _ <- ZIO.attempt(JFiles.delete(path)).refineToOrDie[IOException]
-                    } yield ()
+        override def delete(path: JPath)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+          for {
+            _ <- validatePath(path)
+            _ <- ZIO.attempt(JFiles.delete(path)).refineToOrDie[IOException]
+          } yield ()
 
-                  override def writeLines(
-                    path: JPath,
-                    lines: Iterable[CharSequence],
-                    charset: Charset,
-                    openOptions: Set[OpenOption]
-                  )(implicit trace: Trace): ZIO[Any, IOException, Unit] =
-                    for {
-                      _ <- validatePath(path)
-                      _ <- ZFiles.writeLines(Path.fromJava(path), lines, charset, openOptions)
-                    } yield ()
+        override def writeLines(
+          path: JPath,
+          lines: Iterable[CharSequence],
+          charset: Charset,
+          openOptions: Set[OpenOption]
+        )(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+          for {
+            _ <- validatePath(path)
+            _ <- ZFiles.writeLines(Path.fromJava(path), lines, charset, openOptions)
+          } yield ()
 
-                  override def writeBytes(path: JPath, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
-                    trace: Trace
-                  ): ZIO[Any, IOException, Unit] =
-                    for {
-                      _ <- validatePath(path)
-                      _ <- ZFiles.writeBytes(Path.fromJava(path), bytes, openOptions: _*)
-                    } yield ()
+        override def writeBytes(path: JPath, bytes: Chunk[Byte], openOptions: OpenOption*)(implicit
+          trace: Trace
+        ): ZIO[Any, IOException, Unit] =
+          for {
+            _ <- validatePath(path)
+            _ <- ZFiles.writeBytes(Path.fromJava(path), bytes, openOptions: _*)
+          } yield ()
 
-                  override def size(path: JPath)(implicit trace: Trace): ZIO[Any, IOException, Long] =
-                    for {
-                      _ <- validatePath(path)
-                      r <- ZIO.attempt(JFiles.size(path)).orDie
-                    } yield r
+        override def size(path: JPath)(implicit trace: Trace): ZIO[Any, IOException, Long] =
+          for {
+            _ <- validatePath(path)
+            r <- ZIO.attempt(JFiles.size(path)).orDie
+          } yield r
 
-                }
-      } yield files
+      }
     )
 
 }
