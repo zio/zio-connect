@@ -1,7 +1,6 @@
 package zio.connect.file
 
 import zio.nio.connect.Files
-import zio.nio.file.Path
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, withLiveClock}
@@ -324,9 +323,6 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       r  <- ZIO.attempt(java.nio.file.Files.createFile(p))
     } yield r)(p => ZIO.attempt(java.nio.file.Files.deleteIfExists(p)).orDie)
 
-  lazy val tempFile: ZIO[Scope with Files, Throwable, Path] =
-    Files.createTempFileScoped(UUID.randomUUID().toString, None, List.empty)
-
   lazy val tempDirJava: ZIO[Scope with java.nio.file.FileSystem, Throwable, java.nio.file.Path] =
     ZIO.acquireRelease(for {
       fs <- ZIO.service[java.nio.file.FileSystem]
@@ -337,9 +333,6 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         .attempt(java.nio.file.Files.deleteIfExists(p))
         .orDie
     )
-
-  lazy val tempDir: ZIO[Scope with Files, Throwable, Path] =
-    Files.createTempDirectoryScoped(Some(UUID.randomUUID().toString), List.empty)
 
   def tempFileInDir(dir: java.nio.file.Path): ZIO[Scope with Files, Throwable, java.nio.file.Path] =
     Files.createTempFileInScoped(dir, UUID.randomUUID().toString, None, List.empty)

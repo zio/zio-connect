@@ -48,11 +48,6 @@ trait Files {
     fileAttributes: Iterable[FileAttribute[_]] = Nil
   )(implicit trace: Trace): ZIO[Scope, IOException, Path]
 
-  def createTempDirectoryScoped(
-    prefix: Option[String],
-    fileAttributes: Iterable[FileAttribute[_]]
-  )(implicit trace: Trace): ZIO[Scope, IOException, Path]
-
   def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long]
 
   def deleteIfExists(path: Path)(implicit trace: Trace): ZIO[Any, IOException, Boolean]
@@ -80,13 +75,6 @@ object Files {
       service.createTempFileScoped(suffix, prefix, fileAttributes)
     }
 
-  def createTempDirectoryScoped(
-    prefix: Option[String],
-    fileAttributes: Iterable[FileAttribute[_]]
-  ): ZIO[Scope with Files, IOException, Path] =
-    ZIO.serviceWithZIO[Files] { service =>
-      service.createTempDirectoryScoped(prefix, fileAttributes)
-    }
 
   def notExists(path: java.nio.file.Path, linkOptions: LinkOption*): ZIO[Files, Nothing, Boolean] =
     ZIO.environmentWithZIO(_.get.notExists(path, linkOptions: _*))
@@ -94,7 +82,11 @@ object Files {
   def list(path: java.nio.file.Path): ZStream[Files, IOException, java.nio.file.Path] =
     ZStream.environmentWithStream(_.get.list(path))
 
-  def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*): ZIO[Files, IOException, Unit] =
+  def move(
+    source: java.nio.file.Path,
+    target: java.nio.file.Path,
+    copyOptions: CopyOption*
+  ): ZIO[Files, IOException, Unit] =
     ZIO.environmentWithZIO(_.get.move(source, target, copyOptions: _*))
 
   def delete(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Files, IOException, Unit] =
@@ -165,11 +157,6 @@ object Files {
     )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
       ZFiles.createTempFileScoped(suffix, prefix, fileAttributes)
 
-    override def createTempDirectoryScoped(
-      prefix: Option[String],
-      fileAttributes: Iterable[FileAttribute[_]]
-    )(implicit trace: Trace): ZIO[Scope, IOException, Path] =
-      ZFiles.createTempDirectoryScoped(prefix, fileAttributes)
 
     override def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
       ZFiles.size(Path.fromJava(path))
@@ -181,17 +168,23 @@ object Files {
   val inMemory: ZLayer[FileSystem, Nothing, Files] =
     ZLayer.fromZIO(
       for {
-        fs <- ZIO.service[FileSystem]
+        fs                <- ZIO.service[FileSystem]
+        jimfsPathClassName = "com.google.common.jimfs.JimfsPath"
         files = new Files {
                   override def list(path: java.nio.file.Path)(implicit
                     trace: Trace
                   ): ZStream[Any, IOException, java.nio.file.Path] =
                     path match {
-                      case a if a.getClass.getName.contains("Jimfs") =>
+                      case a if a.getClass.getName.equals(jimfsPathClassName) =>
                         ZStream.fromJavaStreamZIO(ZIO.attempt(java.nio.file.Files.list(path))).refineOrDie {
                           case a: IOException => a
                         }
-                      case _ => ZStream.die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
+                      case a =>
+                        ZStream.die(
+                          new RuntimeException(
+                            s"Only $jimfsPathClassName are accepted in the inMemoryLayer. Instead was provided: ${a.getClass.getName}"
+                          )
+                        )
                     }
 
                   override def createTempFileInScoped(
@@ -203,7 +196,7 @@ object Files {
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(dir.getClass.getName.contains("Jimfs"))
+                             .unless(dir.getClass.getName.equals(jimfsPathClassName))
                       r <- ZFiles
                              .createTempFileInScoped(Path.fromJava(dir), suffix, prefix, fileAttributes)
                              .map(_.javaPath)
@@ -213,21 +206,21 @@ object Files {
                     trace: Trace
                   ): ZIO[Any, Nothing, Boolean] =
                     path match {
-                      case a if a.getClass.getName.contains("Jimfs") =>
+                      case a if a.getClass.getName.equals(jimfsPathClassName) =>
                         ZIO.attempt(java.nio.file.Files.notExists(path)).orDie
                       case _ => ZIO.die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
                     }
 
-                  override def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*)(implicit
-                    trace: Trace
+                  override def move(source: java.nio.file.Path, target: java.nio.file.Path, copyOptions: CopyOption*)(
+                    implicit trace: Trace
                   ): ZIO[Any, IOException, Unit] =
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(source.getClass.getName.contains("Jimfs"))
+                             .unless(source.getClass.getName.equals(jimfsPathClassName))
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(target.getClass.getName.contains("Jimfs"))
+                             .unless(target.getClass.getName.equals(jimfsPathClassName))
                       _ <- ZFiles.move(Path.fromJava(source), Path.fromJava(target), copyOptions: _*)
                     } yield ()
 
@@ -235,7 +228,7 @@ object Files {
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(path.getClass.getName.contains("Jimfs"))
+                             .unless(path.getClass.getName.equals(jimfsPathClassName))
                       _ <- ZIO.attempt(java.nio.file.Files.delete(path)).refineToOrDie[IOException]
                     } yield ()
 
@@ -248,7 +241,7 @@ object Files {
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(path.getClass.getName.contains("Jimfs"))
+                             .unless(path.getClass.getName.equals(jimfsPathClassName))
                       _ <- ZFiles.writeLines(Path.fromJava(path), lines, charset, openOptions)
                     } yield ()
 
@@ -258,7 +251,7 @@ object Files {
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(path.getClass.getName.contains("Jimfs"))
+                             .unless(path.getClass.getName.equals(jimfsPathClassName))
                       _ <- ZFiles.writeBytes(Path.fromJava(path), bytes, openOptions: _*)
                     } yield ()
 
@@ -271,16 +264,11 @@ object Files {
                       deleteIfExists(_).ignore
                     )
 
-                  override def createTempDirectoryScoped(
-                    prefix: Option[String],
-                    fileAttributes: Iterable[FileAttribute[_]]
-                  )(implicit trace: Trace): ZIO[Scope, IOException, Path] = ???
-
                   override def size(path: java.nio.file.Path)(implicit trace: Trace): ZIO[Any, IOException, Long] =
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(path.getClass.getName.contains("Jimfs"))
+                             .unless(path.getClass.getName.equals(jimfsPathClassName))
                       r <- ZIO.attempt(java.nio.file.Files.size(path)).orDie
                     } yield r
 
@@ -288,7 +276,7 @@ object Files {
                     for {
                       _ <- ZIO
                              .die(new RuntimeException("Only JimfsPath are accepted in the inMemoryLayer"))
-                             .unless(path.getClass.getName.contains("Jimfs"))
+                             .unless(path.getClass.getName.equals(jimfsPathClassName))
                       r <- ZFiles.deleteIfExists(path)
                     } yield r
 
