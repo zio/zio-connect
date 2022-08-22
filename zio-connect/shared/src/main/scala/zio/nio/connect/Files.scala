@@ -66,16 +66,6 @@ object Files {
       service.createTempFileInScoped(dir, suffix, prefix, fileAttributes)
     }
 
-  def createTempFileScoped(
-    suffix: String = ".tmp",
-    prefix: Option[String] = None,
-    fileAttributes: Iterable[FileAttribute[_]] = Nil
-  ): ZIO[Scope with Files, IOException, Path] =
-    ZIO.serviceWithZIO[Files] { service =>
-      service.createTempFileScoped(suffix, prefix, fileAttributes)
-    }
-
-
   def notExists(path: java.nio.file.Path, linkOptions: LinkOption*): ZIO[Files, Nothing, Boolean] =
     ZIO.environmentWithZIO(_.get.notExists(path, linkOptions: _*))
 
