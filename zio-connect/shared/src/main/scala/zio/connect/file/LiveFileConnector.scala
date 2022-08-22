@@ -2,14 +2,15 @@ package zio.connect.file
 
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.{attemptBlocking, whenZIO}
-import zio.nio.file.{Path, WatchService}
+import zio.nio.file.{WatchService}
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.nio.connect.Files
 
 import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{StandardOpenOption, StandardWatchEventKinds}
+import java.nio.file.{Path, StandardOpenOption, StandardWatchEventKinds}
+
 
 case class LiveFileConnector(files: Files, watchService: WatchService) extends FileConnector {
 
@@ -17,13 +18,13 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
 
   lazy val EVENT_NAME = StandardWatchEventKinds.ENTRY_MODIFY.name
 
-  def listDir(dir: => java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, java.nio.file.Path] =
+  def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     files.list(dir).refineOrDie { case e: IOException => e }
 
-  def readFile(file: => java.nio.file.Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+  def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.fromPath(file).refineOrDie { case e: IOException => e }
 
-  def tailFile(file: => java.nio.file.Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+  def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     ZStream.unwrap(for {
       _     <- whenZIO(files.notExists(file))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
@@ -35,7 +36,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       _   <- pollUpdates(file, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
-  private def pollUpdates(file: java.nio.file.Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
+  private def pollUpdates(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     for {
       cursor   <- ref.get
       fileSize <- files.size(file)
@@ -54,7 +55,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       _ <- ZIO.foreach(data)(d => ref.update(_ => cursor + d.size))
     } yield ()
 
-  def tailFileUsingWatchService(file: => java.nio.file.Path, freq: => Duration)(implicit
+  def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
   ): ZStream[Any, IOException, Byte] =
     ZStream.unwrapScoped(for {
@@ -70,7 +71,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       _ <- watchUpdates(file, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
-  private def initialRead(file: java.nio.file.Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
+  private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     (for {
       cursor <- ZIO.attempt {
                   val fileSize = java.nio.file.Files.size(file)
@@ -82,13 +83,13 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       _    <- ZIO.foreach(data)(d => ref.update(_ + d.size))
     } yield ()).refineOrDie { case e: IOException => e }
 
-  private def registerWatchService(file: java.nio.file.Path): ZIO[Scope, IOException, WatchService] =
+  private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
     (for {
-      _ <- Path.fromJava(file).register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+      _ <- zio.nio.file.Path.fromJava(file).register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
     } yield watchService).refineOrDie { case e: IOException => e }
 
   private def watchUpdates(
-    file: java.nio.file.Path,
+    file: Path,
     watchService: WatchService,
     queue: Queue[Byte],
     ref: Ref[Long]
@@ -101,7 +102,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     } yield ()
 
   private def readData(
-    file: java.nio.file.Path,
+    file: Path,
     watchService: WatchService,
     cursor: Long
   ): ZIO[Any, IOException, Option[Array[Byte]]] =
@@ -117,7 +118,7 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
       case _ => ZIO.none
     }.refineOrDie { case e: IOException => e }
 
-  private def readBytes(file: java.nio.file.Path, cursor: Long): Option[Array[Byte]] = {
+  private def readBytes(file: Path, cursor: Long): Option[Array[Byte]] = {
     val channel        = FileChannel.open(file, Seq(StandardOpenOption.READ): _*)
     val dataSize: Long = channel.size - cursor
     if (dataSize > 0) {
@@ -132,17 +133,17 @@ case class LiveFileConnector(files: Files, watchService: WatchService) extends F
     }
   }
 
-  override def writeFile(file: => java.nio.file.Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
+  override def writeFile(file: => Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
     ZSink
       .fromPath(file)
       .refineOrDie { case e: IOException => e }
       .as(())
       .ignoreLeftover
 
-  override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, java.nio.file.Path, Nothing, Unit] =
+  override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(file => files.delete(file))
 
-  override def moveFile(locator: java.nio.file.Path => java.nio.file.Path)(implicit trace: Trace): ZSink[Any, IOException, java.nio.file.Path, Nothing, Unit] =
+  override def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(file => files.move(file, locator(file)))
 
 }
