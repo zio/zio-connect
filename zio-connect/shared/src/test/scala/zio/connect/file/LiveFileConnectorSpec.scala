@@ -1,6 +1,6 @@
 package zio.connect.file
 
-import zio.{Scope, ZIO, ZLayer}
+import zio.{Scope, ZLayer}
 import zio.nio.connect.{Files, WatchServiceLayers}
 import zio.test.{Annotations, Live, TestConfig}
 
@@ -12,16 +12,9 @@ object LiveFileConnectorSpec extends FileConnectorSpec {
     suite("LiveFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope with Live with Annotations with TestConfig](
         ZLayer.succeed(FileSystems.getDefault),
-        zFileSystem,
-        WatchServiceLayers.inMemory,
+        WatchServiceLayers.live,
         Files.live,
         LiveFileConnector.layer
       )
 
-  private val zFileSystem = ZLayer.fromZIO(
-    for {
-      fs <- ZIO.service[java.nio.file.FileSystem]
-      r   = zio.nio.file.FileSystem.fromJava(fs)
-    } yield r
-  )
 }

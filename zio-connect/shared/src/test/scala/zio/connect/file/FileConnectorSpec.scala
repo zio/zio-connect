@@ -5,7 +5,7 @@ import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, withLiveClock}
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO}
+import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO, ZLayer}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption}
@@ -336,5 +336,16 @@ trait FileConnectorSpec extends ZIOSpecDefault {
 
   def tempFileInDir(dir: java.nio.file.Path): ZIO[Scope with Files, Throwable, java.nio.file.Path] =
     Files.createTempFileInScoped(dir, UUID.randomUUID().toString, None, List.empty)
+
+}
+
+object FileConnectorSpec {
+
+  val zioFileSystem = ZLayer.fromZIO(
+    for {
+      fs <- ZIO.service[java.nio.file.FileSystem]
+      r   = zio.nio.file.FileSystem.fromJava(fs)
+    } yield r
+  )
 
 }
