@@ -127,7 +127,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val str = "test-value"
         val prog = for {
           parentDir <- tempDirJavaScoped
-          file      <- tempFileInDir(parentDir)
+          file      <- tempFileInDirScoped(parentDir)
           _ <- Files
                  .writeLines(Path.fromJava(file), List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
@@ -164,7 +164,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val str = "test-value"
         val prog = for {
           dir   <- tempDirJavaScoped
-          file  <- tempFileInDir(dir)
+          file  <- tempFileInDirScoped(dir)
           stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
           fiber <- stream
                      .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
@@ -220,7 +220,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails for directory not empty") {
         val prog = for {
           sourceDir <- tempDirJavaScoped
-          _         <- tempFileInDir(sourceDir)
+          _         <- tempFileInDirScoped(sourceDir)
 
           r <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
         } yield r
@@ -284,7 +284,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         for {
           sourceDir  <- tempDirJava
           lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-          sourceFile <- tempFileInDir(sourceDir)
+          sourceFile <- tempFileInDirScoped(sourceDir)
           _ <-
             Files.writeLines(Path.fromJava(sourceFile), lines)
 
@@ -358,7 +358,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       r  <- ZIO.attempt(JFiles.createDirectory(p))
     } yield r
 
-  def tempFileInDir(dir: java.nio.file.Path): ZIO[Scope, Throwable, java.nio.file.Path] =
+  def tempFileInDirScoped(dir: java.nio.file.Path): ZIO[Scope, Throwable, java.nio.file.Path] =
     ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
       ZIO.attempt(JFiles.deleteIfExists(p)).orDie
     )
