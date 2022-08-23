@@ -12,6 +12,7 @@ object LiveFileConnectorSpec extends FileConnectorSpec {
     suite("LiveFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope with Live with Annotations with TestConfig](
         ZLayer.succeed(FileSystems.getDefault),
+        FileOps.liveFileOps,
         WatchServiceLayers.live,
         LiveFileConnector.layer
       )
