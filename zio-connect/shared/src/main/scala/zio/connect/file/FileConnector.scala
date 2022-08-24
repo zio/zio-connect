@@ -52,7 +52,7 @@ object FileConnector {
   val deleteFile: ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteFile)
 
-  def moveFile(locator: java.nio.file.Path => java.nio.file.Path): ZSink[FileConnector, IOException, java.nio.file.Path, Nothing, Unit] =
+  def moveFile(locator: Path => Path): ZSink[FileConnector, IOException, java.nio.file.Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFile(locator))
 
 }
