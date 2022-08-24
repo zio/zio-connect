@@ -1,8 +1,8 @@
 package zio.connect.file
 
-import zio.nio.file.Path
 import zio.{Duration, Scope, Trace}
 import zio.stream.{ZSink, ZStream}
+import java.nio.file.Path
 
 import java.io.IOException
 
