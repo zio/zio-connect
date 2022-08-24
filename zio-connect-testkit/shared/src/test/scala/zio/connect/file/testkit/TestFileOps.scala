@@ -9,7 +9,7 @@ import java.util.UUID
 
 object TestFileOps {
 
-  val inMemory = ZLayer.fromZIO(
+  val layerWithCustomFileSystem = ZLayer.fromZIO(
     for {
       fs <- ZIO.service[java.nio.file.FileSystem]
     } yield new FileOps {

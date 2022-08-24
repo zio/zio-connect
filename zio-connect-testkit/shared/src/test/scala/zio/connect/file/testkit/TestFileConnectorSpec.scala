@@ -10,7 +10,7 @@ object TestFileConnectorSpec extends FileConnectorSpec {
     suite("TestFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope](
         ZLayer.succeed(Jimfs.newFileSystem(Configuration.forCurrentPlatform())),
-        TestFileOps.inMemory,
+        TestFileOps.layerWithCustomFileSystem,
         TestFileConnector.layerWithCustomFileSystem
       )
 
