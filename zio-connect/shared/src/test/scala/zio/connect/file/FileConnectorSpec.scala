@@ -174,8 +174,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                  .writeLines(Path.fromJava(file), List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(500)))
                  .fork
-          _ <- TestClock.adjust(Duration.fromMillis(100)).repeat(Schedule.recurs(301)).fork
-          r <- fiber.join.timeout(Duration.fromMillis(30000))
+          _ <- TestClock.adjust(Duration.fromMillis(100)).repeat(Schedule.recurs(151)).fork
+          r <- fiber.join.timeout(Duration.fromMillis(15000))
         } yield r
         assertZIO(prog)(equalTo(Some(Chunk(str, str, str))))
       }
