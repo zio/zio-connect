@@ -3,7 +3,7 @@ package zio.connect.file
 import zio.nio.file.{Path, Files => ZFiles}
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, withLiveClock}
+import zio.test.TestAspect.withLiveClock
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
 import zio.{Cause, Chunk, Duration, Schedule, ZIO}
 
@@ -179,7 +179,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield r
         assertZIO(prog)(equalTo(Some(Chunk(str, str, str))))
         //flaky as a backup to account for WatchService & fileSystem handling events eventually
-      } @@ withLiveClock @@ flaky
+      } @@ withLiveClock
     )
 
   private lazy val deleteFileSuite =

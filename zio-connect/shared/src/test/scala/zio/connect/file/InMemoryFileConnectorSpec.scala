@@ -2,14 +2,14 @@ package zio.connect.file
 
 import com.google.common.jimfs.{Configuration, Jimfs}
 import zio.nio.connect.WatchServiceLayers
-import zio.test.{Annotations, Live, TestConfig}
+import zio.test.Live
 import zio.{Scope, ZIO, ZLayer}
 
 object InMemoryFileConnectorSpec extends FileConnectorSpec {
 
   override def spec =
     suite("InMemoryFileConnectorSpec")(fileConnectorSpec)
-      .provideSome[Scope with Live with Annotations with TestConfig](
+      .provideSome[Scope with Live](
         ZLayer.succeed(Jimfs.newFileSystem(Configuration.forCurrentPlatform())),
         zioFileSystem,
         FileOps.inMemory,
