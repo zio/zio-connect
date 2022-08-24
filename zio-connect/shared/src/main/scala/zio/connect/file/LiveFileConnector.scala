@@ -27,7 +27,7 @@ case class LiveFileConnector(watchService: WatchService) extends FileConnector {
       _     <- whenZIO(Files.notExists(ZPath.fromJava(file)))(ZIO.fail(new FileNotFoundException(file.toString)))
       queue <- Queue.bounded[Byte](BUFFER_SIZE)
       cursor <- ZIO.attempt {
-                  val fileSize = java.nio.file.Files.size(file)
+                  val fileSize = JFiles.size(file)
                   if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
                 }.refineOrDie { case e: IOException => e }
       ref <- Ref.make(cursor)
@@ -72,7 +72,7 @@ case class LiveFileConnector(watchService: WatchService) extends FileConnector {
   private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     (for {
       cursor <- ZIO.attempt {
-                  val fileSize = java.nio.file.Files.size(file)
+                  val fileSize = JFiles.size(file)
                   if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
                 }
       _    <- ref.update(_ + cursor)
@@ -83,7 +83,7 @@ case class LiveFileConnector(watchService: WatchService) extends FileConnector {
 
   private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
     (for {
-      _ <- zio.nio.file.Path.fromJava(file).register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+      _ <- ZPath.fromJava(file).register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
     } yield watchService).refineOrDie { case e: IOException => e }
 
   private def watchUpdates(
