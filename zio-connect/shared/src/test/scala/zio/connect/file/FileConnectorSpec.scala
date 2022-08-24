@@ -234,13 +234,12 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val ioException: IOException = new IOException("test ioException")
         val prog = {
           for {
-            fs             <- ZIO.service[java.nio.file.FileSystem]
-            path           <- FileOps.tempFileScoped
-            newDir         <- FileOps.tempDirScoped
-            destinationPath = fs.getPath(newDir.toString, path.toString)
-            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
-            sink            = FileConnector.moveFile(_ => destinationPath)
-            r              <- (failingStream >>> sink).exit
+            path            <- FileOps.tempFileScoped
+            newDir          <- FileOps.tempDirScoped
+            destinationPath <- FileOps.getPath(newDir.toString, path.toString)
+            failingStream    = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
+            sink             = FileConnector.moveFile(_ => destinationPath)
+            r               <- (failingStream >>> sink).exit
           } yield r
         }
         assertZIO(prog)(fails(equalTo(ioException)))
@@ -249,29 +248,27 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         object NonIOException extends Throwable
         val prog = {
           for {
-            path           <- FileOps.tempFileScoped
-            newDir         <- FileOps.tempDirScoped
-            fs             <- ZIO.service[java.nio.file.FileSystem]
-            destinationPath = fs.getPath(newDir.toString, path.getFileName.toString)
-            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
-            sink            = FileConnector.moveFile(_ => destinationPath)
-            r              <- (failingStream >>> sink).exit
+            path            <- FileOps.tempFileScoped
+            newDir          <- FileOps.tempDirScoped
+            destinationPath <- FileOps.getPath(newDir.toString, path.getFileName.toString)
+            failingStream    = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
+            sink             = FileConnector.moveFile(_ => destinationPath)
+            r               <- (failingStream >>> sink).exit
           } yield r
         }
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
       test("move a file") {
         for {
-          sourcePath     <- FileOps.tempFileScoped
-          lines           = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-          _              <- ZFiles.writeLines(Path.fromJava(sourcePath), lines)
-          stream          = ZStream(sourcePath)
-          newFilename     = UUID.randomUUID().toString
-          fs             <- ZIO.service[java.nio.file.FileSystem]
-          destinationDir <- FileOps.tempDirScoped
-          destinationPath = fs.getPath(destinationDir.toString, newFilename)
-          sink            = FileConnector.moveFile(_ => destinationPath)
-          _              <- (stream >>> sink).exit
+          sourcePath      <- FileOps.tempFileScoped
+          lines            = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+          _               <- ZFiles.writeLines(Path.fromJava(sourcePath), lines)
+          stream           = ZStream(sourcePath)
+          newFilename      = UUID.randomUUID().toString
+          destinationDir  <- FileOps.tempDirScoped
+          destinationPath <- FileOps.getPath(destinationDir.toString, newFilename)
+          sink             = FileConnector.moveFile(_ => destinationPath)
+          _               <- (stream >>> sink).exit
           linesInNewFile <- ZStream
                               .fromPath(destinationPath)
                               .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
@@ -288,8 +285,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           _ <-
             ZFiles.writeLines(Path.fromJava(sourceFile), lines)
 
-          fs <- ZIO.service[java.nio.file.FileSystem]
-          destinationDirPath <- ZIO.acquireRelease(ZIO.attempt(fs.getPath(UUID.randomUUID().toString)))(p =>
+          destinationDirPath <- ZIO.acquireRelease(FileOps.getPath(UUID.randomUUID().toString))(p =>
                                   ZFiles.deleteIfExists(Path.fromJava(p)).orDie
                                 )
           _ <-

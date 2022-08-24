@@ -13,7 +13,7 @@ object InMemoryFileConnectorSpec extends FileConnectorSpec {
       .provideSome[Scope with Live with Annotations with TestConfig](
         ZLayer.succeed(Jimfs.newFileSystem(Configuration.forCurrentPlatform())),
         zioFileSystem,
-        FileOps.inMemoryFileOps,
+        FileOps.inMemory,
         WatchServiceLayers.inMemory,
         LiveFileConnector.layer
       )

@@ -2,14 +2,15 @@ package zio.connect.file
 
 import zio.{Scope, ZIO, ZLayer}
 import zio.nio.file.{Path, Files => ZFiles}
-import java.nio.file.{Files => JFiles, Path => JPath}
 
+import java.nio.file.{Paths, Files => JFiles, Path => JPath}
 import java.util.UUID
 
 trait FileOps {
   def tempFileScoped: ZIO[Scope, Throwable, JPath]
   def tempDirScoped: ZIO[Scope, Throwable, JPath]
   def tempFileInDirScoped(dir: JPath): ZIO[Scope, Throwable, JPath]
+  def getPath(first: String, more: String*): ZIO[Any, Throwable, JPath]
 }
 
 object FileOps {
@@ -23,7 +24,10 @@ object FileOps {
   def tempFileInDirScoped(dir: JPath): ZIO[Scope with FileOps, Throwable, JPath] =
     ZIO.serviceWithZIO[FileOps](_.tempFileInDirScoped(dir))
 
-  val liveFileOps = ZLayer.succeed(
+  def getPath(first: String, more: String*): ZIO[Any with FileOps, Throwable, JPath] =
+    ZIO.serviceWithZIO[FileOps](_.getPath(first, more: _*))
+
+  val live = ZLayer.succeed(
     new FileOps {
       override def tempFileScoped: ZIO[Scope, Throwable, JPath] =
         ZIO.acquireRelease(
@@ -39,10 +43,13 @@ object FileOps {
         ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
           ZIO.attempt(JFiles.deleteIfExists(p)).orDie
         )
+
+      override def getPath(first: String, more: String*): ZIO[Any, Throwable, JPath] =
+        ZIO.attempt(Paths.get(first, more: _*))
     }
   )
 
-  val inMemoryFileOps = ZLayer.fromZIO(
+  val inMemory = ZLayer.fromZIO(
     for {
       fs <- ZIO.service[java.nio.file.FileSystem]
     } yield new FileOps {
@@ -66,6 +73,10 @@ object FileOps {
         ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
           ZIO.attempt(JFiles.deleteIfExists(p)).orDie
         )
+
+      override def getPath(first: String, more: String*): ZIO[Any, Throwable, JPath] =
+        ZIO.attempt(fs.getPath(first, more: _*))
+
     }
   )
 
