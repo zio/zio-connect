@@ -7,26 +7,26 @@ import java.nio.file.{Files => JFiles, Path => JPath}
 import java.util.UUID
 
 trait FileOps {
-  def tempFileJavaScoped: ZIO[Scope, Throwable, JPath]
-  def tempDirJavaScoped: ZIO[Scope, Throwable, JPath]
+  def tempFileScoped: ZIO[Scope, Throwable, JPath]
+  def tempDirScoped: ZIO[Scope, Throwable, JPath]
 }
 
 object FileOps {
 
-  def tempFileJavaScoped: ZIO[Scope with FileOps, Throwable, JPath] =
-    ZIO.serviceWithZIO[FileOps](_.tempFileJavaScoped)
+  def tempFileScoped: ZIO[Scope with FileOps, Throwable, JPath] =
+    ZIO.serviceWithZIO[FileOps](_.tempFileScoped)
 
-  def tempDirJavaScoped: ZIO[Scope with FileOps, Throwable, JPath] =
-    ZIO.serviceWithZIO[FileOps](_.tempDirJavaScoped)
+  def tempDirScoped: ZIO[Scope with FileOps, Throwable, JPath] =
+    ZIO.serviceWithZIO[FileOps](_.tempDirScoped)
 
   val liveFileOps = ZLayer.succeed(
     new FileOps {
-      override def tempFileJavaScoped: ZIO[Scope, Throwable, JPath] =
+      override def tempFileScoped: ZIO[Scope, Throwable, JPath] =
         ZIO.acquireRelease(
           ZIO.attempt(JFiles.createTempFile(UUID.randomUUID().toString, ""))
         )(p => ZFiles.deleteIfExists(Path.fromJava(p)).orDie)
 
-      override def tempDirJavaScoped: ZIO[Scope, Throwable, JPath] =
+      override def tempDirScoped: ZIO[Scope, Throwable, JPath] =
         ZIO.acquireRelease(
           ZIO.attempt(JFiles.createTempDirectory(UUID.randomUUID().toString))
         )(p => ZFiles.deleteIfExists(Path.fromJava(p)).orDie)
@@ -37,7 +37,7 @@ object FileOps {
     for {
       fs <- ZIO.service[java.nio.file.FileSystem]
     } yield new FileOps {
-      override def tempFileJavaScoped: ZIO[Scope, Throwable, JPath] =
+      override def tempFileScoped: ZIO[Scope, Throwable, JPath] =
         ZIO.acquireRelease(
           ZIO.attempt {
             val tmpPath = fs.getPath(UUID.randomUUID().toString)
@@ -45,7 +45,7 @@ object FileOps {
           }
         )(p => ZFiles.deleteIfExists(Path.fromJava(p)).orDie)
 
-      override def tempDirJavaScoped: ZIO[Scope, Throwable, JPath] =
+      override def tempDirScoped: ZIO[Scope, Throwable, JPath] =
         ZIO.acquireRelease(
           ZIO.attempt {
             val tmpPath = fs.getPath(UUID.randomUUID().toString)
