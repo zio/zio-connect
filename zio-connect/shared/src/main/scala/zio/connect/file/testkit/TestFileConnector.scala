@@ -1,5 +1,6 @@
-package zio.connect.testkit.file
+package zio.connect.file.testkit
 
+import com.google.common.jimfs.{Configuration, Jimfs}
 import zio.connect.file.{FileConnector, LiveFileConnector}
 import zio.nio.file.WatchService
 import zio.stream.{ZSink, ZStream}
@@ -8,7 +9,7 @@ import zio.{Duration, Trace, ZIO, ZLayer}
 import java.io.IOException
 import java.nio.file.{FileSystem, Path}
 
-case class TestFileConnector private(fs: FileSystem, fileConnector: FileConnector) extends FileConnector {
+case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) extends FileConnector {
 
   override def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     if (dir.getClass.getName.contains("Jimfs")) {
@@ -73,7 +74,15 @@ case class TestFileConnector private(fs: FileSystem, fileConnector: FileConnecto
 
 object TestFileConnector {
 
-  def layer: ZLayer[java.nio.file.FileSystem, Nothing, FileConnector] =
+  def layer: ZLayer[Any, Nothing, FileConnector] =
+    ZLayer.fromZIO {
+      for {
+        fs           <- ZIO.attempt(Jimfs.newFileSystem(Configuration.forCurrentPlatform())).orDie
+        watchService <- ZIO.attempt(WatchService.fromJava(fs.newWatchService())).orDie
+      } yield new TestFileConnector(fs, LiveFileConnector(watchService))
+    }
+
+  private[testkit] val layerWithCustomFileSystem: ZLayer[java.nio.file.FileSystem, Nothing, FileConnector] =
     ZLayer.fromZIO {
       for {
         fs <- ZIO.service[java.nio.file.FileSystem]
