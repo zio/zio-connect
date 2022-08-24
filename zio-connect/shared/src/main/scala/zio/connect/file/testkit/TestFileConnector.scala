@@ -11,8 +11,9 @@ import java.nio.file.{FileSystem, Path}
 
 case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) extends FileConnector {
 
+  private val pathClass = "com.google.common.jimfs.JimfsPath"
   override def listDir(dir: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
-    if (dir.getClass.getName.contains("Jimfs")) {
+    if (dir.getClass.getName.equals(pathClass)) {
       fileConnector.listDir(dir)
     } else {
       val inMemoryPath = fs.getPath(dir.getFileName.toString)
@@ -20,7 +21,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
     }
 
   override def readFile(file: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    if (file.getClass.getName.contains("Jimfs")) {
+    if (file.getClass.getName.equals(pathClass)) {
       fileConnector.readFile(file)
     } else {
       val inMemoryPath = fs.getPath(file.getFileName.toString)
@@ -28,7 +29,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
     }
 
   override def tailFile(file: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    if (file.getClass.getName.contains("Jimfs")) {
+    if (file.getClass.getName.equals(pathClass)) {
       fileConnector.tailFile(file, freq)
     } else {
       val inMemoryPath = fs.getPath(file.getFileName.toString)
@@ -38,7 +39,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
   override def tailFileUsingWatchService(file: => Path, freq: => Duration)(implicit
     trace: Trace
   ): ZStream[Any, IOException, Byte] =
-    if (file.getClass.getName.contains("Jimfs")) {
+    if (file.getClass.getName.equals(pathClass)) {
       fileConnector.tailFileUsingWatchService(file, freq)
     } else {
       val inMemoryPath = fs.getPath(file.getFileName.toString)
@@ -46,7 +47,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
     }
 
   override def writeFile(file: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit] =
-    if (file.getClass.getName.contains("Jimfs")) {
+    if (file.getClass.getName.equals(pathClass)) {
       fileConnector.writeFile(file)
     } else {
       val inMemoryPath = fs.getPath(file.getFileName.toString)
@@ -55,7 +56,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
 
   override def deleteFile(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     fileConnector.deleteFile.contramap { file =>
-      if (file.getClass.getName.contains("Jimfs")) {
+      if (file.getClass.getName.equals(pathClass)) {
         file
       } else {
         fs.getPath(file.getFileName.toString)
@@ -64,7 +65,7 @@ case class TestFileConnector(fs: FileSystem, fileConnector: FileConnector) exten
 
   override def moveFile(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     fileConnector.moveFile(locator).contramap { file =>
-      if (file.getClass.getName.contains("Jimfs")) {
+      if (file.getClass.getName.equals(pathClass)) {
         file
       } else {
         fs.getPath(file.getFileName.toString)
@@ -84,10 +85,13 @@ object TestFileConnector {
 
   private[testkit] val layerWithCustomFileSystem: ZLayer[java.nio.file.FileSystem, Nothing, FileConnector] =
     ZLayer.fromZIO {
+      val fileSystemClass = "com.google.common.jimfs.JimfsFileSystem"
       for {
         fs <- ZIO.service[java.nio.file.FileSystem]
         _ <-
-          ZIO.when(!fs.getClass.getName.contains("Jimfs"))(ZIO.die(new RuntimeException("Not an inMemory fileSystem")))
+          ZIO.when(!fs.getClass.getName.equals(fileSystemClass))(
+            ZIO.die(new RuntimeException("Not an inMemory fileSystem"))
+          )
         watchService <- ZIO.attempt(WatchService.fromJava(fs.newWatchService())).orDie
       } yield new TestFileConnector(fs, LiveFileConnector(watchService))
     }
