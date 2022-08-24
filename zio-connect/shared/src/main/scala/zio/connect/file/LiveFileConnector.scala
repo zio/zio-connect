@@ -147,10 +147,11 @@ case class LiveFileConnector(watchService: WatchService) extends FileConnector {
 }
 
 object LiveFileConnector {
-  def layer: ZLayer[WatchService, Nothing, FileConnector] =
+  def layer: ZLayer[Scope, Nothing, FileConnector] =
     ZLayer.fromZIO {
       for {
-        watchService <- ZIO.service[WatchService]
+        watchService <- WatchService.forDefaultFileSystem.orDie
       } yield new LiveFileConnector(watchService)
     }
+
 }
