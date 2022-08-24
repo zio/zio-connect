@@ -9,6 +9,7 @@ import java.util.UUID
 trait FileOps {
   def tempFileScoped: ZIO[Scope, Throwable, JPath]
   def tempDirScoped: ZIO[Scope, Throwable, JPath]
+  def tempFileInDirScoped(dir: JPath): ZIO[Scope, Throwable, JPath]
 }
 
 object FileOps {
@@ -18,6 +19,9 @@ object FileOps {
 
   def tempDirScoped: ZIO[Scope with FileOps, Throwable, JPath] =
     ZIO.serviceWithZIO[FileOps](_.tempDirScoped)
+
+  def tempFileInDirScoped(dir: JPath): ZIO[Scope with FileOps, Throwable, JPath] =
+    ZIO.serviceWithZIO[FileOps](_.tempFileInDirScoped(dir))
 
   val liveFileOps = ZLayer.succeed(
     new FileOps {
@@ -30,6 +34,11 @@ object FileOps {
         ZIO.acquireRelease(
           ZIO.attempt(JFiles.createTempDirectory(UUID.randomUUID().toString))
         )(p => ZFiles.deleteIfExists(Path.fromJava(p)).orDie)
+
+      override def tempFileInDirScoped(dir: JPath): ZIO[Scope, Throwable, JPath] =
+        ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
+          ZIO.attempt(JFiles.deleteIfExists(p)).orDie
+        )
     }
   )
 
@@ -52,6 +61,11 @@ object FileOps {
             JFiles.createDirectory(tmpPath)
           }
         )(p => ZFiles.deleteIfExists(Path.fromJava(p)).orDie)
+
+      override def tempFileInDirScoped(dir: JPath): ZIO[Scope, Throwable, JPath] =
+        ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
+          ZIO.attempt(JFiles.deleteIfExists(p)).orDie
+        )
     }
   )
 

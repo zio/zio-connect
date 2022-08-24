@@ -5,7 +5,7 @@ import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, withLiveClock}
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Schedule, Scope, ZIO, ZLayer}
+import zio.{Cause, Chunk, Duration, Schedule, ZIO, ZLayer}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption, Files => JFiles}
@@ -127,7 +127,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val str = "test-value"
         val prog = for {
           parentDir <- FileOps.tempDirScoped
-          file      <- tempFileInDirScoped(parentDir)
+          file      <- FileOps.tempFileInDirScoped(parentDir)
           _ <- ZFiles
                  .writeLines(Path.fromJava(file), List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
@@ -164,7 +164,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val str = "test-value"
         val prog = for {
           dir   <- FileOps.tempDirScoped
-          file  <- tempFileInDirScoped(dir)
+          file  <- FileOps.tempFileInDirScoped(dir)
           stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
           fiber <- stream
                      .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
@@ -220,7 +220,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails for directory not empty") {
         val prog = for {
           sourceDir <- FileOps.tempDirScoped
-          _         <- tempFileInDirScoped(sourceDir)
+          _         <- FileOps.tempFileInDirScoped(sourceDir)
 
           r <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
         } yield r
@@ -284,7 +284,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         for {
           sourceDir  <- FileOps.tempDirScoped
           lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-          sourceFile <- tempFileInDirScoped(sourceDir)
+          sourceFile <- FileOps.tempFileInDirScoped(sourceDir)
           _ <-
             ZFiles.writeLines(Path.fromJava(sourceFile), lines)
 
@@ -322,12 +322,6 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           assert(destinationFileName)(isSome(containsString(sourceFileName))) &&
           assert(linesInNewFile)(equalTo(lines))
       }
-    )
-
-  //todo - move the rest of these ops in FileOps
-  def tempFileInDirScoped(dir: java.nio.file.Path): ZIO[Scope, Throwable, java.nio.file.Path] =
-    ZIO.acquireRelease(ZIO.attempt(JFiles.createTempFile(dir, "", "")))(p =>
-      ZIO.attempt(JFiles.deleteIfExists(p)).orDie
     )
 
 }
