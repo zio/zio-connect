@@ -5,7 +5,7 @@ import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, withLiveClock}
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Schedule, ZIO, ZLayer}
+import zio.{Cause, Chunk, Duration, Schedule, ZIO}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption, Files => JFiles}
@@ -319,16 +319,5 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           assert(linesInNewFile)(equalTo(lines))
       }
     )
-
-}
-
-object FileConnectorSpec {
-
-  val zioFileSystem = ZLayer.fromZIO(
-    for {
-      fs <- ZIO.service[java.nio.file.FileSystem]
-      r   = zio.nio.file.FileSystem.fromJava(fs)
-    } yield r
-  )
 
 }
