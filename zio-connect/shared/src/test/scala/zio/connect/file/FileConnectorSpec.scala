@@ -1,13 +1,13 @@
 package zio.connect.file
 
-import zio.nio.file.{Path, Files => ZFiles}
+import zio.nio.file.{Path, Files}
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.{TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
 import zio.{Cause, Chunk, Duration, Schedule, ZIO}
 
 import java.io.IOException
-import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption, Files => JFiles}
+import java.nio.file.{DirectoryNotEmptyException, StandardOpenOption}
 import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
@@ -23,7 +23,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val ioException: IOException = new IOException("test ioException")
         val prog = {
           for {
-            path         <- FileOps.tempFileScoped
+            path         <- Files.createTempFileScoped()
             failingStream = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
             sink          = FileConnector.writeFile(path)
             r            <- (failingStream >>> sink).exit
@@ -34,7 +34,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val prog = for {
-          path         <- FileOps.tempFileScoped
+          path         <- Files.createTempFileScoped()
           failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
           sink          = FileConnector.writeFile(path)
           r            <- (failingStream >>> sink).exit
@@ -43,21 +43,21 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       },
       test("overwrites existing file") {
         for {
-          path            <- FileOps.tempFileScoped
+          path            <- Files.createTempFileScoped()
           existingContents = Chunk[Byte](4, 5, 6, 7)
-          _               <- ZFiles.writeBytes(Path.fromJava(path), existingContents)
+          _               <- Files.writeBytes(path, existingContents)
           input            = Chunk[Byte](1, 2, 3)
           _               <- ZStream.fromChunk(input) >>> FileConnector.writeFile(path)
-          actual          <- ZStream.fromPath(path).runCollect
+          actual          <- ZStream.fromPath(path.toFile.toPath).runCollect
         } yield assert(input)(equalTo(actual))
       },
       test("creates and writes to file") {
         for {
-          path   <- FileOps.tempFileScoped
-          _      <- ZFiles.delete(Path.fromJava(path))
+          path   <- Files.createTempFileScoped()
+          _      <- Files.delete(path)
           input   = Chunk[Byte](1, 2, 3)
           _      <- ZStream.fromChunk(input) >>> FileConnector.writeFile(path)
-          actual <- ZStream.fromPath(path).runCollect
+          actual <- ZStream.fromPath(path.toFile.toPath).runCollect
         } yield assert(input)(equalTo(actual))
       }
     )
@@ -66,22 +66,22 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("listDir")(
       test("fails when IOException") {
         val prog = for {
-          dir   <- FileOps.tempDirScoped
+          dir   <- Files.createTempDirectoryScoped(None, List.empty)
           stream = FileConnector.listDir(dir)
-          _ <- ZFiles.delete(Path.fromJava(dir)) // delete the directory to cause an IOException
+          _ <- Files.delete(dir) // delete the directory to cause an IOException
           r <- stream.runDrain.exit
         } yield r
         assertZIO(prog)(failsWithA[IOException])
       },
       test("succeeds") {
         for {
-          dir              <- FileOps.tempDirScoped
+          dir              <- Files.createTempDirectoryScoped(None, List.empty)
           stream            = FileConnector.listDir(dir)
-          file1            <- ZFiles.createTempFileInScoped(Path.fromJava(dir), prefix = Some(UUID.randomUUID().toString))
-          file2            <- ZFiles.createTempFileInScoped(Path.fromJava(dir), prefix = Some(UUID.randomUUID().toString))
-          file3            <- ZFiles.createTempFileInScoped(Path.fromJava(dir), prefix = Some(UUID.randomUUID().toString))
-          createdFilesPaths = Chunk(file1.toString(), file2.toString(), file3.toString()).sorted
-          r                <- stream.runCollect.map(files => files.sorted).map(_.map(_.toString))
+          file1            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
+          file2            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
+          file3            <- Files.createTempFileInScoped(dir, prefix = Some(UUID.randomUUID().toString))
+          createdFilesPaths = Chunk(file1.toFile.getPath, file2.toFile.getPath, file3.toFile.getPath).sorted
+          r                <- stream.runCollect.map(files => files.map(_.toFile.getPath).sorted)
         } yield assert(createdFilesPaths)(equalTo(r))
       }
     )
@@ -90,18 +90,18 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("readFile")(
       test("fails when IOException") {
         val prog = for {
-          file  <- FileOps.tempFileScoped
+          file  <- Files.createTempFileScoped()
           stream = FileConnector.readFile(file)
-          _ <- ZFiles.delete(Path.fromJava(file)) // delete the file to cause an IOException
+          _ <- Files.delete(file) // delete the file to cause an IOException
           r <- stream.runDrain.exit
         } yield r
         assertZIO(prog)(failsWithA[IOException])
       },
       test("succeeds") {
         for {
-          file   <- FileOps.tempFileScoped
+          file   <- Files.createTempFileScoped()
           content = Chunk[Byte](1, 2, 3)
-          _      <- ZFiles.writeBytes(Path.fromJava(file), content)
+          _      <- Files.writeBytes(file, content)
           stream  = FileConnector.readFile(file)
           r      <- stream.runCollect
         } yield assert(content)(equalTo(r))
@@ -112,9 +112,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("tailFile")(
       test("fails when IOException") {
         val prog = for {
-          file  <- FileOps.tempFileScoped
+          file  <- Files.createTempFileScoped()
           stream = FileConnector.tailFile(file, Duration.fromMillis(500))
-          _ <- ZFiles.delete(Path.fromJava(file)) // delete the file to cause an IOException
+          _ <- Files.delete(file) // delete the file to cause an IOException
           fiber <- stream.runDrain.exit.fork
           _ <- TestClock
                  .adjust(Duration.fromMillis(3000))
@@ -125,10 +125,10 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("succeeds") {
         val str = "test-value"
         val prog = for {
-          parentDir <- FileOps.tempDirScoped
-          file      <- FileOps.tempFileInDirScoped(parentDir)
-          _ <- ZFiles
-                 .writeLines(Path.fromJava(file), List(str), openOptions = Set(StandardOpenOption.APPEND))
+          parentDir <- Files.createTempDirectoryScoped(None, List.empty)
+          file      <- Files.createTempFileInScoped(parentDir)
+          _ <- Files
+                 .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
                  .fork
           stream = FileConnector.tailFile(file, Duration.fromMillis(1000))
@@ -149,9 +149,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("tailFileUsingWatchService")(
       test("fails when IOException") {
         val prog = for {
-          file  <- FileOps.tempFileScoped
+          file  <- Files.createTempFileScoped()
           stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
-          _ <- ZFiles.delete(Path.fromJava(file)) // delete the file to cause an IOException
+          _ <- Files.delete(file) // delete the file to cause an IOException
           fiber <- stream.runDrain.exit.fork
           _ <- TestClock
                  .adjust(Duration.fromMillis(3000))
@@ -162,16 +162,16 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("succeeds") {
         val str = "test-value"
         val prog = for {
-          dir   <- FileOps.tempDirScoped
-          file  <- FileOps.tempFileInDirScoped(dir)
-          stream = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
+          parentDir <- Files.createTempDirectoryScoped(None, List.empty)
+          file      <- Files.createTempFileInScoped(parentDir)
+          stream     = FileConnector.tailFileUsingWatchService(file, Duration.fromMillis(500))
           fiber <- stream
                      .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                      .take(3)
                      .runCollect
                      .fork
-          _ <- ZFiles
-                 .writeLines(Path.fromJava(file), List(str), openOptions = Set(StandardOpenOption.APPEND))
+          _ <- Files
+                 .writeLines(file, List(str), openOptions = Set(StandardOpenOption.APPEND))
                  .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(500)))
                  .fork
           _ <- TestClock.adjust(Duration.fromMillis(100)).repeat(Schedule.recurs(151)).fork
@@ -186,8 +186,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails when IOException") {
         val prog = {
           for {
-            path <- FileOps.tempFileScoped
-            _    <- ZFiles.delete(Path.fromJava(path))
+            path <- Files.createTempFileScoped()
+            _    <- Files.delete(path)
             r    <- (ZStream(path) >>> FileConnector.deleteFile).exit
           } yield r
         }
@@ -196,7 +196,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val prog = for {
-          path         <- FileOps.tempFileScoped
+          path         <- Files.createTempFileScoped()
           failingStream = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
           r            <- (failingStream >>> FileConnector.deleteFile).exit
         } yield r
@@ -204,22 +204,22 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       },
       test("delete file") {
         for {
-          file        <- FileOps.tempFileScoped
+          file        <- Files.createTempFileScoped()
           _           <- ZStream.succeed(file) >>> FileConnector.deleteFile
-          fileDeleted <- ZFiles.notExists(Path.fromJava(file))
+          fileDeleted <- Files.notExists(file)
         } yield assert(fileDeleted)(equalTo(true))
       },
       test("delete empty directory ") {
         for {
-          sourceDir          <- FileOps.tempDirScoped
+          sourceDir          <- Files.createTempDirectoryScoped(None, List.empty)
           _                  <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
-          directoryIsDeleted <- ZFiles.notExists(Path.fromJava(sourceDir))
+          directoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(directoryIsDeleted)
       },
       test("fails for directory not empty") {
         val prog = for {
-          sourceDir <- FileOps.tempDirScoped
-          _         <- FileOps.tempFileInDirScoped(sourceDir)
+          sourceDir <- Files.createTempDirectoryScoped(None, List.empty)
+          _         <- Files.createTempFileInScoped(sourceDir)
 
           r <- (ZStream(sourceDir) >>> FileConnector.deleteFile).exit
         } yield r
@@ -233,12 +233,12 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val ioException: IOException = new IOException("test ioException")
         val prog = {
           for {
-            path            <- FileOps.tempFileScoped
-            newDir          <- FileOps.tempDirScoped
-            destinationPath <- FileOps.getPath(newDir.toString, path.toString)
-            failingStream    = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
-            sink             = FileConnector.moveFile(_ => destinationPath)
-            r               <- (failingStream >>> sink).exit
+            path           <- Files.createTempFileScoped()
+            newDir         <- Files.createTempDirectoryScoped(None, List.empty)
+            destinationPath = Path(newDir.toString(), path.toFile.getName)
+            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(ioException))
+            sink            = FileConnector.moveFile(_ => destinationPath)
+            r              <- (failingStream >>> sink).exit
           } yield r
         }
         assertZIO(prog)(fails(equalTo(ioException)))
@@ -247,61 +247,55 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         object NonIOException extends Throwable
         val prog = {
           for {
-            path            <- FileOps.tempFileScoped
-            newDir          <- FileOps.tempDirScoped
-            destinationPath <- FileOps.getPath(newDir.toString, path.getFileName.toString)
-            failingStream    = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
-            sink             = FileConnector.moveFile(_ => destinationPath)
-            r               <- (failingStream >>> sink).exit
+            path           <- Files.createTempFileScoped()
+            newDir         <- Files.createTempDirectoryScoped(None, List.empty)
+            destinationPath = Path(newDir.toString(), path.toFile.getName)
+            failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
+            sink            = FileConnector.moveFile(_ => destinationPath)
+            r              <- (failingStream >>> sink).exit
           } yield r
         }
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
       test("move a file") {
         for {
-          sourcePath      <- FileOps.tempFileScoped
-          lines            = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-          _               <- ZFiles.writeLines(Path.fromJava(sourcePath), lines)
-          stream           = ZStream(sourcePath)
-          newFilename      = UUID.randomUUID().toString
-          destinationDir  <- FileOps.tempDirScoped
-          destinationPath <- FileOps.getPath(destinationDir.toString, newFilename)
-          sink             = FileConnector.moveFile(_ => destinationPath)
-          _               <- (stream >>> sink).exit
+          sourcePath     <- Files.createTempFileScoped()
+          lines           = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+          _              <- Files.writeLines(sourcePath, lines)
+          stream          = ZStream(sourcePath)
+          newFilename     = UUID.randomUUID().toString
+          destinationDir <- Files.createTempDirectoryScoped(None, List.empty)
+          destinationPath = Path(destinationDir.toString(), newFilename)
+          sink            = FileConnector.moveFile(_ => destinationPath)
+          _              <- (stream >>> sink).exit
           linesInNewFile <- ZStream
-                              .fromPath(destinationPath)
+                              .fromPath(destinationPath.toFile.toPath)
                               .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                               .runCollect
-          sourceIsDeleted <- ZFiles.notExists(Path.fromJava(sourcePath))
-          _               <- ZFiles.delete(Path.fromJava(destinationPath))
+          sourceIsDeleted <- Files.notExists(sourcePath)
+          _               <- Files.delete(destinationPath)
         } yield assertTrue(sourceIsDeleted) && assert(linesInNewFile)(equalTo(lines))
       },
       test("move a directory with files") {
         for {
-          sourceDir  <- FileOps.tempDirScoped
+          sourceDir  <- Files.createTempDirectoryScoped(None, List.empty)
           lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-          sourceFile <- FileOps.tempFileInDirScoped(sourceDir)
-          _ <-
-            ZFiles.writeLines(Path.fromJava(sourceFile), lines)
+          sourceFile <- Files.createTempFileInScoped(sourceDir)
+          _ <- Files.writeLines(sourceFile, lines)
 
-          destinationDirPath <- ZIO.acquireRelease(FileOps.getPath(UUID.randomUUID().toString))(p =>
-                                  ZFiles.deleteIfExists(Path.fromJava(p)).orDie
-                                )
+          tempDir  <- Files.createTempDirectoryScoped(None, List.empty)
+          destinationDirPath = Path(tempDir.toFile.getPath, UUID.randomUUID().toString)
           _ <-
             ZStream(sourceDir) >>> FileConnector.moveFile(_ => destinationDirPath)
           targetChildren <-
-            ZIO.acquireRelease(
-              ZStream
-                .fromJavaStreamZIO(
-                  ZIO.attempt(JFiles.list(destinationDirPath))
-                )
-                .runCollect
-            )(children => ZIO.foreach(children)(file => ZFiles.deleteIfExists(Path.fromJava(file)).orDie))
+            ZIO.acquireRelease(Files.list(destinationDirPath).runCollect)(children =>
+              ZIO.foreach(children)(file => Files.deleteIfExists(file)).orDie
+            )
 
           linesInNewFile <- targetChildren.headOption match {
                               case Some(f) =>
                                 ZStream
-                                  .fromPath(f)
+                                  .fromPath(f.toFile.toPath)
                                   .via(
                                     ZPipeline.utf8Decode >>> ZPipeline.splitLines
                                   )
@@ -309,9 +303,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                               case None =>
                                 ZIO.succeed(Chunk.empty)
                             }
-          sourceFileName              = sourceFile.getFileName.toString
-          destinationFileName         = targetChildren.headOption.map(_.getFileName.toString)
-          originalDirectoryIsDeleted <- ZFiles.notExists(Path.fromJava(sourceDir))
+          sourceFileName              = sourceFile.filename.toString
+          destinationFileName         = targetChildren.headOption.map(_.filename.toString)
+          originalDirectoryIsDeleted <- Files.notExists(sourceDir)
         } yield assertTrue(originalDirectoryIsDeleted) &&
           assertTrue(targetChildren.size == 1) &&
           assert(destinationFileName)(isSome(containsString(sourceFileName))) &&
