@@ -7,7 +7,6 @@ object LiveFileConnectorSpec extends FileConnectorSpec {
   override def spec =
     suite("LiveFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope](
-        LiveFileOps.layer,
         LiveFileConnector.layer
       )
 
