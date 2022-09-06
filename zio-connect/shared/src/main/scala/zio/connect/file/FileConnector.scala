@@ -117,15 +117,15 @@ trait FileConnector {
       r    <- writePath(path)
     } yield r
 
-  def tempPath(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Path]
+  def tempPath(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Path]
 
-  final def tempFile(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, File] =
+  final def tempFile(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, File] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
 
-  final def tempFileName(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, String] =
+  final def tempFileName(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, String] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
 
-  final def tempURI(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, URI] =
+  final def tempURI(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, URI] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
 
   def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]

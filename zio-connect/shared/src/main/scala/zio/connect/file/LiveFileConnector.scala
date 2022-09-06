@@ -182,12 +182,23 @@ case class LiveFileConnector() extends FileConnector {
       } yield ()).refineToOrDie[IOException]
     )
 
-  override def tempPath(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Path] =
-    ZSink.fromZIO(
+  override def tempPath(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Path] = {
+    val scopedTempFile: ZIO[Scope, IOException, Path] =
       ZIO.acquireRelease(
-        ZIO.attemptBlocking(Files.createTempFile(UUID.randomUUID().toString, ".tmp")).orDie
-      )(path => ZIO.attemptBlocking(Files.delete(path)).orDie)
+        ZIO
+          .attemptBlocking(
+            Files.createTempFile(UUID.randomUUID().toString, ".tmp")
+          )
+          .orDie
+      )(path => ZIO.attempt(Files.delete(path)).orDie)
+
+    ZSink.unwrapScoped(
+      scopedTempFile.map(path =>
+        ZSink
+          .fromZIO(ZIO.succeed(path))
+      )
     )
+  }
 
 }
 
