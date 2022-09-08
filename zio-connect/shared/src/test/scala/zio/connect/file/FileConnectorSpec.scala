@@ -21,6 +21,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val sink                     = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
         val failingStream            = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
         val prog                     = (failingStream >>> sink).exit
+        
         assertZIO(prog)(fails(equalTo(ioException)))
       },
       test("dies when non-IOException exception") {
@@ -28,6 +29,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val sink          = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
         val failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
         val prog          = (failingStream >>> sink).exit
+
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))
       },
       test("overwrites existing file") {
@@ -39,12 +41,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           _      <- ZSink.fromZIO(ZStream.fromChunk(existingContents) >>> FileConnector.writePath(path))
           _      <- ZSink.fromZIO(ZStream.fromChunk(input) >>> FileConnector.writePath(path))
           actual <- ZSink.fromZIO(ZStream.fromPath(path).runCollect)
-        } yield actual
-
-        for {
-          actual <- ZStream(1.toByte) >>> prog
         } yield assert(input)(equalTo(actual))
 
+        ZStream(1.toByte) >>> prog
       },
       test("writes to file") {
         val input = Chunk[Byte](1, 2, 3)
@@ -52,10 +51,9 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           path   <- FileConnector.tempPath
           _      <- ZSink.fromZIO(ZStream.fromChunk(input) >>> FileConnector.writePath(path))
           actual <- ZSink.fromZIO(ZStream.fromPath(path).runCollect)
-        } yield actual
-        for {
-          actual <- ZStream(1.toByte) >>> prog
         } yield assert(input)(equalTo(actual))
+
+        ZStream(1.toByte) >>> prog
       }
     )
 
@@ -80,32 +78,31 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           createdFilesPaths = Chunk(path1, path2, path3).sorted
         } yield assert(createdFilesPaths)(equalTo(files))
 
-        for {
-          actual <- ZStream(1.toByte) >>> prog
-        } yield actual
+        ZStream(1.toByte) >>> prog
       }
     )
 
   private lazy val readFileSuite =
     suite("readFile")(
-//      test("fails when IOException") {
-//        val prog = for {
-//          file  <- Files.createTempFileScoped()
-//          stream = FileConnector.readFile(file)
-//          _ <- Files.delete(file) // delete the file to cause an IOException
-//          r <- stream.runDrain.exit
-//        } yield r
-//        assertZIO(prog)(failsWithA[IOException])
-//      },
-//      test("succeeds") {
-//        for {
-//          file   <- Files.createTempFileScoped()
-//          content = Chunk[Byte](1, 2, 3)
-//          _      <- Files.writeBytes(file, content)
-//          stream  = FileConnector.readFile(file)
-//          r      <- stream.runCollect
-//        } yield assert(content)(equalTo(r))
-//      }
+      test("fails when IOException") {
+        val prog = for {
+          path <- FileConnector.tempPath
+          _    <- ZSink.fromZIO(ZStream.succeed(path) >>> FileConnector.deletePath)
+          _    <- ZSink.fromZIO(FileConnector.readPath(path).runDrain)
+        } yield ()
+
+        assertZIO((ZStream(1.toByte) >>> prog).exit)(failsWithA[IOException])
+      },
+      test("succeeds") {
+        val content = Chunk[Byte](1, 2, 3)
+        val prog = for {
+          path   <- FileConnector.tempPath
+          _      <- ZSink.fromZIO(ZStream.fromChunk(content) >>> FileConnector.writePath(path))
+          actual <- ZSink.fromZIO(FileConnector.readPath(path).runCollect)
+        } yield assert(content)(equalTo(actual))
+
+        ZStream(1.toByte) >>> prog
+      }
     )
 
   private lazy val tailFileSuite =
