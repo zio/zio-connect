@@ -1,7 +1,7 @@
 package zio.connect.file
 
 import java.nio.file.Path
-import zio.{Duration, Trace, ZIO}
+import zio.{Duration, Scope, Trace, ZIO}
 import zio.stream.{ZSink, ZStream}
 
 import java.io.{File, IOException}
@@ -117,16 +117,51 @@ trait FileConnector {
       r    <- writePath(path)
     } yield r
 
-  def tempPath(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Path]
+  def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
 
-  final def tempFile(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, File] =
+  final def tempFile(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
 
-  final def tempFileName(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, String] =
+  final def tempFileName(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
 
-  final def tempURI(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, URI] =
+  final def tempURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
+
+  def tempPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
+
+  final def tempFileIn(dirFile: File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
+    ZSink
+      .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
+      .flatMap(dirPath =>
+        tempPathIn(dirPath)
+          .flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
+      )
+
+  final def tempFileNameIn(dirName: String)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
+    ZSink
+      .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
+      .flatMap(dirPath =>
+        tempPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
+      )
+
+  final def tempURIIn(dirURI: URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
+    ZSink
+      .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
+      .flatMap(dirPath =>
+        tempPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
+      )
+
+  def tempDirPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
+
+  final def tempDirFile(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
+    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
+
+  final def tempDirFileName(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
+    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
+
+  final def tempDirURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
+    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
 
   def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
@@ -194,17 +229,43 @@ object FileConnector {
   def writeURI(uri: => URI): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeURI(uri))
 
-  def tempPath(implicit trace: Trace): ZSink[FileConnector, IOException, Byte, Nothing, Path] =
-    ZSink.environmentWithSink(_.get.tempPath)
+  def tempPath(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempPath)
 
-  def tempFile(implicit trace: Trace): ZSink[FileConnector, IOException, Byte, Nothing, File] =
-    ZSink.environmentWithSink(_.get.tempFile)
+  def tempFile(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempFile)
 
-  def tempFileName(implicit trace: Trace): ZSink[FileConnector, IOException, Byte, Nothing, String] =
-    ZSink.environmentWithSink(_.get.tempFileName)
+  def tempFileName(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempFileName)
 
-  def tempURI(implicit trace: Trace): ZSink[FileConnector, IOException, Byte, Nothing, URI] =
-    ZSink.environmentWithSink(_.get.tempURI)
+  def tempURI(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempURI)
+
+  def tempPathIn(path: Path)(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempPathIn(path))
+
+  def tempFileIn(file: File)(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempFileIn(file))
+
+  def tempFileNameIn(name: String)(implicit
+    trace: Trace
+  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempFileNameIn(name))
+
+  def tempURIIn(uri: URI)(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempURIIn(uri))
+
+  def tempDirPath(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempDirPath)
+
+  def tempDirFile(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempDirFile)
+
+  def tempDirFileName(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempDirFileName)
+
+  def tempDirURI(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
+    ZSink.environmentWithSink[FileConnector](_.get.tempDirURI)
 
   def deletePath(implicit trace: Trace): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deletePath)

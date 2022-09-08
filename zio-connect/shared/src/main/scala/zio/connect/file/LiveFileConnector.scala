@@ -182,7 +182,7 @@ case class LiveFileConnector() extends FileConnector {
       } yield ()).refineToOrDie[IOException]
     )
 
-  override def tempPath(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Path] = {
+  override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
     val scopedTempFile: ZIO[Scope, IOException, Path] =
       ZIO.acquireRelease(
         ZIO
@@ -190,9 +190,48 @@ case class LiveFileConnector() extends FileConnector {
             Files.createTempFile(UUID.randomUUID().toString, ".tmp")
           )
           .orDie
-      )(path => ZIO.attempt(Files.delete(path)).orDie)
+      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
 
-    ZSink.unwrapScoped(
+    ZSink.unwrap(
+      scopedTempFile.map(path =>
+        ZSink
+          .fromZIO(ZIO.succeed(path))
+      )
+    )
+  }
+
+  override def tempDirPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
+
+    val scopedTempDir: ZIO[Scope, IOException, Path] =
+      ZIO.acquireRelease(
+        ZIO
+          .attemptBlocking(
+            Files.createTempDirectory(UUID.randomUUID().toString)
+          )
+          .orDie
+      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+
+    ZSink.unwrap(
+      scopedTempDir.map(path =>
+        ZSink
+          .fromZIO(ZIO.succeed(path))
+      )
+    )
+  }
+
+  override def tempPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
+
+    val scopedTempFile: ZIO[Scope, IOException, Path] = {
+      ZIO.acquireRelease(
+        ZIO
+          .attemptBlocking(
+            Files.createTempFile(dirPath, UUID.randomUUID().toString, ".tmp")
+          )
+          .orDie
+      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+    }
+
+    ZSink.unwrap(
       scopedTempFile.map(path =>
         ZSink
           .fromZIO(ZIO.succeed(path))
