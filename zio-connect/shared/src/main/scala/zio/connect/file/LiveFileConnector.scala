@@ -239,6 +239,21 @@ case class LiveFileConnector() extends FileConnector {
     )
   }
 
+  override def tempDirPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
+    ZSink.unwrap(
+      ZIO
+        .acquireRelease(
+          ZIO
+            .attemptBlocking(
+              Files.createTempDirectory(dirPath, UUID.randomUUID().toString)
+            )
+            .orDie
+        )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+        .map(path =>
+          ZSink
+            .fromZIO(ZIO.succeed(path))
+        )
+    )
 }
 
 object LiveFileConnector {
