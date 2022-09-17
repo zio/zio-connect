@@ -254,6 +254,31 @@ case class LiveFileConnector() extends FileConnector {
             .fromZIO(ZIO.succeed(path))
         )
     )
+
+  override def existsPath(path: Path)(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, Any, Nothing, Boolean] =
+    ZSink.fromZIO {
+       ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
+    }
+//  {
+//    val pipeline: ZPipeline[Any, IOException, Path, Boolean] =
+//      ZPipeline.fromPush[Any, IOException, Path, Boolean](
+//        ZIO.succeed {
+//          case Some(value) => ZIO.foreach(value)(path => ZIO.attempt(Files.exists(path)).refineToOrDie[IOException])
+//          case None        => ZIO.succeed(Chunk(false))
+//        }
+//      )
+//    pipeline.toChannel
+//  }
+//    ZPipeline.fromChannel[Any, IOException, Path, Boolean](
+//      ZChannel.readWith[Any, Nothing, Path, Any, IOException, Nothing, Boolean](
+//        in = (path: Path) => ZChannel.fromZIO(ZIO.attemptBlocking(Files.exists(path)).refineToOrDie[IOException]),
+//        error = (err: IOException) => ZChannel.fail(err),
+//        done = (a: Any) => ZChannel.succeedNow(a)
+//      )
+//    )
+  //    ZSink.foreach[Any, IOException, Path](path => ZIO.attempt(Files.exists(path)).refineToOrDie[IOException])
 }
 
 object LiveFileConnector {

@@ -213,6 +213,18 @@ trait FileConnector {
   def moveURI(
     locator: URI => URI
   )(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit]
+
+  def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
+//  def existsPath(implicit trace: Trace): ZChannel[Any, Nothing, Chunk[Path], Any, IOException, Chunk[Boolean], Any]
+
+//  final def existsFile(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
+//    existsPath.contramapZIO(a => ZIO.attempt(a.toPath).refineToOrDie[IOException])
+//
+//  final def existsFileName(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
+//    existsPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+//
+//  final def existsURI(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
+//    existsPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 }
 
 object FileConnector {
@@ -364,5 +376,20 @@ object FileConnector {
 
   def tailURIUsingWatchService(uri: => URI, duration: Duration): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailURIUsingWatchService(uri, duration))
+
+  def existsPath(path: Path)(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsPath(path))
+
+  //  def existsFile(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Boolean] =
+//    ZSink.environmentWithSink(_.get.existsFile)
+//
+//  def existsFileName(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Boolean] =
+//    ZSink.environmentWithSink(_.get.existsFileName)
+//
+//  def existsURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Boolean] = {
+//    ZSink.environmentWithSink(_.get.existsURI)
+//  }
 
 }
