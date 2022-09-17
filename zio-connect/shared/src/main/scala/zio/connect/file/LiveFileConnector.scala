@@ -144,7 +144,17 @@ case class LiveFileConnector() extends FileConnector {
       .ignoreLeftover
 
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach(file => ZIO.attemptBlocking(Files.delete(file)).refineToOrDie[IOException])
+    ZSink.foreach(file => ZIO.attemptBlocking(Files.deleteIfExists(file)).refineToOrDie[IOException])
+
+  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach { path =>
+      val file = path.toFile
+      if (file.isDirectory) {
+        listPath(path) >>> deleteRecursivelyPath
+      } else {
+        ZStream.succeed(path) >>> deletePath
+      }
+    }
 
   override def movePath(
     locator: Path => Path
@@ -259,7 +269,7 @@ case class LiveFileConnector() extends FileConnector {
     trace: Trace
   ): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.fromZIO {
-       ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
+      ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
     }
 //  {
 //    val pipeline: ZPipeline[Any, IOException, Path, Boolean] =

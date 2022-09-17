@@ -6,7 +6,7 @@ import zio.test.{TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, asse
 import zio.{Cause, Chunk, Duration, Queue, Schedule, ZIO}
 
 import java.io.IOException
-import java.nio.file.{DirectoryNotEmptyException, Paths}
+import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
 import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
@@ -218,9 +218,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           for {
             dirPath <- FileConnector.tempDirPath
             path    <- FileConnector.tempPathIn(dirPath)
-            _       <- ZSink.fromZIO(ZStream(path) >>> FileConnector.deletePath)
-            //the second delete should fail because the file is already deleted
-            _ <- ZSink.fromZIO(ZStream(path) >>> FileConnector.deletePath)
+            _       <- ZSink.fromZIO(ZStream(path).mapZIO(_ => ZIO.fail(new IOException())) >>> FileConnector.deletePath)
           } yield ()
         }
         assertZIO((ZStream(1.toByte) >>> prog).exit)(failsWithA[IOException])
@@ -300,7 +298,6 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           sourcePath <- FileConnector.tempPath
           lines = Chunk(
                     UUID.randomUUID().toString,
-//                    System.lineSeparator(),
                     UUID.randomUUID().toString
                   )
           _ <- ZSink.fromZIO(
@@ -325,42 +322,74 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         } yield assertTrue(sourceIsDeleted) && assert(linesInNewFile)(equalTo(lines))
 
         ZStream(1.toByte) >>> prog
+      },
+      test("move a directory and its children") {
+        val prog =
+          for {
+            sourceDir  <- FileConnector.tempDirPath
+            lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+            sourceFile <- FileConnector.tempPathIn(sourceDir)
+            _ <-
+              ZSink.fromZIO(
+                ZStream
+                  .fromIterable(lines.map(_ + System.lineSeparator()).map(_.getBytes).flatten) >>> FileConnector
+                  .writePath(
+                    sourceFile
+                  )
+              )
+            innerDir     <- FileConnector.tempDirPathIn(sourceDir)
+            innerDirFile <- FileConnector.tempPathIn(innerDir)
+
+            tempDir <- FileConnector.tempDirPath
+            destinationDirPath <-
+              ZSink.fromZIO(
+                ZIO.acquireRelease(ZIO.succeed(Paths.get(tempDir.toFile.getPath, UUID.randomUUID().toString)))(p =>
+                  (ZStream.succeed(p) >>> FileConnector.deletePath).orDie
+                )
+              )
+            _ <- ZSink.fromZIO(ZStream(sourceDir) >>> FileConnector.movePath(_ => destinationDirPath))
+
+            targetChildren <- ZSink.fromZIO(
+                                ZIO.acquireRelease(
+                                  FileConnector.listPath(destinationDirPath).runCollect
+                                )(ls => (ZStream.fromChunk(ls) >>> FileConnector.deletePath).orDie)
+                              )
+
+            linesInNewFile <- ZSink.fromZIO(targetChildren.headOption match {
+                                case Some(f) =>
+                                  ZStream
+                                    .fromPath(f.toFile.toPath)
+                                    .via(
+                                      ZPipeline.utf8Decode >>> ZPipeline.splitLines
+                                    )
+                                    .runCollect
+                                case None =>
+                                  ZIO.succeed(Chunk.empty)
+                              })
+            sourceFileName       = sourceFile.getFileName.toString
+            innerDirFilename     = innerDir.getFileName.toString
+            innerDirFileFilename = innerDirFile.getFileName.toString
+            destinationFileNames = targetChildren.map(_.getFileName.toString)
+            movedInnerDir <-
+              ZSink.fromZIO(
+                ZIO
+                  .foreach(targetChildren)(c =>
+                    if (c.toFile.isDirectory) FileConnector.listPath(c).runCollect
+                    else ZIO.succeed(Chunk.empty[Path])
+                  )
+                  .map(a => a.flatten)
+                  .map(_.map(_.getFileName.toString))
+              )
+            originalDirectoryIsDeleted <- FileConnector.existsPath(sourceDir).map(!_)
+            _                          <- ZSink.fromZIO(ZStream.succeed(destinationDirPath) >>> FileConnector.deleteRecursivelyPath)
+          } yield assertTrue(originalDirectoryIsDeleted) &&
+            assertTrue(targetChildren.size == 2) &&
+            assert(destinationFileNames)(equalTo(Chunk(sourceFileName, innerDirFilename))) &&
+            assert(linesInNewFile)(equalTo(lines)) &&
+            assert(movedInnerDir)(equalTo(Chunk(innerDirFileFilename)))
+
+        ZStream(1.toByte) >>> prog
       }
-//      test("move a directory with files") {
-//        for {
-//          sourceDir  <- Files.createTempDirectoryScoped(None, List.empty)
-//          lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-//          sourceFile <- Files.createTempFileInScoped(sourceDir)
-//          _ <- Files.writeLines(sourceFile, lines)
-//
-//          tempDir  <- Files.createTempDirectoryScoped(None, List.empty)
-//          destinationDirPath = Path(tempDir.toFile.getPath, UUID.randomUUID().toString)
-//          _ <-
-//            ZStream(sourceDir) >>> FileConnector.moveFile(_ => destinationDirPath)
-//          targetChildren <-
-//            ZIO.acquireRelease(Files.list(destinationDirPath).runCollect)(children =>
-//              ZIO.foreach(children)(file => Files.deleteIfExists(file)).orDie
-//            )
-//
-//          linesInNewFile <- targetChildren.headOption match {
-//                              case Some(f) =>
-//                                ZStream
-//                                  .fromPath(f.toFile.toPath)
-//                                  .via(
-//                                    ZPipeline.utf8Decode >>> ZPipeline.splitLines
-//                                  )
-//                                  .runCollect
-//                              case None =>
-//                                ZIO.succeed(Chunk.empty)
-//                            }
-//          sourceFileName              = sourceFile.filename.toString
-//          destinationFileName         = targetChildren.headOption.map(_.filename.toString)
-//          originalDirectoryIsDeleted <- Files.notExists(sourceDir)
-//        } yield assertTrue(originalDirectoryIsDeleted) &&
-//          assertTrue(targetChildren.size == 1) &&
-//          assert(destinationFileName)(isSome(containsString(sourceFileName))) &&
-//          assert(linesInNewFile)(equalTo(lines))
-//      }
     )
 
 }

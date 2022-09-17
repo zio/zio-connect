@@ -198,6 +198,17 @@ trait FileConnector {
   final def deleteURI(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
     deletePath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 
+  def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
+
+  final def deleteRecursivelyFile(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
+    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(a.toPath).refineToOrDie[IOException])
+
+  final def deleteRecursivelyFileName(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
+    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+
+  final def deleteRecursivelyURI(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
+    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+
   def movePath(locator: Path => Path)(implicit
     trace: Trace
   ): ZSink[Any, IOException, Path, Nothing, Unit]
@@ -215,16 +226,22 @@ trait FileConnector {
   )(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit]
 
   def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
-//  def existsPath(implicit trace: Trace): ZChannel[Any, Nothing, Chunk[Path], Any, IOException, Chunk[Boolean], Any]
 
-//  final def existsFile(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
-//    existsPath.contramapZIO(a => ZIO.attempt(a.toPath).refineToOrDie[IOException])
-//
-//  final def existsFileName(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
-//    existsPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
-//
-//  final def existsURI(implicit trace: Trace): ZPipeline[Any, IOException, Path, Boolean] =
-//    existsPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+  final def existsFile(file: File)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+    ZSink.unwrap(
+      ZIO.attempt(file.toPath).refineToOrDie[IOException].map(path => existsPath(path))
+    )
+
+  def existsFileName(name: String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+    ZSink.unwrap(
+      ZIO.attempt(Path.of(name)).refineToOrDie[IOException].map(path => existsPath(path))
+    )
+
+  def existsURI(uri: URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+    ZSink.unwrap(
+      ZIO.attempt(Path.of(uri)).refineToOrDie[IOException].map(path => existsPath(path))
+    )
+
 }
 
 object FileConnector {
@@ -333,6 +350,18 @@ object FileConnector {
   def deleteURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteURI)
 
+  def deleteRecursivelyPath(implicit trace: Trace): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteRecursivelyPath)
+
+  def deleteRecursivelyFile(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteRecursivelyFile)
+
+  def deleteRecursivelyFileName(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteRecursivelyFileName)
+
+  def deleteRecursivelyURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteRecursivelyURI)
+
   def movePath(locator: Path => Path)(implicit
     trace: Trace
   ): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
@@ -382,14 +411,19 @@ object FileConnector {
   ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
     ZSink.environmentWithSink[FileConnector](_.get.existsPath(path))
 
-  //  def existsFile(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Boolean] =
-//    ZSink.environmentWithSink(_.get.existsFile)
-//
-//  def existsFileName(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Boolean] =
-//    ZSink.environmentWithSink(_.get.existsFileName)
-//
-//  def existsURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Boolean] = {
-//    ZSink.environmentWithSink(_.get.existsURI)
-//  }
+  def existsFile(file: File)(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsFile(file))
+
+  def existsFileName(name: String)(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsFileName(name))
+
+  def existsURI(uri: URI)(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsURI(uri))
 
 }
