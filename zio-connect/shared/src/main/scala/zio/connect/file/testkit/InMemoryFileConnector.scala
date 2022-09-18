@@ -19,7 +19,8 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.unwrap(fs.list(path).map(a => ZStream.fromChunk(a)))
 
-  override def readPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] = ???
+  override def readPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.unwrap(fs.getContent(path).map(a => ZStream.fromChunk(a)))
 
   override def tailPath(path: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] = ???
 
@@ -27,7 +28,11 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
     trace: Trace
   ): ZStream[Any, IOException, Byte] = ???
 
-  override def writePath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit] = ???
+  override def writePath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit] =
+    for {
+      _ <- ZSink.fromZIO(fs.removeContentIfExists(path))
+      _ <- ZSink.foreachChunk(bytes => fs.write(path, bytes))
+    } yield ()
 
   override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
     ZSink.fromZIO(fs.tempPath)

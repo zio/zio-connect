@@ -17,7 +17,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       deleteSuite + deleteRecursivelySuite + moveSuite
 
   private lazy val writeSuite =
-    suite("writePath")(
+    suite("writePath XXX")(
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
         val sink                     = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
@@ -42,7 +42,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           path   <- FileConnector.tempPath
           _      <- ZSink.fromZIO(ZStream.fromChunk(existingContents) >>> FileConnector.writePath(path))
           _      <- ZSink.fromZIO(ZStream.fromChunk(input) >>> FileConnector.writePath(path))
-          actual <- ZSink.fromZIO(ZStream.fromPath(path).runCollect)
+          actual <- ZSink.fromZIO(FileConnector.readPath(path).runCollect)
         } yield assert(input)(equalTo(actual))
 
         ZStream(1.toByte) >>> prog
@@ -52,7 +52,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         val prog = for {
           path   <- FileConnector.tempPath
           _      <- ZSink.fromZIO(ZStream.fromChunk(input) >>> FileConnector.writePath(path))
-          actual <- ZSink.fromZIO(ZStream.fromPath(path).runCollect)
+          actual <- ZSink.fromZIO(FileConnector.readPath(path).runCollect)
         } yield assert(input)(equalTo(actual))
 
         ZStream(1.toByte) >>> prog

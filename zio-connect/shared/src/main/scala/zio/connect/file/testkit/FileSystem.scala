@@ -12,8 +12,8 @@ sealed trait TKFile {
 }
 
 object TKFile {
-  final case class Dir(path: Path)  extends TKFile
-  final case class File(path: Path) extends TKFile
+  final case class Dir(path: Path)                        extends TKFile
+  final case class File(path: Path, content: Chunk[Byte]) extends TKFile
 }
 
 final case class Root(map: TRef[Map[Path, TKFile]]) {
@@ -36,7 +36,7 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
     STM.atomically {
       for {
         tempPath <- STM.succeed(Paths.get(UUID.randomUUID().toString))
-        _        <- map.update(m => m.updated(tempPath, TKFile.File(tempPath)))
+        _        <- map.update(m => m.updated(tempPath, TKFile.File(tempPath, Chunk.empty)))
       } yield tempPath
     }
 
@@ -44,7 +44,7 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
     STM.atomically {
       for {
         tempPath <- STM.succeed(Paths.get(dir.toString, UUID.randomUUID().toString))
-        _        <- map.update(m => m.updated(tempPath, TKFile.File(tempPath)))
+        _        <- map.update(m => m.updated(tempPath, TKFile.File(tempPath, Chunk.empty)))
       } yield tempPath
     }
 
@@ -82,11 +82,59 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
                               map.update(m => m.removed(p))
                             } else ZSTM.fail(new DirectoryNotEmptyException(s"$p"))
                      } yield ZSTM.unit
-                   case TKFile.File(p) => map.update(m => m.removed(p))
+                   case TKFile.File(p, _) => map.update(m => m.removed(p))
                  }
                case None => ZSTM.unit
              }
       } yield ()
+    }
+
+  def write(path: Path, bytes: Chunk[Byte]): ZIO[Any, IOException, Unit] =
+    STM.atomically {
+      for {
+        file <- findFile(path)
+        _ <- file match {
+               case Some(p) =>
+                 p match {
+                   case TKFile.Dir(path) => ZSTM.fail(new IOException(s"$path is a directory"))
+                   case TKFile.File(path, content) =>
+                     map.update(m => m.updated(path, TKFile.File(path, content ++ bytes)))
+                 }
+               case None =>
+                 map.update(m => m.updated(path, TKFile.File(path, bytes)))
+             }
+      } yield ()
+    }
+
+  def getContent(path: Path): ZIO[Any, IOException, Chunk[Byte]] =
+    STM.atomically {
+      for {
+        file <- findFile(path)
+        r <- file match {
+               case Some(p) =>
+                 p match {
+                   case TKFile.Dir(path)        => ZSTM.fail(new IOException(s"$path is a directory"))
+                   case TKFile.File(_, content) => ZSTM.succeed(content)
+                 }
+               case None => ZSTM.fail(new FileNotFoundException(s"$path"))
+             }
+      } yield r
+    }
+
+  def removeContentIfExists(path: Path): ZIO[Any, IOException, Unit] =
+    STM.atomically {
+      for {
+        file <- findFile(path)
+        r <- file match {
+               case Some(p) =>
+                 p match {
+                   case TKFile.Dir(path) => ZSTM.fail(new IOException(s"$path is a directory"))
+                   case TKFile.File(_, _) =>
+                     map.update(m => m.updated(path, TKFile.File(path, Chunk.empty[Byte])))
+                 }
+               case None => ZSTM.fail(new FileNotFoundException(s"$path"))
+             }
+      } yield r
     }
 
 }
