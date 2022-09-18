@@ -17,7 +17,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       deleteSuite + deleteRecursivelySuite + moveSuite
 
   private lazy val writeSuite =
-    suite("writePath XXX")(
+    suite("writePath")(
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
         val sink                     = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
