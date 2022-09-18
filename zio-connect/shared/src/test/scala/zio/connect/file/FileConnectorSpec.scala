@@ -12,9 +12,8 @@ import java.util.UUID
 trait FileConnectorSpec extends ZIOSpecDefault {
 
   val fileConnectorSpec =
-    writeSuite + listSuite + readSuite +
-      tailSuite + tailUsingWatchServiceSuite +
-      deleteSuite + deleteRecursivelySuite + moveSuite
+    deleteSuite + deleteRecursivelySuite + listSuite + moveSuite + readSuite +
+      tailSuite + tailUsingWatchServiceSuite + writeSuite
 
   private lazy val writeSuite =
     suite("writePath")(
@@ -395,7 +394,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     )
 
   private lazy val deleteRecursivelySuite =
-    suite("deleteRecursivelyPath")(
+    suite("deleteRecursivelyPath XXX")(
       test("fails when IOException") {
         val prog = {
           for {

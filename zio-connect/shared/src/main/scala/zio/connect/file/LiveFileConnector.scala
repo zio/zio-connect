@@ -18,22 +18,74 @@ case class LiveFileConnector() extends FileConnector {
 
   lazy val EVENT_NAME = StandardWatchEventKinds.ENTRY_MODIFY.name
 
+  override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach(file => ZIO.attemptBlocking(Files.deleteIfExists(file)).refineToOrDie[IOException])
+
+  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach { path =>
+      val file = path.toFile
+      if (file.isDirectory) {
+        (listPath(path) >>> deleteRecursivelyPath) *> (ZStream.succeed(path) >>> deletePath)
+      } else {
+        ZStream.succeed(path) >>> deletePath
+      }
+    }
+
+  override def existsPath(path: Path)(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, Any, Nothing, Boolean] =
+    ZSink.fromZIO {
+      ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
+    }
+
+  private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
+    (for {
+      fileSize <- ZIO.attemptBlocking(Files.size(file))
+      cursor    = if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
+      _        <- ref.update(_ + cursor)
+      data     <- attemptBlocking(readBytes(file, cursor))
+      _        <- ZIO.foreach(data)(d => queue.offerAll(d))
+      _        <- ZIO.foreach(data)(d => ref.update(_ + d.size))
+    } yield ()).refineToOrDie[IOException]
+
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.fromJavaStreamZIO(ZIO.attemptBlocking(Files.list(path))).refineToOrDie[IOException]
 
-  override def readPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    ZStream.fromPath(path).refineOrDie { case e: IOException => e }
+  override def moveFile(locator: File => File)(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
+    ZSink.foreach(file =>
+      (for {
+        target <- ZIO.attempt(locator(file))
+        _      <- ZIO.attemptBlocking(Files.move(file.toPath, target.toPath))
+      } yield ()).refineToOrDie[IOException]
+    )
 
-  override def tailPath(path: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    ZStream.unwrap(for {
-      fileNotFound <- ZIO.attemptBlocking(Files.notExists(path)).refineToOrDie[IOException]
-      _            <- ZIO.fail(new FileNotFoundException(s"$path")).when(fileNotFound)
-      queue        <- Queue.bounded[Byte](BUFFER_SIZE)
-      fileSize     <- ZIO.attemptBlocking(Files.size(path)).refineToOrDie[IOException]
-      cursor        = if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
-      ref          <- Ref.make(cursor)
-      _            <- pollUpdates(path, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
-    } yield ZStream.fromQueueWithShutdown(queue))
+  override def moveFileName(
+    locator: String => String
+  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
+    ZSink.foreach(name =>
+      (for {
+        target <- ZIO.attempt(locator(name))
+        _      <- ZIO.attemptBlocking(Files.move(Paths.get(name), Paths.get(target)))
+      } yield ()).refineToOrDie[IOException]
+    )
+
+  override def movePath(
+    locator: Path => Path
+  )(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach(path =>
+      (for {
+        target <- ZIO.attempt(locator(path))
+        _      <- ZIO.attemptBlocking(Files.move(path, target))
+      } yield ()).refineToOrDie[IOException]
+    )
+
+  override def moveURI(locator: URI => URI)(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
+    ZSink.foreach(uri =>
+      (for {
+        target <- ZIO.attempt(locator(uri))
+        _      <- ZIO.attemptBlocking(Files.move(Paths.get(uri), Paths.get(target)))
+      } yield ()).refineToOrDie[IOException]
+    )
 
   private def pollUpdates(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     for {
@@ -54,51 +106,23 @@ case class LiveFileConnector() extends FileConnector {
       _ <- ZIO.foreach(data)(d => ref.update(_ => cursor + d.size))
     } yield ()
 
-  override def tailPathUsingWatchService(path: => Path, freq: => Duration)(implicit
-    trace: Trace
-  ): ZStream[Any, IOException, Byte] =
-    ZStream.unwrapScoped((for {
-      fileNotFound <- ZIO.attemptBlocking(Files.notExists(path))
-      _            <- ZIO.fail(new FileNotFoundException(s"$path")).when(fileNotFound)
-      queue        <- Queue.bounded[Byte](BUFFER_SIZE)
-      ref          <- Ref.make(0L)
-      _            <- initialRead(path, queue, ref)
-      parent <- ZIO
-                  .attemptBlocking(Option(path.getParent))
-                  .flatMap(ZIO.fromOption(_).orElseFail(new IOException(s"Parent directory not found for $path")))
-      watchService <- registerWatchService(parent)
-      _            <- watchUpdates(path, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
-    } yield ZStream.fromQueueWithShutdown(queue)).refineToOrDie[IOException])
+  override def readPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.fromPath(path).refineOrDie { case e: IOException => e }
 
-  private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
-    (for {
-      fileSize <- ZIO.attemptBlocking(Files.size(file))
-      cursor    = if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
-      _        <- ref.update(_ + cursor)
-      data     <- attemptBlocking(readBytes(file, cursor))
-      _        <- ZIO.foreach(data)(d => queue.offerAll(d))
-      _        <- ZIO.foreach(data)(d => ref.update(_ + d.size))
-    } yield ()).refineToOrDie[IOException]
-
-  private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
-    (for {
-      watchService <- ZIO.attemptBlocking(file.getFileSystem.newWatchService())
-      _ <- ZIO
-             .attemptBlocking(file.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY))
-    } yield watchService).refineToOrDie[IOException]
-
-  private def watchUpdates(
-    file: Path,
-    watchService: WatchService,
-    queue: Queue[Byte],
-    ref: Ref[Long]
-  ): ZIO[Any, IOException, Unit] =
-    for {
-      cursor <- ref.get
-      data   <- readData(file, watchService, cursor)
-      _      <- ZIO.foreach(data)(d => queue.offerAll(d))
-      _      <- ZIO.foreach(data)(d => ref.update(_ + d.size))
-    } yield ()
+  private def readBytes(file: Path, cursor: Long): Option[Array[Byte]] = {
+    val channel        = FileChannel.open(file.toFile.toPath, Seq(StandardOpenOption.READ): _*)
+    val dataSize: Long = channel.size - cursor
+    if (dataSize > 0) {
+      val bufSize      = if (dataSize > BUFFER_SIZE) BUFFER_SIZE else dataSize.toInt
+      val buffer       = ByteBuffer.allocate(bufSize)
+      val numBytesRead = channel.read(buffer, cursor)
+      channel.close
+      if (numBytesRead > 0) Some(buffer.array()) else None
+    } else {
+      channel.close
+      None
+    }
+  }
 
   private def readData(
     file: Path,
@@ -121,76 +145,39 @@ case class LiveFileConnector() extends FileConnector {
       }
       .refineOrDie { case e: IOException => e }
 
-  private def readBytes(file: Path, cursor: Long): Option[Array[Byte]] = {
-    val channel        = FileChannel.open(file.toFile.toPath, Seq(StandardOpenOption.READ): _*)
-    val dataSize: Long = channel.size - cursor
-    if (dataSize > 0) {
-      val bufSize      = if (dataSize > BUFFER_SIZE) BUFFER_SIZE else dataSize.toInt
-      val buffer       = ByteBuffer.allocate(bufSize)
-      val numBytesRead = channel.read(buffer, cursor)
-      channel.close
-      if (numBytesRead > 0) Some(buffer.array()) else None
-    } else {
-      channel.close
-      None
-    }
-  }
+  private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
+    (for {
+      watchService <- ZIO.attemptBlocking(file.getFileSystem.newWatchService())
+      _ <- ZIO
+             .attemptBlocking(file.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY))
+    } yield watchService).refineToOrDie[IOException]
 
-  override def writePath(path: => Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
-    ZSink
-      .fromPath(path)
-      .refineOrDie { case e: IOException => e }
-      .as(())
-      .ignoreLeftover
+  override def tailPath(path: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.unwrap(for {
+      fileNotFound <- ZIO.attemptBlocking(Files.notExists(path)).refineToOrDie[IOException]
+      _            <- ZIO.fail(new FileNotFoundException(s"$path")).when(fileNotFound)
+      queue        <- Queue.bounded[Byte](BUFFER_SIZE)
+      fileSize     <- ZIO.attemptBlocking(Files.size(path)).refineToOrDie[IOException]
+      cursor        = if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
+      ref          <- Ref.make(cursor)
+      _            <- pollUpdates(path, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+    } yield ZStream.fromQueueWithShutdown(queue))
 
-  override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach(file => ZIO.attemptBlocking(Files.deleteIfExists(file)).refineToOrDie[IOException])
-
-  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach { path =>
-      val file = path.toFile
-      if (file.isDirectory) {
-        (listPath(path) >>> deleteRecursivelyPath) *> (ZStream.succeed(path) >>> deletePath)
-      } else {
-        ZStream.succeed(path) >>> deletePath
-      }
-    }
-
-  override def movePath(
-    locator: Path => Path
-  )(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
-    ZSink.foreach(path =>
-      (for {
-        target <- ZIO.attempt(locator(path))
-        _      <- ZIO.attemptBlocking(Files.move(path, target))
-      } yield ()).refineToOrDie[IOException]
-    )
-
-  override def moveFile(locator: File => File)(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
-    ZSink.foreach(file =>
-      (for {
-        target <- ZIO.attempt(locator(file))
-        _      <- ZIO.attemptBlocking(Files.move(file.toPath, target.toPath))
-      } yield ()).refineToOrDie[IOException]
-    )
-
-  override def moveFileName(
-    locator: String => String
-  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
-    ZSink.foreach(name =>
-      (for {
-        target <- ZIO.attempt(locator(name))
-        _      <- ZIO.attemptBlocking(Files.move(Paths.get(name), Paths.get(target)))
-      } yield ()).refineToOrDie[IOException]
-    )
-
-  override def moveURI(locator: URI => URI)(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
-    ZSink.foreach(uri =>
-      (for {
-        target <- ZIO.attempt(locator(uri))
-        _      <- ZIO.attemptBlocking(Files.move(Paths.get(uri), Paths.get(target)))
-      } yield ()).refineToOrDie[IOException]
-    )
+  override def tailPathUsingWatchService(path: => Path, freq: => Duration)(implicit
+    trace: Trace
+  ): ZStream[Any, IOException, Byte] =
+    ZStream.unwrapScoped((for {
+      fileNotFound <- ZIO.attemptBlocking(Files.notExists(path))
+      _            <- ZIO.fail(new FileNotFoundException(s"$path")).when(fileNotFound)
+      queue        <- Queue.bounded[Byte](BUFFER_SIZE)
+      ref          <- Ref.make(0L)
+      _            <- initialRead(path, queue, ref)
+      parent <- ZIO
+                  .attemptBlocking(Option(path.getParent))
+                  .flatMap(ZIO.fromOption(_).orElseFail(new IOException(s"Parent directory not found for $path")))
+      watchService <- registerWatchService(parent)
+      _            <- watchUpdates(path, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+    } yield ZStream.fromQueueWithShutdown(queue)).refineToOrDie[IOException])
 
   override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
     val scopedTempFile: ZIO[Scope, IOException, Path] =
@@ -265,12 +252,26 @@ case class LiveFileConnector() extends FileConnector {
         )
     )
 
-  override def existsPath(path: Path)(implicit
-    trace: Trace
-  ): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.fromZIO {
-      ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
-    }
+  private def watchUpdates(
+    file: Path,
+    watchService: WatchService,
+    queue: Queue[Byte],
+    ref: Ref[Long]
+  ): ZIO[Any, IOException, Unit] =
+    for {
+      cursor <- ref.get
+      data   <- readData(file, watchService, cursor)
+      _      <- ZIO.foreach(data)(d => queue.offerAll(d))
+      _      <- ZIO.foreach(data)(d => ref.update(_ + d.size))
+    } yield ()
+
+  override def writePath(path: => Path)(implicit trace: Trace): Sink[IOException, Byte, Nothing, Unit] =
+    ZSink
+      .fromPath(path)
+      .refineOrDie { case e: IOException => e }
+      .as(())
+      .ignoreLeftover
+
 }
 
 object LiveFileConnector {
