@@ -174,7 +174,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
 
         assertZIO((ZStream(1.toByte) >>> prog).exit)(failsWithA[IOException])
       },
-      test("succeeds") {
+      test("succeeds XXX") {
         val str = s"test-value"
 
         val prog =
@@ -187,7 +187,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3))
+                     .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
