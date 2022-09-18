@@ -174,7 +174,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
 
         assertZIO((ZStream(1.toByte) >>> prog).exit)(failsWithA[IOException])
       },
-      test("succeeds XXX") {
+      test("succeeds") {
         val str = s"test-value"
 
         val prog =
