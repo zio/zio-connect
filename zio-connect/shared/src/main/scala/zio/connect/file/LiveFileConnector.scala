@@ -150,7 +150,7 @@ case class LiveFileConnector() extends FileConnector {
     ZSink.foreach { path =>
       val file = path.toFile
       if (file.isDirectory) {
-        listPath(path) >>> deleteRecursivelyPath
+        (listPath(path) >>> deleteRecursivelyPath) *> (ZStream.succeed(path) >>> deletePath)
       } else {
         ZStream.succeed(path) >>> deletePath
       }
@@ -271,24 +271,6 @@ case class LiveFileConnector() extends FileConnector {
     ZSink.fromZIO {
       ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
     }
-//  {
-//    val pipeline: ZPipeline[Any, IOException, Path, Boolean] =
-//      ZPipeline.fromPush[Any, IOException, Path, Boolean](
-//        ZIO.succeed {
-//          case Some(value) => ZIO.foreach(value)(path => ZIO.attempt(Files.exists(path)).refineToOrDie[IOException])
-//          case None        => ZIO.succeed(Chunk(false))
-//        }
-//      )
-//    pipeline.toChannel
-//  }
-//    ZPipeline.fromChannel[Any, IOException, Path, Boolean](
-//      ZChannel.readWith[Any, Nothing, Path, Any, IOException, Nothing, Boolean](
-//        in = (path: Path) => ZChannel.fromZIO(ZIO.attemptBlocking(Files.exists(path)).refineToOrDie[IOException]),
-//        error = (err: IOException) => ZChannel.fail(err),
-//        done = (a: Any) => ZChannel.succeedNow(a)
-//      )
-//    )
-  //    ZSink.foreach[Any, IOException, Path](path => ZIO.attempt(Files.exists(path)).refineToOrDie[IOException])
 }
 
 object LiveFileConnector {

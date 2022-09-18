@@ -285,7 +285,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           for {
             path           <- FileConnector.tempPath
             newDir         <- FileConnector.tempDirPath
-            destinationPath = Paths.get(newDir.toString(), path.toString())
+            destinationPath = Paths.get(newDir.toString, path.toString)
             failingStream   = ZStream(path).mapZIO(_ => ZIO.fail(NonIOException))
             sink            = FileConnector.movePath(_ => destinationPath)
             r              <- ZSink.fromZIO(failingStream >>> sink)
@@ -326,67 +326,71 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("move a directory and its children") {
         val prog =
           for {
-            sourceDir  <- FileConnector.tempDirPath
-            lines       = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
-            sourceFile <- FileConnector.tempPathIn(sourceDir)
+            sourceDir            <- FileConnector.tempDirPath
+            lines                 = Chunk(UUID.randomUUID().toString, UUID.randomUUID().toString)
+            sourceDir_file1      <- FileConnector.tempPathIn(sourceDir)
+            sourceDir_dir1       <- FileConnector.tempDirPathIn(sourceDir)
+            sourceDir_dir1_file1 <- FileConnector.tempPathIn(sourceDir_dir1)
+
             _ <-
               ZSink.fromZIO(
                 ZStream
                   .fromIterable(lines.map(_ + System.lineSeparator()).map(_.getBytes).flatten) >>> FileConnector
                   .writePath(
-                    sourceFile
+                    sourceDir_file1
                   )
               )
-            innerDir     <- FileConnector.tempDirPathIn(sourceDir)
-            innerDirFile <- FileConnector.tempPathIn(innerDir)
 
-            tempDir <- FileConnector.tempDirPath
-            destinationDirPath <-
+            destinationDirRoot <- FileConnector.tempDirPath
+            destinationDirRoot_destinationDir <-
               ZSink.fromZIO(
-                ZIO.acquireRelease(ZIO.succeed(Paths.get(tempDir.toFile.getPath, UUID.randomUUID().toString)))(p =>
-                  (ZStream.succeed(p) >>> FileConnector.deletePath).orDie
-                )
+                ZIO.succeed(Paths.get(destinationDirRoot.toFile.getPath, UUID.randomUUID().toString))
               )
-            _ <- ZSink.fromZIO(ZStream(sourceDir) >>> FileConnector.movePath(_ => destinationDirPath))
+            _ <- ZSink.fromZIO(ZStream(sourceDir) >>> FileConnector.movePath(_ => destinationDirRoot_destinationDir))
 
-            targetChildren <- ZSink.fromZIO(
-                                ZIO.acquireRelease(
-                                  FileConnector.listPath(destinationDirPath).runCollect
-                                )(ls => (ZStream.fromChunk(ls) >>> FileConnector.deletePath).orDie)
-                              )
-
-            linesInNewFile <- ZSink.fromZIO(targetChildren.headOption match {
-                                case Some(f) =>
-                                  ZStream
-                                    .fromPath(f.toFile.toPath)
-                                    .via(
-                                      ZPipeline.utf8Decode >>> ZPipeline.splitLines
-                                    )
-                                    .runCollect
-                                case None =>
-                                  ZIO.succeed(Chunk.empty)
-                              })
-            sourceFileName       = sourceFile.getFileName.toString
-            innerDirFilename     = innerDir.getFileName.toString
-            innerDirFileFilename = innerDirFile.getFileName.toString
-            destinationFileNames = targetChildren.map(_.getFileName.toString)
-            movedInnerDir <-
+            destinationDirRoot_destinationDir_Children <-
               ZSink.fromZIO(
-                ZIO
-                  .foreach(targetChildren)(c =>
-                    if (c.toFile.isDirectory) FileConnector.listPath(c).runCollect
-                    else ZIO.succeed(Chunk.empty[Path])
+                FileConnector.listPath(destinationDirRoot_destinationDir).runCollect
+              )
+            linesInMovedFile <-
+              ZSink.fromZIO(
+                destinationDirRoot_destinationDir_Children.find(_.getFileName == sourceDir_file1.getFileName) match {
+                  case Some(f) =>
+                    ZStream
+                      .fromPath(f.toFile.toPath)
+                      .via(
+                        ZPipeline.utf8Decode >>> ZPipeline.splitLines
+                      )
+                      .runCollect
+                  case None =>
+                    ZIO.succeed(Chunk.empty)
+                }
+              )
+
+            destinationFileNames = destinationDirRoot_destinationDir_Children.map(_.getFileName)
+            destinationDirRoot_destinationDir_dir1 =
+              destinationDirRoot_destinationDir_Children.find(_.getFileName == sourceDir_dir1.getFileName)
+            destinationDirRoot_destinationDir_dir1_Children <-
+              destinationDirRoot_destinationDir_dir1 match {
+                case Some(value) =>
+                  ZSink.fromZIO(
+                    FileConnector.listPath(value).runCollect.orDie
                   )
-                  .map(a => a.flatten)
-                  .map(_.map(_.getFileName.toString))
-              )
+                case None => ZSink.succeed(Chunk.empty[Path])
+              }
             originalDirectoryIsDeleted <- FileConnector.existsPath(sourceDir).map(!_)
-            _                          <- ZSink.fromZIO(ZStream.succeed(destinationDirPath) >>> FileConnector.deleteRecursivelyPath)
+            _ <- ZSink.fromZIO(
+                   ZStream.succeed(destinationDirRoot_destinationDir) >>> FileConnector.deleteRecursivelyPath
+                 )
           } yield assertTrue(originalDirectoryIsDeleted) &&
-            assertTrue(targetChildren.size == 2) &&
-            assert(destinationFileNames)(equalTo(Chunk(sourceFileName, innerDirFilename))) &&
-            assert(linesInNewFile)(equalTo(lines)) &&
-            assert(movedInnerDir)(equalTo(Chunk(innerDirFileFilename)))
+            assertTrue(destinationDirRoot_destinationDir_Children.size == 2) &&
+            assert(destinationFileNames.sorted)(
+              equalTo(Chunk(sourceDir_file1.getFileName, sourceDir_dir1.getFileName).sorted)
+            ) &&
+            assert(linesInMovedFile)(equalTo(lines)) &&
+            assert(destinationDirRoot_destinationDir_dir1_Children.map(_.getFileName))(
+              equalTo(Chunk(sourceDir_dir1_file1.getFileName))
+            )
 
         ZStream(1.toByte) >>> prog
       }
