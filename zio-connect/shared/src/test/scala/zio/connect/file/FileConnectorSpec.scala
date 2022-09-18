@@ -394,7 +394,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     )
 
   private lazy val deleteRecursivelySuite =
-    suite("deleteRecursivelyPath XXX")(
+    suite("deleteRecursivelyPath")(
       test("fails when IOException") {
         val prog = {
           for {

@@ -14,7 +14,8 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.delete(path))
 
-  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] = ???
+  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+    ZSink.foreach(path => fs.deleteRecursively(path))
 
   override def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.fromZIO(fs.exists(path))

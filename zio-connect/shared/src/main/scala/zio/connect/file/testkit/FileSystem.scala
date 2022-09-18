@@ -89,6 +89,16 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
       } yield ()
     }
 
+  def deleteRecursively(path: Path): ZIO[Any, IOException, Unit] =
+    STM.atomically {
+      for {
+        file     <- findFile(path)
+        children <- getChildren(path)
+        all       = children ++ Chunk.fromIterable(file)
+        _        <- map.update(m => m.removedAll(all.map(_.path)))
+      } yield ()
+    }
+
   def write(path: Path, bytes: Chunk[Byte]): ZIO[Any, IOException, Unit] =
     STM.atomically {
       for {
