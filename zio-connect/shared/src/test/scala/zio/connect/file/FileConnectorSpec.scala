@@ -192,8 +192,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           sink            = FileConnector.movePath(_ => destinationPath)
           _              <- ZSink.fromZIO((stream >>> sink).exit)
           linesInNewFile <- ZSink.fromZIO(
-                              ZStream
-                                .fromPath(destinationPath.toFile.toPath)
+                              FileConnector
+                                .readPath(destinationPath)
                                 .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                                 .runCollect
                             )
@@ -236,8 +236,10 @@ trait FileConnectorSpec extends ZIOSpecDefault {
               ZSink.fromZIO(
                 destinationDirRoot_destinationDir_Children.find(_.getFileName == sourceDir_file1.getFileName) match {
                   case Some(f) =>
-                    ZStream
-                      .fromPath(f.toFile.toPath)
+                    FileConnector
+                      .readPath(f)
+//                    ZStream
+//                      .fromPath(f.toFile.toPath)
                       .via(
                         ZPipeline.utf8Decode >>> ZPipeline.splitLines
                       )
@@ -303,17 +305,21 @@ trait FileConnectorSpec extends ZIOSpecDefault {
     suite("tailPath")(
       test("fails when IOException") {
         val prog = for {
-          path  <- FileConnector.tempPath
-          stream = FileConnector.tailPath(path, Duration.fromMillis(500))
+          path <- FileConnector.tempPath
           // delete the file to cause an IOException
-          _     <- ZSink.fromZIO(ZStream.succeed(path) >>> FileConnector.deletePath)
-          fiber <- ZSink.fromZIO(stream.runDrain.fork)
-          _     <- ZSink.fromZIO(TestClock.adjust(Duration.fromMillis(3000)))
-          r     <- ZSink.fromZIO(fiber.join)
+          _ <- ZSink.fromZIO(ZStream.succeed(path) >>> FileConnector.deletePath)
+          fiber <- ZSink.fromZIO(
+                     FileConnector
+                       .tailPath(path, Duration.fromMillis(500))
+                       .runDrain
+                       .fork
+                   )
+          _ <- ZSink.fromZIO(TestClock.adjust(Duration.fromMillis(30000)))
+          r <- ZSink.fromZIO(fiber.join)
         } yield r
 
         assertZIO((ZStream(1.toByte) >>> prog).exit)(failsWithA[IOException])
-      },
+      } @@ TestAspect.diagnose(Duration.fromSeconds(10)),
       test("succeeds") {
         val str = s"test-value"
 
@@ -348,7 +354,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
           } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
-      }
+      } @@ TestAspect.diagnose(Duration.fromSeconds(10))
     )
 
   private lazy val tailUsingWatchServiceSuite =
@@ -379,7 +385,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3) && Schedule.spaced(Duration.fromMillis(1000)))
+                     .repeat(Schedule.recurs(3))
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
