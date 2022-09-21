@@ -36,14 +36,14 @@ trait FileConnector {
       ZIO.attempt(file.toPath).refineToOrDie[IOException].map(path => existsPath(path))
     )
 
-  def existsFileName(name: String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  final def existsFileName(name: String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.unwrap(
       ZIO.attempt(Path.of(name)).refineToOrDie[IOException].map(path => existsPath(path))
     )
 
   def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
 
-  def existsURI(uri: URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  final def existsURI(uri: URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.unwrap(
       ZIO.attempt(Path.of(uri)).refineToOrDie[IOException].map(path => existsPath(path))
     )
