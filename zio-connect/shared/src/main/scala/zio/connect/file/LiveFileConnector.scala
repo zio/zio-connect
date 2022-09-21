@@ -1,8 +1,8 @@
 package zio.connect.file
 
-import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.ZIO.attemptBlocking
 import zio.stream.{Sink, ZSink, ZStream}
+import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 
 import java.io.{File, FileNotFoundException, IOException}
 import java.net.URI

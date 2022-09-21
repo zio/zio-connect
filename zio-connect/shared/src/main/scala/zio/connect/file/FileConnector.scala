@@ -1,11 +1,11 @@
 package zio.connect.file
 
-import java.nio.file.Path
-import zio.{Duration, Scope, Trace, ZIO}
 import zio.stream.{ZSink, ZStream}
+import zio.{Duration, Scope, Trace, ZIO}
 
 import java.io.{File, IOException}
 import java.net.URI
+import java.nio.file.Path
 
 trait FileConnector {
 

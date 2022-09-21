@@ -2,8 +2,8 @@ package zio.connect.file
 
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.test.Assertion._
-import zio.test.{TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Queue, Schedule, ZIO}
+import zio.test.{Spec, TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
+import zio.{Cause, Chunk, Duration, Queue, Schedule, Scope, ZIO}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
@@ -11,7 +11,7 @@ import java.util.UUID
 
 trait FileConnectorSpec extends ZIOSpecDefault {
 
-  val fileConnectorSpec =
+  val fileConnectorSpec: Spec[FileConnector with Scope, IOException] =
     deleteSuite + deleteRecursivelySuite + listSuite + moveSuite + readSuite +
       tailSuite + tailUsingWatchServiceSuite + writeSuite
 

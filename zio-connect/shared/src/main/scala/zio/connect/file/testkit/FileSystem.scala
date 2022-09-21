@@ -1,7 +1,7 @@
 package zio.connect.file.testkit
 
-import zio.{Chunk, ZIO}
 import zio.stm.{STM, TRef, ZSTM}
+import zio.{Chunk, ZIO}
 
 import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
@@ -51,7 +51,7 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
     for {
       file     <- findFileSTM(path)
       children <- getChildren(path)
-      all       = children ++ Chunk.fromIterable(file)
+      all       = children ++ Chunk.fromIterable(file.toList)
       _        <- map.update(m => m.removedAll(all.map(_.path)))
     } yield ()
 

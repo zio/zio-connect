@@ -1,9 +1,9 @@
 package zio.connect.file.testkit
 
-import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import zio.connect.file.FileConnector
 import zio.stm.{STM, TRef}
 import zio.stream.{ZSink, ZStream}
+import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 
 import java.io.{File, IOException}
 import java.net.URI
@@ -97,7 +97,7 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
 
 object InMemoryFileConnector {
 
-  def layer = ZLayer.fromZIO(
+  def layer: ZLayer[Any, Nothing, InMemoryFileConnector] = ZLayer.fromZIO(
     STM.atomically {
       for {
         a <- TRef.make(Map.empty[Path, TKFile])
