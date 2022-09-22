@@ -7,7 +7,7 @@ env:
 on:
   pull_request:
   push:
-    branches: ['master']
+    branches: [ 'master' ]
   release:
     types:
       - published
@@ -47,9 +47,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [graal_21.1.0@11, temurin@8]
-        scala: [2.12.16, 2.13.9, 3.2.0]
-        platform: ['JVM', 'JS']
+        java: [ graal_21.1.0@11, temurin@8 ]
+        scala: [ 2.12.16, 2.13.9, 3.2.0 ]
+        platform: [ 'JVM', 'JS' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -70,7 +70,7 @@ jobs:
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, mdoc, test]
+    needs: [ lint, mdoc, test ]
     steps:
       - name: Aggregate of lint, and all tests
         run: echo "ci passed"
@@ -78,14 +78,14 @@ jobs:
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 30
-    needs: [ci]
+    needs: [ ci ]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
         with:
           fetch-depth: 0
-      - name: Setup Scala and Java 
+      - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
