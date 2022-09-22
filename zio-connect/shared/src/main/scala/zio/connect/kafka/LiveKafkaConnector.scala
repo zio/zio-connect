@@ -1,8 +1,8 @@
 package zio.connect.kafka
 
-import zio.{Trace, ZLayer}
 import zio.connect.kafka.LiveKafkaConnector.KafkaSettings
 import zio.stream.ZStream
+import zio.{Trace, ZLayer}
 
 import java.io.IOException
 

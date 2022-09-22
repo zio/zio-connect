@@ -24,10 +24,20 @@ inThisBuild(
   )
 )
 
-addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
-addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias("fmt", "all scalafmtSbt scalafmt Test/scalafmt")
+addCommandAlias("fix", "; all Compile/scalafix Test/scalafix; all scalafmtSbt scalafmtAll")
+addCommandAlias("check", "; scalafmtSbtCheck; scalafmtCheckAll; Compile/scalafix --check; Test/scalafix --check")
 
-val zioVersion    = "2.0.1"
+addCommandAlias(
+  "testJVM",
+  ";zioConnectJVM/test"
+)
+addCommandAlias(
+  "testJS",
+  ";zioConnectJS/test"
+)
+
+val zioVersion    = "2.0.2"
 val zioNioVersion = "2.0.0"
 
 lazy val root = project
@@ -57,6 +67,7 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val zioConnectJS = zioConnect.js
   .settings(scalaJSUseMainModuleInitializer := true)
