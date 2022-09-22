@@ -40,8 +40,6 @@ install_jdk: &install_jdk
         sudo apt update
         if [ $JDK_VERSION == 11 ]; then
           sudo apt install -y adoptopenjdk-11-hotspot
-        elif [ $JDK_VERSION == 8 ]; then
-          sudo apt install -y openjdk-8-jdk
         fi
         java -version
 
