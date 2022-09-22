@@ -47,9 +47,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.11.12', '2.12.14', '2.13.6', '3.0.0']
-        platform: ['JVM', 'JS', 'Native']
+        java: [graal_21.1.0@11, temurin@8]
+        scala: [2.12.16, 2.13.9, 3.2.0]
+        platform: ['JVM', 'JS']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
