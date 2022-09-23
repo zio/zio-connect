@@ -61,7 +61,7 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
       "dev.zio" %% "zio"          % zioVersion,
       "dev.zio" %% "zio-streams"  % zioVersion,
       "dev.zio" %% "zio-nio"      % zioNioVersion,
-      "dev.zio" %% "zio-s3"       % "0.2.1",
+//      "dev.zio" %% "zio-s3"       % "0.2.1",
       "dev.zio" %% "zio-test"     % zioVersion % "test",
       "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
     )
