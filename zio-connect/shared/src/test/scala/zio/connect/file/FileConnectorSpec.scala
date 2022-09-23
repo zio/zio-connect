@@ -351,8 +351,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                      .forever
                      .fork
                  )
-            r <- ZSink.fromZIO(fiber.join.timeout(Duration.fromMillis(150000)))
-          } yield assertTrue(r.contains(Chunk(str, str, str)))
+            r <- ZSink.fromZIO(fiber.join)
+          } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
       } @@ TestAspect.diagnose(Duration.fromSeconds(10))
@@ -404,8 +404,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                      .forever
                      .fork
                  )
-            r <- ZSink.fromZIO(fiber.join.timeout(Duration.fromMillis(150000)))
-          } yield assertTrue(r.contains(Chunk(str, str, str)))
+            r <- ZSink.fromZIO(fiber.join)
+          } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
       } @@ TestAspect.diagnose(Duration.fromSeconds(10))
