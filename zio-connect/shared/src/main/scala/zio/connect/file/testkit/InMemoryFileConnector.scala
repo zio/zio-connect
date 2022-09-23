@@ -65,7 +65,8 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
       for {
         queue <- Queue.unbounded[Byte]
         index <- Ref.make(0)
-        _     <- push(index, queue).repeat(Schedule.recurs(10) && Schedule.spaced(Duration.fromMillis(100)))
+        _ <-
+          push(index, queue).repeat[Any, (Long, Long)](Schedule.recurs(10) && Schedule.spaced(Duration.fromMillis(100)))
       } yield ZStream.fromQueue(queue)
     )
 

@@ -3,7 +3,7 @@ package zio.connect.file
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.test.Assertion._
 import zio.test.{Spec, TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Queue, Schedule, Scope, ZIO}
+import zio.{Cause, Chunk, Duration, Queue, Scope, ZIO}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
@@ -333,7 +333,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3))
+                     .repeatN(3)
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
@@ -348,7 +348,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    TestClock
                      .adjust(Duration.fromMillis(1000))
-                     .repeat(Schedule.recurs(5))
+                     .repeatN(5)
                  )
             r <- ZSink.fromZIO(fiber.join)
           } yield assert(r)(equalTo(Chunk(str, str, str)))
@@ -385,7 +385,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3))
+                     .repeatN(3)
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
