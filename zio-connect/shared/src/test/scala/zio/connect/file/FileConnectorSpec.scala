@@ -2,6 +2,7 @@ package zio.connect.file
 
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.test.Assertion._
+import zio.test.TestAspect.withLiveClock
 import zio.test.{Spec, TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
 import zio.{Cause, Chunk, Duration, Queue, Scope, ZIO}
 
@@ -345,17 +346,11 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                          .runCollect
                          .fork
                      )
-            _ <- ZSink.fromZIO(
-                   TestClock
-                     .adjust(Duration.fromMillis(5000))
-                     .forever
-                     .fork
-                 )
             r <- ZSink.fromZIO(fiber.join)
           } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
-      } @@ TestAspect.diagnose(Duration.fromSeconds(10))
+      } @@ withLiveClock
     )
 
   private lazy val tailUsingWatchServiceSuite =
@@ -398,17 +393,11 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                          .runCollect
                          .fork
                      )
-            _ <- ZSink.fromZIO(
-                   TestClock
-                     .adjust(Duration.fromMillis(5000))
-                     .forever
-                     .fork
-                 )
             r <- ZSink.fromZIO(fiber.join)
           } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
-      } @@ TestAspect.diagnose(Duration.fromSeconds(10))
+      } @@ withLiveClock @@ TestAspect.diagnose(Duration.fromSeconds(10))
     )
 
   private lazy val writeSuite =
