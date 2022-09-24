@@ -2,7 +2,7 @@ name: Website
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   release:
     types:
       - published
@@ -18,6 +18,6 @@ jobs:
         with:
           java-version: adopt@1.11
       - uses: olafurpg/setup-gpg@v3
-      - run: sbt docs/docusaurusPublishGhpages
+      - run: sbt ++2.13.9! docs/docusaurusPublishGhpages
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
