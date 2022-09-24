@@ -3,7 +3,7 @@ import sbt._
 
 object Dependencies {
 
-  val ScalaCompactCollectionVersion = "2.8.1"
-  val `scala-compact-collection`    = "org.scala-lang.modules" %% "scala-collection-compat" % ScalaCompactCollectionVersion
+  val scalaCompactCollection = "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1"
 
+  val zioVersion = "2.0.2"
 }

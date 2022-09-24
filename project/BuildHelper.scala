@@ -1,3 +1,4 @@
+import com.jsuereth.sbtpgp.SbtPgp.autoImport.{pgpPassphrase, pgpPublicRing, pgpSecretRing}
 import sbt.Keys._
 import sbt._
 import scalafix.sbt.ScalafixPlugin.autoImport._
@@ -74,6 +75,20 @@ object BuildHelper extends ScalaSettings {
     ThisBuild / scmInfo :=
       Some(
         ScmInfo(url("https://github.com/zio/zio-connect"), "scm:git@github.com:zio/zio-connect.git")
+      ),
+    ThisBuild / homepage := Some(url("https://zio.github.io/zio-connect/")),
+    ThisBuild / licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    ThisBuild / developers := List(
+      Developer(
+        "jdegoes",
+        "John De Goes",
+        "john@degoes.net",
+        url("http://degoes.net")
       )
+    ),
+    ThisBuild / organization  := "dev.zio",
+    ThisBuild / pgpPassphrase := sys.env.get("PGP_PASSWORD").map(_.toArray),
+    ThisBuild / pgpPublicRing := file("/tmp/public.asc"),
+    ThisBuild / pgpSecretRing := file("/tmp/secret.asc")
   )
 }
