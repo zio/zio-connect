@@ -24,7 +24,8 @@ lazy val root = project
   )
   .aggregate(
     zioConnectJVM,
-    zioConnectJS
+    zioConnectJS,
+    docs
   )
 
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
