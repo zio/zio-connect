@@ -54,13 +54,10 @@ lazy val root = project
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .in(file("zio-connect"))
   .settings(stdSettings("zioConnect"))
-//  .settings(crossProjectSettings)
-//  .settings(buildInfoSettings("zio.connect"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"         % zioVersion,
-      "dev.zio" %% "zio-streams" % zioVersion,
-//      "dev.zio" %% "zio-s3"       % "0.2.1",
+      "dev.zio" %% "zio"          % zioVersion,
+      "dev.zio" %% "zio-streams"  % zioVersion,
       "dev.zio" %% "zio-test"     % zioVersion % "test",
       "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
     )
@@ -83,7 +80,6 @@ lazy val zioConnectJS = zioConnect.js
   )
 
 lazy val zioConnectJVM = zioConnect.jvm
-//  .settings(dottySettings)
 
 lazy val docs = project
   .in(file("zio-connect-docs"))
