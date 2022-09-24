@@ -33,16 +33,16 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .settings(meta)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"          % zioVersion,
-      "dev.zio" %% "zio-streams"  % zioVersion,
-      "dev.zio" %% "zio-test"     % zioVersion % "test",
-      "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
+      `zio`,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
     )
   )
   .settings(
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(scalaCompactCollection)
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
         case _                       => Seq.empty
       }
     }
@@ -66,7 +66,7 @@ lazy val docs = project
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % zioVersion
+      `zio`
     ),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(root),
     ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
