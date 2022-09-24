@@ -2,8 +2,9 @@ package zio.connect.file
 
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.test.Assertion._
+import zio.test.TestAspect.withLiveClock
 import zio.test.{Spec, TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Queue, Schedule, Scope, ZIO}
+import zio.{Cause, Chunk, Duration, Queue, Scope, ZIO}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
@@ -333,7 +334,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3))
+                     .repeatN(3)
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
@@ -345,16 +346,11 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                          .runCollect
                          .fork
                      )
-            _ <- ZSink.fromZIO(
-                   TestClock
-                     .adjust(Duration.fromMillis(1000))
-                     .repeat(Schedule.recurs(5))
-                 )
             r <- ZSink.fromZIO(fiber.join)
           } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
-      } @@ TestAspect.diagnose(Duration.fromSeconds(10))
+      } @@ withLiveClock
     )
 
   private lazy val tailUsingWatchServiceSuite =
@@ -385,7 +381,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeat(Schedule.recurs(3))
+                     .delay(Duration.fromMillis(100))
+                     .repeatN(50)
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
@@ -397,16 +394,11 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                          .runCollect
                          .fork
                      )
-            _ <- ZSink.fromZIO(
-                   TestClock
-                     .adjust(Duration.fromMillis(60000))
-                     .fork
-                 )
             r <- ZSink.fromZIO(fiber.join)
           } yield assert(r)(equalTo(Chunk(str, str, str)))
 
         ZStream(1.toByte) >>> prog
-      } @@ TestAspect.diagnose(Duration.fromSeconds(10))
+      } @@ withLiveClock @@ TestAspect.diagnose(Duration.fromSeconds(10))
     )
 
   private lazy val writeSuite =
@@ -414,7 +406,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
         val sink                     = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
-        val failingStream            = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
+        val failingStream            = ZStream(1).mapZIO[Any, IOException, Byte](_ => ZIO.fail(ioException))
         val prog                     = (failingStream >>> sink).exit
 
         assertZIO(prog)(fails(equalTo(ioException)))
@@ -422,7 +414,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val sink          = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
-        val failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
+        val failingStream = ZStream(1).mapZIO[Any, Throwable, Byte](_ => ZIO.fail(NonIOException))
         val prog          = (failingStream >>> sink).exit
 
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))

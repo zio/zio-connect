@@ -38,10 +38,10 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
                    for {
                      children <- getChildren(path)
                      _ <- if (children.isEmpty)
-                            map.update(m => m.removed(path))
+                            map.update(m => m - path)
                           else ZSTM.fail(new DirectoryNotEmptyException(s"$path"))
                    } yield ()
-                 case TKFile.File(_, _) => map.update(m => m.removed(path))
+                 case TKFile.File(_, _) => map.update(m => m - path)
                }
              case None => ZSTM.unit
            }
@@ -52,7 +52,7 @@ final case class Root(map: TRef[Map[Path, TKFile]]) {
       file     <- findFileSTM(path)
       children <- getChildren(path)
       all       = children ++ Chunk.fromIterable(file.toList)
-      _        <- map.update(m => m.removedAll(all.map(_.path)))
+      _        <- map.update(m => m -- all.map(_.path))
     } yield ()
 
   def deleteRecursively(path: Path): ZIO[Any, IOException, Unit] =

@@ -1,16 +1,13 @@
 version: 2.1
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.10
+  SCALA_VERSION: 2.12.16
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.1
+  SCALA_VERSION: 2.13.9
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.20.0-RC1
-
-jdk_8: &jdk_8
-  JDK_VERSION: 8
+  SCALA_VERSION: 3.2.0
 
 jdk_11: &jdk_11
   JDK_VERSION: 11
@@ -40,8 +37,6 @@ install_jdk: &install_jdk
         sudo apt update
         if [ $JDK_VERSION == 11 ]; then
           sudo apt install -y adoptopenjdk-11-hotspot
-        elif [ $JDK_VERSION == 8 ]; then
-          sudo apt install -y openjdk-8-jdk
         fi
         java -version
 
@@ -61,11 +56,11 @@ save_cache: &save_cache
   - save_cache:
       key: sbt-zio-connect-cache-v2
       paths:
-          - "~/.ivy2/cache"
-          - "~/.sbt"
-          - "~/.m2"
-          - "~/.cache"
-          - "~/website/node_modules"
+        - "~/.ivy2/cache"
+        - "~/.sbt"
+        - "~/.m2"
+        - "~/.cache"
+        - "~/website/node_modules"
 
 install_yarn: &install_yarn
   - run:
@@ -132,61 +127,61 @@ test: &test
 
 release: &release
   steps:
-      - checkout
-      - run:
-          name: Fetch git tags
-          command: git fetch --tags
-      - <<: *load_cache
-      - run: 
-          name: Write sonatype credentials
-          command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
-      - run:
-          name: Write PGP public key
-          command: echo -n "${PGP_PUBLIC}" | base64 -di > /tmp/public.asc
-      - run:
-          name: Write PGP secret key
-          command: echo -n "${PGP_SECRET}" | base64 -di > /tmp/secret.asc
-      - run:
-          name: Release artifacts
-          command: |
-            mkdir -p $HOME/bin
-            sudo apt-get update && sudo apt-get -y install gnupg2
-            echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
-            echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
-            chmod 600 ~/.gnupg/*
-            ln -s /usr/bin/gpg2 $HOME/bin/gpg
-            $HOME/bin/gpg --version
-            echo RELOADAGENT | gpg-connect-agent
-            echo $PGP_SECRET | base64 -di | gpg2 --import --no-tty --batch --yes
-            PATH=$HOME/bin:$PATH ./sbt ++${SCALA_VERSION}! clean ci-release
+    - checkout
+    - run:
+        name: Fetch git tags
+        command: git fetch --tags
+    - <<: *load_cache
+    - run:
+        name: Write sonatype credentials
+        command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
+    - run:
+        name: Write PGP public key
+        command: echo -n "${PGP_PUBLIC}" | base64 -di > /tmp/public.asc
+    - run:
+        name: Write PGP secret key
+        command: echo -n "${PGP_SECRET}" | base64 -di > /tmp/secret.asc
+    - run:
+        name: Release artifacts
+        command: |
+          mkdir -p $HOME/bin
+          sudo apt-get update && sudo apt-get -y install gnupg2
+          echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
+          echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
+          chmod 600 ~/.gnupg/*
+          ln -s /usr/bin/gpg2 $HOME/bin/gpg
+          $HOME/bin/gpg --version
+          echo RELOADAGENT | gpg-connect-agent
+          echo $PGP_SECRET | base64 -di | gpg2 --import --no-tty --batch --yes
+          PATH=$HOME/bin:$PATH ./sbt ++${SCALA_VERSION}! clean ci-release
 
 microsite: &microsite
   steps:
-      - add_ssh_keys:
-          fingerprints:
-            - "11:2c:fa:98:69:d8:a1:d5:76:2e:38:d0:91:39:85:ce"
-      - checkout
-      - <<: *load_cache
-      - <<: *install_nodejs
-      - <<: *install_yarn
-      - run:
-          name: Publishing website
-          command: |
-            git config --global user.email "${GH_NAME}@users.noreply.github.com"
-            git config --global user.name "${GH_NAME}"
-            export GIT_USER=${GH_NAME}
-            export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
-            export TRAVIS_COMMIT="${CIRCLE_SHA1}"
-            sudo chown -R $USER:$USER /tmp
-            export NVM_DIR="/opt/circleci/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm install
-            nvm use
-            node -v
-            ./sbt ++${SCALA_VERSION}! docs/docusaurusCreateSite
-            ./sbt ++${SCALA_VERSION}! docs/docusaurusPublishGhpages
-      - <<: *clean_cache
-      - <<: *save_cache
+    - add_ssh_keys:
+        fingerprints:
+          - "11:2c:fa:98:69:d8:a1:d5:76:2e:38:d0:91:39:85:ce"
+    - checkout
+    - <<: *load_cache
+    - <<: *install_nodejs
+    - <<: *install_yarn
+    - run:
+        name: Publishing website
+        command: |
+          git config --global user.email "${GH_NAME}@users.noreply.github.com"
+          git config --global user.name "${GH_NAME}"
+          export GIT_USER=${GH_NAME}
+          export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
+          export TRAVIS_COMMIT="${CIRCLE_SHA1}"
+          sudo chown -R $USER:$USER /tmp
+          export NVM_DIR="/opt/circleci/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm install
+          nvm use
+          node -v
+          ./sbt ++${SCALA_VERSION}! docs/docusaurusCreateSite
+          ./sbt ++${SCALA_VERSION}! docs/docusaurusPublishGhpages
+    - <<: *clean_cache
+    - <<: *save_cache
 
 jobs:
   lint:
@@ -194,42 +189,21 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
-      - <<: *jdk_8
+      - <<: *jdk_11
 
   compile_dotty:
     <<: *compile
     <<: *machine_ubuntu
     environment:
       - <<: *scala_dotty
-      - <<: *jdk_8
+      - <<: *jdk_11
 
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
-      - <<: *jdk_8
-
-  test_212_jdk8_jvm:
-    <<: *test
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_8
-
-  test_213_jdk8_jvm:
-    <<: *test
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_213
-      - <<: *jdk_8
-
-  test_dotty_jdk8_jvm:
-    <<: *test
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_dotty
-      - <<: *jdk_8
+      - <<: *jdk_11
 
   test_212_jdk11_jvm:
     <<: *test
@@ -257,14 +231,14 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_213
-      - <<: *jdk_8
+      - <<: *jdk_11
 
   microsite:
     <<: *microsite
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
-      - <<: *jdk_8
+      - <<: *scala_213
+      - <<: *jdk_11
 
 workflows:
   version: 2
@@ -274,16 +248,6 @@ workflows:
           filters:
             <<: *filter_tags
       - mdoc:
-          requires:
-            - lint
-          filters:
-            <<: *filter_tags
-      - test_212_jdk8_jvm:
-          requires:
-            - lint
-          filters:
-            <<: *filter_tags
-      - test_213_jdk8_jvm:
           requires:
             - lint
           filters:
@@ -301,9 +265,7 @@ workflows:
       - release:
           context: Sonatype2
           requires:
-            - test_212_jdk8_jvm
             - test_212_jdk11_jvm
-            - test_213_jdk8_jvm
             - test_213_jdk11_jvm
             - mdoc
           filters:

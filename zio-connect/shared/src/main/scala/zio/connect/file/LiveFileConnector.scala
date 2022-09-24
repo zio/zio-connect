@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.{Files, Path, Paths, StandardOpenOption, StandardWatchEventKinds, WatchService}
 import java.util.UUID
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters._
 
 case class LiveFileConnector() extends FileConnector {
 
@@ -160,7 +160,7 @@ case class LiveFileConnector() extends FileConnector {
       fileSize     <- ZIO.attemptBlocking(Files.size(path)).refineToOrDie[IOException]
       cursor        = if (fileSize > BUFFER_SIZE) fileSize - BUFFER_SIZE else 0L
       ref          <- Ref.make(cursor)
-      _            <- pollUpdates(path, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+      _            <- pollUpdates(path, queue, ref).repeat[Any, Long](Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue))
 
   override def tailPathUsingWatchService(path: => Path, freq: => Duration)(implicit
@@ -176,7 +176,7 @@ case class LiveFileConnector() extends FileConnector {
                   .attemptBlocking(Option(path.getParent))
                   .flatMap(ZIO.fromOption(_).orElseFail(new IOException(s"Parent directory not found for $path")))
       watchService <- registerWatchService(parent)
-      _            <- watchUpdates(path, watchService, queue, ref).repeat(Schedule.fixed(freq)).forever.fork
+      _            <- watchUpdates(path, watchService, queue, ref).repeat[Any, Long](Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue)).refineToOrDie[IOException])
 
   override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
