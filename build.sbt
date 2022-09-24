@@ -38,7 +38,7 @@ addCommandAlias(
   ";zioConnectJS/test"
 )
 
-val zioVersion    = "2.0.2"
+val zioVersion = "2.0.2"
 
 lazy val root = project
   .in(file("."))
@@ -69,7 +69,7 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -79,7 +79,7 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
 lazy val zioConnectJS = zioConnect.js
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    Test / fork := false
+    Test / fork                     := false
   )
 
 lazy val zioConnectJVM = zioConnect.jvm
