@@ -1,4 +1,5 @@
 import BuildHelper._
+import Dependencies._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
@@ -38,7 +39,6 @@ addCommandAlias(
 )
 
 val zioVersion    = "2.0.2"
-val zioNioVersion = "2.0.0"
 
 lazy val root = project
   .in(file("."))
@@ -54,8 +54,8 @@ lazy val root = project
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .in(file("zio-connect"))
   .settings(stdSettings("zioConnect"))
-  .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.connect"))
+//  .settings(crossProjectSettings)
+//  .settings(buildInfoSettings("zio.connect"))
   .settings(
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio"         % zioVersion,
@@ -65,14 +65,25 @@ lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
       "dev.zio" %% "zio-test-sbt" % zioVersion % "test"
     )
   )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _ => Seq.empty
+      }
+    }
+  )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .enablePlugins(BuildInfoPlugin)
 
 lazy val zioConnectJS = zioConnect.js
-  .settings(scalaJSUseMainModuleInitializer := true)
+  .settings(
+    scalaJSUseMainModuleInitializer := true,
+    Test / fork := false
+  )
 
 lazy val zioConnectJVM = zioConnect.jvm
-  .settings(dottySettings)
+//  .settings(dottySettings)
 
 lazy val docs = project
   .in(file("zio-connect-docs"))

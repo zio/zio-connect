@@ -381,7 +381,8 @@ trait FileConnectorSpec extends ZIOSpecDefault {
             _ <- ZSink.fromZIO(
                    queue
                      .offerAll(str.getBytes ++ System.lineSeparator().getBytes)
-                     .repeatN(3)
+                     .delay(Duration.fromMillis(100))
+                     .repeatN(50)
                      .fork
                  )
             _ <- ZSink.fromZIO((queueStream >>> writeSink).fork)
@@ -405,7 +406,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("fails when IOException") {
         val ioException: IOException = new IOException("test ioException")
         val sink                     = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
-        val failingStream            = ZStream(1).mapZIO(_ => ZIO.fail(ioException))
+        val failingStream            = ZStream(1).mapZIO[Any, IOException, Byte](_ => ZIO.fail(ioException))
         val prog                     = (failingStream >>> sink).exit
 
         assertZIO(prog)(fails(equalTo(ioException)))
@@ -413,7 +414,7 @@ trait FileConnectorSpec extends ZIOSpecDefault {
       test("dies when non-IOException exception") {
         object NonIOException extends Throwable
         val sink          = FileConnector.tempPath.flatMap(path => FileConnector.writePath(path))
-        val failingStream = ZStream(1).mapZIO(_ => ZIO.fail(NonIOException))
+        val failingStream = ZStream(1).mapZIO[Any, Throwable, Byte](_ => ZIO.fail(NonIOException))
         val prog          = (failingStream >>> sink).exit
 
         assertZIO(prog)(failsCause(equalTo(Cause.die(NonIOException))))

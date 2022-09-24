@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.{Files, Path, Paths, StandardOpenOption, StandardWatchEventKinds, WatchService}
 import java.util.UUID
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters._
 
 case class LiveFileConnector() extends FileConnector {
 
