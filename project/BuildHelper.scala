@@ -63,7 +63,7 @@ object BuildHelper extends ScalaSettings {
       ),
     Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
-    autoAPIMappings := true,
+    autoAPIMappings  := true,
     ThisBuild / fork := true
   )
 
