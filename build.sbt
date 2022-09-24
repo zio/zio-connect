@@ -29,7 +29,7 @@ lazy val root = project
 
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .in(file("zio-connect"))
-  .settings(stdSettings("zioConnect"))
+  .settings(stdSettings("zio-connect"))
   .settings(meta)
   .settings(
     libraryDependencies ++= Seq(
