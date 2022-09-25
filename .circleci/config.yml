@@ -188,7 +188,7 @@ jobs:
     <<: *lint
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_11
 
   compile_dotty:
@@ -202,7 +202,7 @@ jobs:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_11
 
   test_212_jdk11_jvm:
