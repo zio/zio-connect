@@ -1,8 +1,9 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx4G -Xss4M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx4G -Xss4M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  NODE_OPTIONS: --max_old_space_size=6144
 
 on:
   pull_request:
@@ -15,20 +16,22 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-20.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
+      - name: Setup Java
+        uses: actions/setup-java@v2.5.0
         with:
-          fetch-depth: 0
-      - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v13
-        with:
-          java-version: adopt@1.11
+          distribution: temurin
+          java-version: 17
+          check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
+      - name: Install libuv
+        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Lint code
-        run: sbt check
+        run: ./sbt check
 
   mdoc:
     runs-on: ubuntu-20.04

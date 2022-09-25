@@ -3,6 +3,24 @@ import Dependencies._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
+inThisBuild(
+  List(
+    organization := "dev.zio",
+    homepage     := Some(url("https://zio.dev")),
+    licenses := List(
+      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+    ),
+    developers := List(
+      Developer(
+        "jdegoes",
+        "John De Goes",
+        "john@degoes.net",
+        url("http://degoes.net")
+      )
+    )
+  )
+)
+
 addCommandAlias("fmt", "all scalafmtSbt scalafmt Test/scalafmt")
 addCommandAlias("fix", "; all Compile/scalafix Test/scalafix; all scalafmtSbt scalafmtAll")
 addCommandAlias("check", "; scalafmtSbtCheck; scalafmtCheckAll; Compile/scalafix --check; Test/scalafix --check")
@@ -31,7 +49,6 @@ lazy val root = project
 lazy val zioConnect = crossProject(JSPlatform, JVMPlatform)
   .in(file("zio-connect"))
   .settings(stdSettings("zio-connect"))
-  .settings(meta)
   .settings(
     libraryDependencies ++= Seq(
       `zio`,
