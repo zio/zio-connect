@@ -1,3 +1,4 @@
+import Dependencies.silencerVersion
 import com.jsuereth.sbtpgp.SbtPgp.autoImport.{pgpPassphrase, pgpPublicRing, pgpSecretRing}
 import sbt.Keys._
 import sbt._
@@ -7,7 +8,7 @@ import xerial.sbt.Sonatype.autoImport._
 object BuildHelper extends ScalaSettings {
   val Scala212         = "2.12.16"
   val Scala213         = "2.13.9"
-  val ScalaDotty       = "3.2.0"
+  val Scala3           = "3.2.0"
   val ScoverageVersion = "1.9.3"
   val JmhVersion       = "0.4.3"
 
@@ -52,10 +53,10 @@ object BuildHelper extends ScalaSettings {
 
   def stdSettings(prjName: String) = Seq(
     name                           := s"$prjName",
-    ThisBuild / crossScalaVersions := Seq(Scala212, Scala213, ScalaDotty),
+    ThisBuild / crossScalaVersions := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion       := Scala213,
     scalacOptions                  := stdOptions ++ extraOptions(scalaVersion.value),
-    semanticdbEnabled              := scalaVersion.value != ScalaDotty, // enable SemanticDB
+    semanticdbEnabled              := scalaVersion.value != Scala3, // enable SemanticDB
     semanticdbOptions += "-P:semanticdb:synthetics:on",
     semanticdbVersion                      := scalafixSemanticdb.revision, // use Scalafix compatible version
     ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
@@ -67,7 +68,18 @@ object BuildHelper extends ScalaSettings {
     Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings  := true,
-    ThisBuild / fork := true
+    ThisBuild / fork := true,
+    libraryDependencies ++= {
+      if (scalaVersion.value == Scala3)
+        Seq(
+          "com.github.ghik" % s"silencer-lib_$Scala213" % silencerVersion % Provided
+        )
+      else
+        Seq(
+          "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full)
+        )
+    }
   )
 
   def meta = Seq(
