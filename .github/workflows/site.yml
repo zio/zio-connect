@@ -2,12 +2,10 @@ name: Website
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
     tags:
       - docs.*
-  release:
-    types:
-      - published
 
 jobs:
   publish:
