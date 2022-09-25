@@ -3,6 +3,8 @@ name: Website
 on:
   push:
     branches: [ master ]
+    tags:
+      - docs.*
   release:
     types:
       - published
@@ -10,14 +12,18 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-20.04
-    timeout-minutes: 30
-    if: github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@v3
-      - uses: olafurpg/setup-scala@v13
+      - name: Checkout all branches
+        uses: actions/checkout@v2
         with:
-          java-version: adopt@1.11
-      - uses: olafurpg/setup-gpg@v3
-      - run: sbt docs/docusaurusPublishGhpages
-        env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+          fetch-depth: '0'
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+      - run: |
+          ./scripts/createSite.sh ${{ github.ref }}
+      - name: Release to GitHub Pages
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.')
+        uses: JamesIves/github-pages-deploy-action@v4.3.3
+        with:
+          branch: gh-pages
+          folder: ./website/build
