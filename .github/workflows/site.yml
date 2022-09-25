@@ -23,7 +23,7 @@ jobs:
           ./scripts/createSite.sh ${{ github.ref }}
       - name: Release to GitHub Pages
         if: github.event_name != 'pull_request'
-        uses: JamesIves/github-pages-deploy-action@v4.3.3
+        uses: JamesIves/github-pages-deploy-action@v4.4.0
         with:
           branch: gh-pages
           folder: ./website/build/zio-connect
