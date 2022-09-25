@@ -1,6 +1,5 @@
 set -ex
 
-OLDDIR=`pwd`
 export SBT_OPTS="-Xmx2048m -XX:+UseG1GC"
 
 # Clean existing build and mdoc output directory
@@ -8,19 +7,11 @@ rm -Rf target
 rm -Rf website/docs
 rm -Rf website/versioned_docs
 
-
-original_dir=$(pwd)
-cd /tmp
-git clone https://github.com/zio/zio-connect.git
-cd zio-connect
 sbt docs/mdoc
 sbt docs/unidoc
 
-cd website 
+cd website
 rm -Rf node_modules
-yarn install 
-yarn build 
+yarn install
+yarn build
 
-mv build "$original_dir"/website/build
-
-cd $OLDDIR
