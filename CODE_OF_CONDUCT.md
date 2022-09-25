@@ -10,12 +10,12 @@ appearance, body size, race, ethnicity, age, religion, nationality, or
 other such characteristics.
 
 The ZIO project follows the [Scala Code of Conduct](https://www.scala-lang.org/conduct/), with
-an additional clause regarding moderation that is detailed below. All participants, contributors and
-members are expected to follow the Scala Code of Conduct when discussing the project on the available
+an additional clause regarding moderation that is detailed below. All participants, contributors and 
+members are expected to follow the Scala Code of Conduct when discussing the project on the available 
 communication channels. If you are being harassed, please contact us immediately so that we can support you.
 
 ## Moderation and Steering Committee
-
+ 
 The ZIO project is moderated by the Steering Committee team members:
 
 - Itamar Ravid [@iravid](https://github.com/iravid)
@@ -25,7 +25,7 @@ The ZIO project is moderated by the Steering Committee team members:
 - Pierre Ricadat [@ghostdogpr](https://github.com/ghostdogpr)
 - Wiem Zine El Abidine [@wi101](https://github.com/wi101)
 
-The ZIO project requires that drastic moderation actions detailed in the code of
+The ZIO project requires that drastic moderation actions detailed in the code of 
 conduct - for example, removing a user from the Gitter channel - be agreed upon
 a group of over 2/3rds of the steering committee.
 
