@@ -21,4 +21,6 @@ rm -Rf node_modules
 yarn install 
 yarn build 
 
+mv build "$original_dir"/website/build
+
 cd $OLDDIR
