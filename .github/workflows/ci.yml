@@ -33,6 +33,21 @@ jobs:
       - name: Lint code
         run: ./sbt check
 
+  mdoc:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3.0.2
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+        with:
+          java-version: adopt@1.11
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check Document Generation
+        run: sbt docs/docusaurusCreateSite
+
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 30
