@@ -68,21 +68,37 @@ trait FileConnector {
       r    <- listPath(path).mapZIO(a => ZIO.attempt(a.toUri).refineToOrDie)
     } yield r
 
-  def moveFile(
+  final def moveFile(
     locator: File => File
-  )(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit]
+  )(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] = {
+    def fileToPath(f: File => File): Path => Path = { path =>
+      f(path.toFile).toPath
+    }
+    movePath(fileToPath(locator)).contramap[File](file => file.toPath)
+  }
 
-  def moveFileName(
+  final def moveFileName(
     locator: String => String
-  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit]
+  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] = {
+    def toPath(f: String => String): Path => Path = { path: Path =>
+      Path.of(f(path.toString))
+    }
+    movePath(toPath(locator)).contramap[String](x => Path.of(x))
+  }
 
   def movePath(locator: Path => Path)(implicit
     trace: Trace
   ): ZSink[Any, IOException, Path, Nothing, Unit]
 
-  def moveURI(
+  //todo extract those locator functions transformers in all moveX somewhere else
+  final def moveURI(
     locator: URI => URI
-  )(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit]
+  )(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] = {
+    def uriToPath(f: URI => URI): Path => Path = { path =>
+      Path.of(f(path.toUri))
+    }
+    movePath(uriToPath(locator)).contramap[URI](uri => Path.of(uri))
+  }
 
   final def readFile(file: => File)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
     for {

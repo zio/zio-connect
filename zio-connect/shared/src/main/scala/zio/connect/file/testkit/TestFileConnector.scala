@@ -5,11 +5,12 @@ import zio.stm.{STM, TRef}
 import zio.stream.{ZSink, ZStream}
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 
-import java.io.{File, IOException}
-import java.net.URI
+import java.io.IOException
 import java.nio.file.Path
 
-case class InMemoryFileConnector(fs: Root) extends FileConnector {
+case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
+  //todo: fs should be a field here - inlined
+  //inline the Root here
 
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.delete(path))
@@ -23,26 +24,9 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.unwrap(fs.list(path).map(a => ZStream.fromChunk(a)))
 
-  override def moveFile(locator: File => File)(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
-    ZSink.foreach { file =>
-      fs.movePath(file.toPath, locator(file).toPath)
-    }
-
-  override def moveFileName(locator: String => String)(implicit
-    trace: Trace
-  ): ZSink[Any, IOException, String, Nothing, Unit] =
-    ZSink.foreach { name =>
-      fs.movePath(Path.of(name), Path.of(locator(name)))
-    }
-
   override def movePath(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach { oPath =>
       fs.movePath(oPath, locator(oPath))
-    }
-
-  override def moveURI(locator: URI => URI)(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
-    ZSink.foreach { uri =>
-      fs.movePath(Path.of(uri), Path.of(locator(uri)))
     }
 
   override def readPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
@@ -96,13 +80,13 @@ case class InMemoryFileConnector(fs: Root) extends FileConnector {
 
 }
 
-object InMemoryFileConnector {
+object TestFileConnector {
 
-  def layer: ZLayer[Any, Nothing, InMemoryFileConnector] = ZLayer.fromZIO(
+  def layer: ZLayer[Any, Nothing, TestFileConnector] = ZLayer.fromZIO(
     STM.atomically {
       for {
-        a <- TRef.make(Map.empty[Path, TKFile])
-      } yield InMemoryFileConnector(Root(a))
+        a <- TRef.make(Map.empty[Path, FileSystemNode])
+      } yield TestFileConnector(TestFileSystem(a))
     }
   )
 

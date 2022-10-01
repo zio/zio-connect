@@ -4,11 +4,10 @@ import zio.ZIO.attemptBlocking
 import zio.stream.{Sink, ZSink, ZStream}
 import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 
-import java.io.{File, FileNotFoundException, IOException}
-import java.net.URI
+import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{Files, Path, Paths, StandardOpenOption, StandardWatchEventKinds, WatchService}
+import java.nio.file.{Files, Path, StandardOpenOption, StandardWatchEventKinds, WatchService}
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
@@ -51,24 +50,6 @@ case class LiveFileConnector() extends FileConnector {
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.fromJavaStreamZIO(ZIO.attemptBlocking(Files.list(path))).refineToOrDie[IOException]
 
-  override def moveFile(locator: File => File)(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
-    ZSink.foreach(file =>
-      (for {
-        target <- ZIO.attempt(locator(file))
-        _      <- ZIO.attemptBlocking(Files.move(file.toPath, target.toPath))
-      } yield ()).refineToOrDie[IOException]
-    )
-
-  override def moveFileName(
-    locator: String => String
-  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
-    ZSink.foreach(name =>
-      (for {
-        target <- ZIO.attempt(locator(name))
-        _      <- ZIO.attemptBlocking(Files.move(Paths.get(name), Paths.get(target)))
-      } yield ()).refineToOrDie[IOException]
-    )
-
   override def movePath(
     locator: Path => Path
   )(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
@@ -76,14 +57,6 @@ case class LiveFileConnector() extends FileConnector {
       (for {
         target <- ZIO.attempt(locator(path))
         _      <- ZIO.attemptBlocking(Files.move(path, target))
-      } yield ()).refineToOrDie[IOException]
-    )
-
-  override def moveURI(locator: URI => URI)(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
-    ZSink.foreach(uri =>
-      (for {
-        target <- ZIO.attempt(locator(uri))
-        _      <- ZIO.attemptBlocking(Files.move(Paths.get(uri), Paths.get(target)))
       } yield ()).refineToOrDie[IOException]
     )
 
