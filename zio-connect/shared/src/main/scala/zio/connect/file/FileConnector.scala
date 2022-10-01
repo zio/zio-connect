@@ -441,18 +441,4 @@ object FileConnector {
   ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
     ZSink.environmentWithSink[FileConnector](_.get.existsURI(uri))
 
-  object LocatorImplicits {
-    private[file] implicit def fileToPath(f: File => File): Path => Path = { path =>
-      f(path.toFile).toPath
-    }
-
-    private[file] implicit def fileNameToPath(f: String => String): Path => Path = { path: Path =>
-      Path.of(f(path.toString))
-    }
-
-    private[file] implicit def uriToPath(f: URI => URI): Path => Path = { path =>
-      Path.of(f(path.toUri))
-    }
-  }
-
 }
