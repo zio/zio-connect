@@ -1,12 +1,7 @@
 {
-  "overview-sidebar": {
-    "Overview": [
-      "overview/overview_index"
-    ]
-  },
-  "usecases-sidebar": {
-    "Use Cases": [
-      "usecases/usecases_index"
+  "quickstart-sidebar": {
+    "Quickstart": [
+      "quickstart/quickstart_index"
     ]
   },
   "about-sidebar": {
