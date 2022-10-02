@@ -1,7 +1,6 @@
-package zio.connect.file.testkit
+package zio.connect.file
 
-import zio.connect.file.FileConnector
-import zio.connect.file.testkit.TestFileConnector.TestFileSystem
+import zio.connect.file.TestFileConnector.TestFileSystem
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
@@ -10,7 +9,7 @@ import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
 import java.util.UUID
 
-private[testkit] case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
+private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
 
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.delete(path))
@@ -84,7 +83,7 @@ private[testkit] case class TestFileConnector(fs: TestFileSystem) extends FileCo
 
 object TestFileConnector {
 
-  def layer: ZLayer[Any, Nothing, FileConnector] = ZLayer.fromZIO(
+  val layer: ZLayer[Any, Nothing, FileConnector] = ZLayer.fromZIO(
     STM.atomically {
       for {
         a <- TRef.make(Map.empty[Path, FileSystemNode])
@@ -92,13 +91,13 @@ object TestFileConnector {
     }
   )
 
-  private[testkit] sealed trait FileSystemNode {
+  private[file] sealed trait FileSystemNode {
     def path: Path
 
     def replacePath(newPath: Path): FileSystemNode
   }
 
-  private[testkit] object FileSystemNode {
+  private[file] object FileSystemNode {
     final case class Dir(path: Path) extends FileSystemNode {
       override def replacePath(newPath: Path): FileSystemNode = Dir(newPath)
     }
@@ -108,7 +107,7 @@ object TestFileConnector {
     }
   }
 
-  private[testkit] final case class TestFileSystem(map: TRef[Map[Path, FileSystemNode]]) {
+  private[file] final case class TestFileSystem(map: TRef[Map[Path, FileSystemNode]]) {
 
     def delete(path: Path): ZIO[Any, IOException, Unit] =
       STM.atomically {
