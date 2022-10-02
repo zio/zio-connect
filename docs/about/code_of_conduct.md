@@ -1,5 +1,5 @@
 ---
-id: code-of-conduct
+id: about_coc
 title: "ZIO Code of Conduct"
 ---
 
