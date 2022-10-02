@@ -48,11 +48,15 @@ A stub implementation of FileConnector is provided for testing purposes via the 
 internally an in memory filesystem to avoid the actual creation of files.
 
 ```scala
-object MyTestSpec {
+package zio.connect.file
+
+import zio.Scope
+
+object MyTestSpec extends ZIOSpecDefault{
 
   override def spec =
-    suite("TestFileConnectorSpec")(...)
-      .provideSome[Scope](TestFileConnector.layer)
+    suite("MyTestSpec")(???)
+      .provide(zio.connect.file.test)
 
 }
 ```

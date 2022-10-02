@@ -6,6 +6,6 @@ object TestFileConnectorSpec extends FileConnectorSpec {
 
   override def spec =
     suite("TestFileConnectorSpec")(fileConnectorSpec)
-      .provideSome[Scope](TestFileConnector.layer)
+      .provideSome[Scope](zio.connect.file.test)
 
 }
