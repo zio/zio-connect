@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - file_connector_documentation
     tags:
       - docs.*
 
