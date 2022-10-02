@@ -34,7 +34,7 @@ const siteConfig = {
 		// {doc: 'overview/overview_index', label: 'Overview'},
 		// {doc: 'usecases/usecases_index', label: 'Use Cases'},
 		// {href: 'api/index.html', label: 'api'},
-		{href: 'quickstart/index.html', label: 'Quickstart'},
+		{doc: 'quickstart/quickstart_index', label: 'Quickstart'},
 		{doc: 'about/about_index', label: 'About'}
 	],
 
