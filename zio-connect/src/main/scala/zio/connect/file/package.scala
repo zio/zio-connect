@@ -1,7 +1,7 @@
 package zio.connect
 
-import zio.{Duration, Scope, Trace, ZIO}
 import zio.stream.{ZSink, ZStream}
+import zio.{Duration, Scope, Trace, ZIO}
 
 import java.io.{File, IOException}
 import java.net.URI
