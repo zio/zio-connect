@@ -90,7 +90,7 @@ trait FileConnector {
   final def moveFileName(
     locator: String => String
   )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] = {
-    def toPath(f: String => String): Path => Path = { path: Path =>
+    def toPath(f: String => String): Path => Path = { (path: Path) =>
       Path.of(f(path.toString))
     }
     movePath(toPath(locator)).contramap[String](x => Path.of(x))

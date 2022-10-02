@@ -1,7 +1,7 @@
-package zio.connect.file
+package zio.connect.file.testkit
 
 import zio.Scope
-import zio.connect.file.testkit.TestFileConnector
+import zio.connect.file.FileConnectorSpec
 
 object TestFileConnectorSpec extends FileConnectorSpec {
 
