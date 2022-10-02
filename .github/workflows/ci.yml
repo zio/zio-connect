@@ -61,7 +61,7 @@ jobs:
       matrix:
         java: [ adopt@1.11 ]
         scala: [ 2.12.16, 2.13.9, 3.2.0 ]
-        platform: [ 'JVM', 'JS' ]
+        platform: [ 'JVM' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
