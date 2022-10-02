@@ -18,8 +18,8 @@ Todo
 
 Test / Stub
 -----------
-A stub implementation of FileConnector is provided for testing purposes via the `TestFileConnector.layer`. It uses internally an in memory filesystem to
-avoid the actual creation of files.
+A stub implementation of FileConnector is provided for testing purposes via the `TestFileConnector.layer`. It uses
+internally an in memory filesystem to avoid the actual creation of files.
 
 ```scala
 object MyTestSpec {
