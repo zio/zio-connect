@@ -6,7 +6,7 @@ import zio.connect.file.FileConnectorSpec
 object TestFileConnectorSpec extends FileConnectorSpec {
 
   override def spec =
-    suite("TestKitFileConnectorSpec")(fileConnectorSpec)
+    suite("TestFileConnectorSpec")(fileConnectorSpec)
       .provideSome[Scope](TestFileConnector.layer)
 
 }

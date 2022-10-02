@@ -12,17 +12,24 @@ Setup
 libraryDependencies += "dev.zio" %% "zio-connect" % "<version>"
 ```
 
-
-
 How to use it ?
 ---------------
 Todo
 
-
 Test / Stub
 -----------
-Todo
+A stub implementation of FileConnector is provided for testing purposes via the `TestFileConnector.layer`. It uses internally an in memory filesystem to
+avoid the actual creation of files.
 
+```scala
+object MyTestSpec {
+
+  override def spec =
+    suite("TestFileConnectorSpec")(...)
+      .provideSome[Scope](TestFileConnector.layer)
+
+}
+```
 
 Examples
 --------
