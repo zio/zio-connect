@@ -247,6 +247,6 @@ case class LiveFileConnector() extends FileConnector {
 }
 
 object LiveFileConnector {
-  def layer: ZLayer[Scope, Nothing, FileConnector] = ZLayer.succeed(LiveFileConnector())
+  val layer: ZLayer[Scope, Nothing, FileConnector] = ZLayer.succeed(LiveFileConnector())
 
 }
