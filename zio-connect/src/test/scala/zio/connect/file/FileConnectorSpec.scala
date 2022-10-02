@@ -239,8 +239,6 @@ trait FileConnectorSpec extends ZIOSpecDefault {
                   case Some(f) =>
                     FileConnector
                       .readPath(f)
-//                    ZStream
-//                      .fromPath(f.toFile.toPath)
                       .via(
                         ZPipeline.utf8Decode >>> ZPipeline.splitLines
                       )
