@@ -61,7 +61,6 @@ jobs:
       matrix:
         java: [ adopt@1.11 ]
         scala: [ 2.12.16, 2.13.9, 3.2.0 ]
-        platform: [ 'JVM' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -75,9 +74,9 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Run tests
         if: ${{ !startsWith(matrix.scala, '3.0.') }}
-        run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+        run: sbt ++${{ matrix.scala }}! test
       - name: Run dotty tests
-        if: ${{ startsWith(matrix.scala, '3.0.') && matrix.platform == 'JVM' }}
+        if: ${{ startsWith(matrix.scala, '3.0.') }}
         run: sbt ++${{ matrix.scala }}! test
 
   ci:
