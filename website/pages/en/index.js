@@ -63,8 +63,7 @@ class HomeSplash extends React.Component {
                 <div className="inner">
                     <ProjectTitle siteConfig={siteConfig}/>
                     <PromoSection>
-                        <Button href={docUrl('overview/overview_index')}>Overview</Button>
-                        <Button href={docUrl('usecases/usecases_index')}>Use Cases</Button>
+                        <Button href={docUrl('quickstart/quickstart_index')}>Quickstart</Button>
                         <Button href="https://github.com/zio/zio-connect" target="_blank">GitHub</Button>
                     </PromoSection>
                 </div>
@@ -128,10 +127,10 @@ class Index extends React.Component {
         return (
             <div>
                 <HomeSplash siteConfig={siteConfig} language={language}/>
-                <div className="mainContainer">
-                    <Features/>
-                    <FeatureCallout/>
-                </div>
+                {/*<div className="mainContainer">*/}
+				{/*    <Features/>*/}
+				{/*    <FeatureCallout/>*/}
+				{/*</div>*/}
             </div>
         );
     }
