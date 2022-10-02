@@ -1,7 +1,8 @@
 {
   "quickstart-sidebar": {
     "Quickstart": [
-      "quickstart/quickstart_index"
+      "quickstart/quickstart_index",
+      "quickstart/quickstart_file_connector"
     ]
   },
   "about-sidebar": {
