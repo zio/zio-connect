@@ -19,14 +19,6 @@ need to import `zio.connect.file._`
 
 For instance the code below uses at each step a FileConnector operator.
 
-- tempDirPath - creates a directory and returns a ZStream with a single Path value, it will delete it once the for
-  comprehension completes
-- tempPathIn - creates a file in the given directory and returns a ZStream with a single Path value, it will delete it
-  once the for comprehension completes
-- existsPath - creates a ZStream with a single value
-- writePath - creates ZSink for writing to given file
-- readPath - creates a ZStream for reading from given file
-
 ```scala
 import zio.connect.file._
 
@@ -41,6 +33,14 @@ for {
   _          <- readPath(file) >>> sink
 } yield fileExists
 ```
+
+- tempDirPath - creates a directory and returns a ZStream with a single Path value, it will delete it once the for
+  comprehension completes
+- tempPathIn - creates a file in the given directory and returns a ZStream with a single Path value, it will delete it
+  once the for comprehension completes
+- existsPath - creates a ZStream with a single value
+- writePath - creates ZSink for writing to given file
+- readPath - creates a ZStream for reading from given file
 
 Test / Stub
 -----------
