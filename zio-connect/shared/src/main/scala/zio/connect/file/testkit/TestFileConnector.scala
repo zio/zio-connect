@@ -24,7 +24,9 @@ private[testkit] case class TestFileConnector(fs: TestFileSystem) extends FileCo
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.unwrap(fs.list(path).map(a => ZStream.fromChunk(a)))
 
-  override def movePath(locator: Path => Path)(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+  override def movePathZIO(
+    locator: Path => ZIO[Any, IOException, Path]
+  )(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach { oPath =>
       fs.movePath(oPath, locator(oPath))
     }
@@ -280,12 +282,18 @@ object TestFileConnector {
         } yield ()
       }
 
-    def movePath(sourcePath: Path, destinationPath: Path): ZIO[Any, IOException, Unit] =
-      STM.atomically {
-        movePathSTM(sourcePath, destinationPath)
-      }
+    def movePath(sourcePath: Path, destinationPath: ZIO[Any, IOException, Path]): ZIO[Any, IOException, Unit] =
+      for {
+        dest <- destinationPath
+        r <- STM.atomically {
+               movePathSTM(sourcePath, dest)
+             }
+      } yield r
 
-    private def movePathSTM(sourcePath: Path, destinationPath: Path): ZSTM[Any, IOException, Unit] =
+    private def movePathSTM(
+      sourcePath: Path,
+      destinationPath: Path
+    ): ZSTM[Any, IOException, Unit] =
       for {
         sourceFile        <- getFile(sourcePath)
         fileAlreadyExists <- findFileSTM(destinationPath).map(_.isDefined)

@@ -77,6 +77,16 @@ trait FileConnector {
     movePath(fileToPath(locator)).contramap[File](file => file.toPath)
   }
 
+  final def moveFileZIO(locator: File => ZIO[Any, IOException, File])(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, File, Nothing, Unit] = {
+    def toPath(f: File => ZIO[Any, IOException, File]): Path => ZIO[Any, IOException, Path] = { path =>
+      f(path.toFile).map(_.toPath)
+    }
+
+    movePathZIO(toPath(locator)).contramap[File](_.toPath)
+  }
+
   final def moveFileName(
     locator: String => String
   )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] = {
@@ -86,7 +96,27 @@ trait FileConnector {
     movePath(toPath(locator)).contramap[String](x => Path.of(x))
   }
 
-  def movePath(locator: Path => Path)(implicit
+  final def moveFileNameZIO(locator: String => ZIO[Any, IOException, String])(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, String, Nothing, Unit] = {
+    def toPath(f: String => ZIO[Any, IOException, String]): Path => ZIO[Any, IOException, Path] = { path =>
+      f(path.toString).map(a => Path.of(a))
+    }
+
+    movePathZIO(toPath(locator)).contramap[String](a => Path.of(a))
+  }
+
+  final def movePath(locator: Path => Path)(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, Path, Nothing, Unit] = {
+    def toZIOLocator(f: Path => Path): Path => ZIO[Any, IOException, Path] = { path =>
+      ZIO.attempt(f(path)).refineToOrDie[IOException]
+    }
+
+    movePathZIO(toZIOLocator(locator))
+  }
+
+  def movePathZIO(locator: Path => ZIO[Any, IOException, Path])(implicit
     trace: Trace
   ): ZSink[Any, IOException, Path, Nothing, Unit]
 
@@ -97,6 +127,16 @@ trait FileConnector {
       Path.of(f(path.toUri))
     }
     movePath(uriToPath(locator)).contramap[URI](uri => Path.of(uri))
+  }
+
+  final def moveURIZIO(locator: URI => ZIO[Any, IOException, URI])(implicit
+    trace: Trace
+  ): ZSink[Any, IOException, URI, Nothing, Unit] = {
+    def uriToPath(f: URI => ZIO[Any, IOException, URI]): Path => ZIO[Any, IOException, Path] = { path =>
+      f(path.toUri).map(Path.of)
+    }
+
+    movePathZIO(uriToPath(locator)).contramap[URI](Path.of)
   }
 
   final def readFile(file: => File)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
@@ -382,20 +422,40 @@ object FileConnector {
   ): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.movePath(locator))
 
+  def movePathZIO(locator: Path => ZIO[Any, IOException, Path])(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.movePathZIO(locator))
+
   def moveFile(locator: File => File)(implicit
     trace: Trace
   ): ZSink[FileConnector, IOException, File, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFile(locator))
+
+  def moveFileZIO(locator: File => ZIO[Any, IOException, File])(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, File, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.moveFileZIO(locator))
 
   def moveFileName(locator: String => String)(implicit
     trace: Trace
   ): ZSink[FileConnector, IOException, String, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFileName(locator))
 
+  def moveFileNameZIO(locator: String => ZIO[Any, IOException, String])(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, String, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.moveFileNameZIO(locator))
+
   def moveURI(locator: URI => URI)(implicit
     trace: Trace
   ): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveURI(locator))
+
+  def moveURIZIO(locator: URI => ZIO[Any, IOException, URI])(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.moveURIZIO(locator))
 
   def tailPath(path: => Path, duration: Duration): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailPath(path, duration))

@@ -50,16 +50,15 @@ case class LiveFileConnector() extends FileConnector {
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.fromJavaStreamZIO(ZIO.attemptBlocking(Files.list(path))).refineToOrDie[IOException]
 
-  override def movePath(
-    locator: Path => Path
+  override def movePathZIO(
+    locator: Path => ZIO[Any, IOException, Path]
   )(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path =>
       (for {
-        target <- ZIO.attempt(locator(path))
+        target <- locator(path)
         _      <- ZIO.attemptBlocking(Files.move(path, target))
       } yield ()).refineToOrDie[IOException]
     )
-
   private def pollUpdates(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     for {
       cursor   <- ref.get
