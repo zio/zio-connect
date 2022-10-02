@@ -273,8 +273,7 @@ object BuildHelper {
         |${item("build")} - Prepares sources, compiles and runs tests.
         |${item("fmt")} - Formats source files using scalafmt
         |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
-        |${item("testJVM")} - Runs all JVM tests
-        |${item("testJS")} - Runs all ScalaJS tests
+        |${item("test")} - Runs all JVM tests
       """.stripMargin
   }
 
