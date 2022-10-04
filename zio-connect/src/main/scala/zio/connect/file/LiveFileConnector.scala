@@ -159,7 +159,7 @@ case class LiveFileConnector() extends FileConnector {
             Files.createTempFile(UUID.randomUUID().toString, ".tmp")
           )
           .orDie
-      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+      )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
 
     ZSink.unwrap(
       scopedTempFile.map(path =>
@@ -178,7 +178,7 @@ case class LiveFileConnector() extends FileConnector {
             Files.createTempDirectory(UUID.randomUUID().toString)
           )
           .orDie
-      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+      )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
 
     ZSink.unwrap(
       scopedTempDir.map(path =>
@@ -197,7 +197,7 @@ case class LiveFileConnector() extends FileConnector {
             Files.createTempFile(dirPath, UUID.randomUUID().toString, ".tmp")
           )
           .orDie
-      )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+      )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
     }
 
     ZSink.unwrap(
@@ -217,7 +217,7 @@ case class LiveFileConnector() extends FileConnector {
               Files.createTempDirectory(dirPath, UUID.randomUUID().toString)
             )
             .orDie
-        )(path => ZIO.attempt(Files.deleteIfExists(path)).orDie)
+        )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
         .map(path =>
           ZSink
             .fromZIO(ZIO.succeed(path))
