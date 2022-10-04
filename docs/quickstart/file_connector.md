@@ -66,7 +66,8 @@ Operators & Examples
 
 readX
 ---
-readFile | readFileName | readPath | readURI
+
+- readFile | readFileName | readPath | readURI
 
 Creates a ZStream for reading a file's content from a path/file/...
 The stream ends once all content is read.
@@ -80,6 +81,7 @@ def example(path: Path): ZStream[Any, IOException, Byte] =
 
 writeX
 ---
+
 - writeFile | writeFileName | writePath | writeURI
 
 Creates a ZSink for writing to a file.
@@ -94,8 +96,9 @@ def example(path: Path): ZSink[Any, IOException, Byte, Nothing, Unit] =
 
 tailX
 ---
+
 - tailFile | tailFileName | tailPath | tailURI
-  
+
 Creates a ZStream for reading a file's content from a path/file/...
 The stream never ends emitting; it will keep polling the file (with given frequency) even after all content is read.
 
@@ -108,8 +111,9 @@ def example(path: Path, freq: Duration): ZStream[Any, IOException, Byte] =
 
 tailXUsingWatchService
 ---
+
 - tailFileUsingWatchService | tailFileNameUsingWatchService | tailPathUsingWatchService | tailURIUsingWatchService
-  
+
 Creates a ZStream for reading a file's content from a path/file/...
 The stream never ends emitting; it will keep polling the file (with given frequency and if watchService detects
 changes) even after all content is read.
@@ -123,6 +127,7 @@ def example(path: Path, freq: Duration): ZStream[Any, IOException, Byte] =
 
 deleteX
 ---
+
 - deleteFile | deleteFileName | deletePath | deleteURI
 
 It provides a sink that deletes the file or directory.
@@ -137,15 +142,19 @@ def example(paths: ZStream[Any, Nothing, Path]) =
 
 deleteRecursivelyX
 ---
+
 - deleteRecursivelyFile | deleteRecursivelyFileName | deleteRecursivelyPath | deleteRecursivelyURI
-  Same as deleteX operator + it can delete non empty directories.
+
+Same as deleteX operator + it can delete non empty directories.
 
 existsX
 ---
+
 - existsFile | existsFileName | existsPath | existsURI
-  Takes a path/file/... and returns a Sink that completes with true if the given path/file/... exists or a false
-  otherwise.
-  Tip: It's functionally equivalent to `ZIO[Any, IOException, Boolean]`
+
+Takes a path/file/... and returns a Sink that completes with true if the given path/file/... exists or a false
+otherwise.
+Tip: It's functionally equivalent to `ZIO[Any, IOException, Boolean]`
 
 ```scala
 import zio.connect.file._
@@ -156,6 +165,7 @@ def example(path: Path): ZSink[Any, IOException, Any, Nothing, Boolean] =
 
 listX
 ---
+
 - listFile | listFileName | listPath | listURI
 
 Returns the files inside the given path/file/.... Fails if provided path is not a dir.
@@ -169,6 +179,7 @@ def example(path: Path): ZStream[Any, IOException, Path] =
 
 moveX
 ---
+
 - moveFile | moveFileName | movePath | moveURI
 
 You can provide a function `Path => Path` and you will get a Sink that when given a path p1 will call the function
@@ -183,6 +194,7 @@ def example(locator: Path => Path): ZSink[Any, IOException, Path, Nothing, Unit]
 
 moveXZIO
 ---
+
 - moveFileZIO | moveFileNameZIO | movePathZIO | moveURIZIO
 
 Same as moveX except determining the destination is effectful.
@@ -196,6 +208,7 @@ def example(locator: Path => ZIO[Any, IOException, Path]): ZSink[Any, IOExceptio
 
 tempX / tempXIn / tempDirX / tempDirXIn
 ---
+
 - tempFile | tempFileName | tempPath | tempURI
 - tempFileIn | tempFileNameIn | tempPathIn | tempURIIn
 - tempDirFile | tempDirFileName | tempDirPath | tempDirURI
