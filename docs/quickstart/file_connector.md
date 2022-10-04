@@ -64,9 +64,12 @@ object MyTestSpec extends ZIOSpecDefault{
 Operators & Examples
 ---------
 
-- readFile | readFileName | readPath | readURI
-  Creates a ZStream for reading a file's content from a path/file/...
-  The stream ends once all content is read.
+readX
+---
+readFile | readFileName | readPath | readURI
+
+Creates a ZStream for reading a file's content from a path/file/...
+The stream ends once all content is read.
 
 ```scala
 import zio.connect.file._
@@ -75,9 +78,12 @@ def example(path: Path): ZStream[Any, IOException, Byte] =
    readPath(path)
 ```
 
+writeX
+---
 - writeFile | writeFileName | writePath | writeURI
-  Creates a ZSink for writing to a file.
-  The stream ends once all content is read.
+
+Creates a ZSink for writing to a file.
+The stream ends once all content is read.
 
 ```scala
 import zio.connect.file._
@@ -86,9 +92,12 @@ def example(path: Path): ZSink[Any, IOException, Byte, Nothing, Unit] =
    writePath(path)
 ```
 
+tailX
+---
 - tailFile | tailFileName | tailPath | tailURI
-  Creates a ZStream for reading a file's content from a path/file/...
-  The stream never ends emitting; it will keep polling the file (with given frequency) even after all content is read.
+  
+Creates a ZStream for reading a file's content from a path/file/...
+The stream never ends emitting; it will keep polling the file (with given frequency) even after all content is read.
 
 ```scala
 import zio.connect.file._
@@ -97,10 +106,13 @@ def example(path: Path, freq: Duration): ZStream[Any, IOException, Byte] =
    tailPath(path, freq)
 ```
 
+tailXUsingWatchService
+---
 - tailFileUsingWatchService | tailFileNameUsingWatchService | tailPathUsingWatchService | tailURIUsingWatchService
-  Creates a ZStream for reading a file's content from a path/file/...
-  The stream never ends emitting; it will keep polling the file (with given frequency and if watchService detects
-  changes) even after all content is read.
+  
+Creates a ZStream for reading a file's content from a path/file/...
+The stream never ends emitting; it will keep polling the file (with given frequency and if watchService detects
+changes) even after all content is read.
 
 ```scala
 import zio.connect.file._
@@ -109,6 +121,8 @@ def example(path: Path, freq: Duration): ZStream[Any, IOException, Byte] =
    tailPathUsingWatchService(path, freq)
 ```
 
+deleteX
+---
 - deleteFile | deleteFileName | deletePath | deleteURI
 
 It provides a sink that deletes the file or directory.
@@ -121,9 +135,13 @@ def example(paths: ZStream[Any, Nothing, Path]) =
    ZStream(path) >>> deletePath
 ```
 
+deleteRecursivelyX
+---
 - deleteRecursivelyFile | deleteRecursivelyFileName | deleteRecursivelyPath | deleteRecursivelyURI
   Same as deleteX operator + it can delete non empty directories.
 
+existsX
+---
 - existsFile | existsFileName | existsPath | existsURI
   Takes a path/file/... and returns a Sink that completes with true if the given path/file/... exists or a false
   otherwise.
@@ -136,8 +154,11 @@ def example(path: Path): ZSink[Any, IOException, Any, Nothing, Boolean] =
     existsPath(path)
 ```
 
+listX
+---
 - listFile | listFileName | listPath | listURI
-  Returns the files inside the given path/file/.... Fails if provided path is not a dir.
+
+Returns the files inside the given path/file/.... Fails if provided path is not a dir.
 
 ```scala
 import zio.connect.file._
@@ -146,9 +167,12 @@ def example(path: Path): ZStream[Any, IOException, Path] =
     listPath(path)
 ```
 
+moveX
+---
 - moveFile | moveFileName | movePath | moveURI
-  You can provide a function `Path => Path` and you will get a Sink that when given a path p1 will call the function
-  with p1 and so get a p2, then move the file/dir at p1 to p2.
+
+You can provide a function `Path => Path` and you will get a Sink that when given a path p1 will call the function
+with p1 and so get a p2, then move the file/dir at p1 to p2.
 
 ```scala
 import zio.connect.file._
@@ -157,8 +181,11 @@ def example(locator: Path => Path): ZSink[Any, IOException, Path, Nothing, Unit]
     movePath(locator)
 ```
 
+moveXZIO
+---
 - moveFileZIO | moveFileNameZIO | movePathZIO | moveURIZIO
-  Same as moveX except determining the destination is effectful.
+
+Same as moveX except determining the destination is effectful.
 
 ```scala
 import zio.connect.file._
@@ -167,10 +194,12 @@ def example(locator: Path => ZIO[Any, IOException, Path]): ZSink[Any, IOExceptio
     movePathZIO(locator)
 ```
 
+tempX / tempXIn / tempDirX / tempDirXIn
+---
 - tempFile | tempFileName | tempPath | tempURI
-  tempFileIn | tempFileNameIn | tempPathIn | tempURIIn
-  tempDirFile | tempDirFileName | tempDirPath | tempDirURI
-  tempDirFileIn | tempDirFileNameIn | tempDirPathIn | tempDirURIIn
+- tempFileIn | tempFileNameIn | tempPathIn | tempURIIn
+- tempDirFile | tempDirFileName | tempDirPath | tempDirURI
+- tempDirFileIn | tempDirFileNameIn | tempDirPathIn | tempDirURIIn
 
 With this set of operators we can create temporary files and directories that will be cleaned up automatically once the
 effect using them completes.
