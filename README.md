@@ -5,7 +5,7 @@
 | [![Project stage][Stage]][Stage-Page] | [![Build Status][Badge-Circle]][Link-Circle] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Badge-Discord]][Link-Discord] |
 
 # Summary
-TODO: Tagline
+A simple, idiomatic ZIO suite of connectors.
 
 # Documentation
 [zio-connect Microsite](https://zio.github.io/zio-connect/)
