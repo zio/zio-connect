@@ -9,7 +9,7 @@
 
 Support
 ---
-A simple, idiomatic ZIO suite of connectors.
+Sources, Sinks and Pipelines for channeling data.
 Please find more details in the [website](https://zio.github.io/zio-connect/)
 
 
