@@ -22,7 +22,7 @@ const users = [
 
 const siteConfig = {
 	title: 'zio-connect',
-	tagline: 'TODO: Tagline',
+	tagline: 'A simple, idiomatic ZIO suite of connectors.',
 	url: 'https://zio.github.io',
 	baseUrl: '/zio-connect/',
 
