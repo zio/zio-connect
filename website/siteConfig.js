@@ -22,7 +22,7 @@ const users = [
 
 const siteConfig = {
 	title: 'zio-connect',
-	tagline: 'TODO: Tagline',
+	tagline: 'Sources, Sinks and Pipelines for channeling data',
 	url: 'https://zio.github.io',
 	baseUrl: '/zio-connect/',
 
