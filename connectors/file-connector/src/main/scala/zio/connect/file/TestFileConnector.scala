@@ -17,7 +17,7 @@ private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConne
   override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.deleteRecursively(path))
 
-  override def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  override def existsPath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.fromZIO(fs.exists(path))
 
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
@@ -66,7 +66,7 @@ private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConne
       ZIO.acquireRelease(fs.tempPath)(path => fs.delete(path).orDie).map(path => ZSink.fromZIO(ZIO.succeed(path)))
     )
 
-  override def tempPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
+  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
     ZSink.unwrap(
       ZIO
         .acquireRelease(fs.tempPathIn(dirPath))(path => fs.delete(path).orDie)
@@ -80,7 +80,7 @@ private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConne
         .map(path => ZSink.fromZIO(ZIO.succeed(path)))
     )
 
-  override def tempDirPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
+  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
     ZSink.unwrap(
       ZIO
         .acquireRelease(fs.tempDirPathIn(dirPath))(path => fs.deleteRecursively(path).orDie)

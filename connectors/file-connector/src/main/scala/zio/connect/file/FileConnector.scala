@@ -34,19 +34,19 @@ trait FileConnector {
   final def deleteRecursivelyURI(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
     deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 
-  final def existsFile(file: File)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  final def existsFile(file: => File)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.unwrap(
       ZIO.attempt(file.toPath).refineToOrDie[IOException].map(path => existsPath(path))
     )
 
-  final def existsFileName(name: String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  final def existsFileName(name: => String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.unwrap(
       ZIO.attempt(Path.of(name)).refineToOrDie[IOException].map(path => existsPath(path))
     )
 
-  def existsPath(path: Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
+  def existsPath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
 
-  final def existsURI(uri: URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
+  final def existsURI(uri: => URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.unwrap(
       ZIO.attempt(Path.of(uri)).refineToOrDie[IOException].map(path => existsPath(path))
     )
@@ -213,7 +213,7 @@ trait FileConnector {
   final def tempFile(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
 
-  final def tempFileIn(dirFile: File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
+  final def tempFileIn(dirFile: => File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
     ZSink
       .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
       .flatMap(dirPath =>
@@ -224,7 +224,7 @@ trait FileConnector {
   final def tempFileName(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
 
-  final def tempFileNameIn(dirName: String)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
+  final def tempFileNameIn(dirName: => String)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
     ZSink
       .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
       .flatMap(dirPath =>
@@ -233,12 +233,12 @@ trait FileConnector {
 
   def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
 
-  def tempPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
+  def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
 
   final def tempURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
     tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
 
-  final def tempURIIn(dirURI: URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
+  final def tempURIIn(dirURI: => URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
     ZSink
       .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
       .flatMap(dirPath =>
@@ -256,7 +256,7 @@ trait FileConnector {
   final def tempDirURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
     tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
 
-  final def tempDirFileIn(dirFile: File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
+  final def tempDirFileIn(dirFile: => File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
     ZSink
       .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
       .flatMap(dirPath =>
@@ -264,16 +264,18 @@ trait FileConnector {
           .flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
       )
 
-  final def tempDirFileNameIn(dirName: String)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
+  final def tempDirFileNameIn(
+    dirName: => String
+  )(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
     ZSink
       .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
       .flatMap(dirPath =>
         tempDirPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
       )
 
-  def tempDirPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
+  def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
 
-  final def tempDirURIIn(dirURI: URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
+  final def tempDirURIIn(dirURI: => URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
     ZSink
       .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
       .flatMap(dirPath =>
