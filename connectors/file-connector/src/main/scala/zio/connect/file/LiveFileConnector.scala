@@ -30,7 +30,7 @@ case class LiveFileConnector() extends FileConnector {
       }
     }
 
-  override def existsPath(path: Path)(implicit
+  override def existsPath(path: => Path)(implicit
     trace: Trace
   ): ZSink[Any, IOException, Any, Nothing, Boolean] =
     ZSink.fromZIO {
@@ -188,7 +188,7 @@ case class LiveFileConnector() extends FileConnector {
     )
   }
 
-  override def tempPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
+  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
 
     val scopedTempFile: ZIO[Scope, IOException, Path] = {
       ZIO.acquireRelease(
@@ -208,7 +208,7 @@ case class LiveFileConnector() extends FileConnector {
     )
   }
 
-  override def tempDirPathIn(dirPath: Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
+  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
     ZSink.unwrap(
       ZIO
         .acquireRelease(
