@@ -31,13 +31,13 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
-    zioConnect,
+    fileConnector,
     docs
   )
 
-lazy val zioConnect = project
-  .in(file("zio-connect"))
-  .settings(stdSettings("zio-connect"))
+lazy val fileConnector = project
+  .in(file("connectors/file-connector"))
+  .settings(stdSettings("zio-connect-file"))
   .settings(
     libraryDependencies ++= Seq(
       `zio`,
@@ -67,11 +67,11 @@ lazy val docs = project
     libraryDependencies ++= Seq(
       `zio`
     ),
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(zioConnect),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector),
     ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
   )
-  .dependsOn(zioConnect)
+  .dependsOn(fileConnector)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
