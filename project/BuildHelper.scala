@@ -157,8 +157,6 @@ object BuildHelper {
 
   def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File) = {
     val versions = CrossVersion.partialVersion(scalaVer) match {
-      case Some((2, 11)) =>
-        List("2.11+", "2.11-2.12")
       case Some((2, 12)) =>
         List("2.11+", "2.12+", "2.11-2.12", "2.12-2.13")
       case Some((2, 13)) =>
@@ -270,7 +268,7 @@ object BuildHelper {
         |Useful sbt tasks:
         |${item("build")} - Prepares sources, compiles and runs tests.
         |${item("fmt")} - Formats source files using scalafmt
-        |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+        |${item("~compile")} - Compiles all JVM modules (file-watch enabled)
         |${item("test")} - Runs all JVM tests
       """.stripMargin
   }
