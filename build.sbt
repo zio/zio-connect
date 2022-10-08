@@ -31,8 +31,9 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
+    docs,
     fileConnector,
-    docs
+    s3Connector
   )
 
 lazy val fileConnector = project
@@ -40,6 +41,29 @@ lazy val fileConnector = project
   .settings(stdSettings("zio-connect-file"))
   .settings(
     libraryDependencies ++= Seq(
+      `zio`,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val s3Connector = project
+  .in(file("connectors/s3-connector"))
+  .settings(stdSettings("zio-connect-s3"))
+  .settings(
+    libraryDependencies ++= Seq(
+      S3Dependencies.zioAwsS3,
       `zio`,
       `zio-streams`,
       `zio-test`,
@@ -67,11 +91,11 @@ lazy val docs = project
     libraryDependencies ++= Seq(
       `zio`
     ),
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
     ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
   )
-  .dependsOn(fileConnector)
+  .dependsOn(fileConnector, s3Connector)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
