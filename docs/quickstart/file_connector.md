@@ -27,8 +27,8 @@ for {
   dir        <- tempDirPath
   path       <- tempPathIn(dir)
   fileExists <- existsPath(file).tap(a => ZIO.debug(s"$path exists? $a"))
-  _          <- stream >>> writePath(file)
-  _          <- readPath(file) >>> sink
+  _          <- ZSink.fromZIO(stream >>> writePath(file))
+  _          <- ZSink.fromZIO(readPath(file) >>> sink)
 } yield fileExists
 ```
 
