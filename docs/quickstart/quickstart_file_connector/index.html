@@ -76,8 +76,8 @@ need to import <code>zio.connect.file._</code></p>
   dir        &lt;- tempDirPath
   path       &lt;- tempPathIn(dir)
   fileExists &lt;- existsPath(file).tap(a =&gt; <span class="hljs-type">ZIO</span>.debug(<span class="hljs-string">s"<span class="hljs-subst">$path</span> exists? <span class="hljs-subst">$a</span>"</span>))
-  _          &lt;- stream &gt;&gt;&gt; writePath(file)
-  _          &lt;- readPath(file) &gt;&gt;&gt; sink
+  _          &lt;- <span class="hljs-type">ZSink</span>.fromZIO(stream &gt;&gt;&gt; writePath(file))
+  _          &lt;- <span class="hljs-type">ZSink</span>.fromZIO(readPath(file) &gt;&gt;&gt; sink)
 } <span class="hljs-keyword">yield</span> fileExists
 </code></pre>
 <ul>
