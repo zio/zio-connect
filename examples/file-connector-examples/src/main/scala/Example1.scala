@@ -1,20 +1,3 @@
----
-id: quickstart_index
-title: "Quick Start"
----
-
-FileConnector
---------------
-```
-libraryDependencies += "dev.zio" %% "zio-connect-file" % "<version>"
-```
-
-Example
--------
-
-Run this and other examples in the [file-connector-examples](../../examples/file-connector-examples) directory.
-
-```scala
 import zio._
 import zio.connect.file._
 import zio.stream._
@@ -56,4 +39,3 @@ object Example1 extends ZIOAppDefault {
   val contentStream = ZStream.fromInputStream(new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)))
   val contentSink   = ZSink.mkString
 }
-```
