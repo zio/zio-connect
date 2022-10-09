@@ -75,3 +75,19 @@ lazy val docs = project
   )
   .dependsOn(fileConnector)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+
+lazy val examples = project
+  .in(file("examples"))
+  .settings(
+    publishArtifact := false,
+    moduleName      := "zio-connect-examples"
+  )
+  .aggregate(fileConnectorExamples)
+
+lazy val fileConnectorExamples = project
+  .in(file("examples/file-connector-examples"))
+  .settings(
+    publish / skip := true,
+    scalacOptions -= "-Xfatal-warnings"
+  )
+  .dependsOn(LocalProject("fileConnector"))
