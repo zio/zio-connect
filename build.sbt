@@ -63,6 +63,9 @@ lazy val s3Connector = project
   .settings(stdSettings("zio-connect-s3"))
   .settings(
     libraryDependencies ++= Seq(
+      S3Dependencies.awsCore,
+      S3Dependencies.testContainers,
+      S3Dependencies.zioAwsNetty,
       S3Dependencies.zioAwsS3,
       `zio`,
       `zio-streams`,
