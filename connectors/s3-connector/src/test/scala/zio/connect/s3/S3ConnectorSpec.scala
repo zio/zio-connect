@@ -1,6 +1,5 @@
 package zio.connect.s3
 
-import zio.ZIO
 import zio.connect.s3.S3Connector.S3Exception
 import zio.stream.ZStream
 import zio.test._
