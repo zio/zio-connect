@@ -15,6 +15,14 @@ package object s3 {
   def existsBucket(name: => String)(implicit trace: Trace): ZStream[S3Connector, S3Exception, Boolean] =
     ZStream.environmentWithStream(_.get.existsBucket(name))
 
+  def listObjects(bucketName: => String)(implicit trace: Trace): ZStream[S3Connector, S3Exception, String] =
+    ZStream.environmentWithStream(_.get.listObjects(bucketName))
+
   val live = LiveS3Connector.live
+
+  def putObject(bucketName: => String, key: String)(implicit
+    trace: Trace
+  ): ZSink[S3Connector, S3Exception, Byte, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.putObject(bucketName, key))
 
 }

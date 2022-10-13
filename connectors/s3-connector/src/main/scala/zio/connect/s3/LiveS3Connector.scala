@@ -1,8 +1,8 @@
 package zio.connect.s3
-import zio.{Trace, ZIO, ZLayer}
+import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.aws.s3.S3
-import zio.aws.s3.model.{CreateBucketRequest, DeleteBucketRequest}
-import zio.aws.s3.model.primitives.BucketName
+import zio.aws.s3.model.{CreateBucketRequest, DeleteBucketRequest, ListObjectsRequest, PutObjectRequest}
+import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector.S3Exception
 import zio.stream.{ZSink, ZStream}
 
@@ -35,11 +35,24 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
 
   override def listObjects(bucketName: => String)(implicit
     trace: Trace
-  ): ZStream[Any, S3Exception, S3Connector.ObjectId] = ???
+  ): ZStream[Any, S3Exception, String] =
+    ZStream.fromIterableZIO(
+      s3.listObjects(ListObjectsRequest(bucket = BucketName(bucketName)))
+        .map(_.contents.map(_.flatMap(_.key.toChunk)).getOrElse(Chunk.empty[String]))
+    )
 
   override def putObject(bucketName: => String, key: String)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, Byte, Nothing, Unit] = ???
+  ): ZSink[Any, S3Exception, Byte, Nothing, Unit] =
+    ZSink.foreach { content =>
+      s3.putObject(
+        request = PutObjectRequest(
+          bucket = BucketName(bucketName),
+          key = ObjectKey(key)
+        ),
+        body = ZStream.succeed(content)
+      )
+    }
 }
 
 object LiveS3Connector {

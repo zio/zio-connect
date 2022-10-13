@@ -21,7 +21,7 @@ trait S3Connector {
 
   def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
 
-  def listObjects(bucketName: => String)(implicit trace: Trace): ZStream[Any, S3Exception, S3Connector.ObjectId]
+  def listObjects(bucketName: => String)(implicit trace: Trace): ZStream[Any, S3Exception, String]
 
   def putObject(bucketName: => String, key: String)(implicit trace: Trace): ZSink[Any, S3Exception, Byte, Nothing, Unit]
 
