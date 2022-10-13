@@ -81,7 +81,10 @@ lazy val s3Connector = project
       }
     }
   )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val docs = project
