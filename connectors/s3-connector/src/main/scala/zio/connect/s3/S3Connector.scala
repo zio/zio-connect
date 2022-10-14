@@ -10,7 +10,6 @@ trait S3Connector {
 
   def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, Nothing, Unit]
 
-  //todo: if non empty buckets can be deleted then rename this to deleteBucket
   def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, Nothing, Unit]
 
   def deleteObject(bucketName: => String, keys: Iterable[String])(implicit
