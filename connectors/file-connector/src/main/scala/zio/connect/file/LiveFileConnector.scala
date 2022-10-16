@@ -7,7 +7,7 @@ import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{Files, Path, StandardOpenOption, StandardWatchEventKinds, WatchService}
+import java.nio.file._
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
@@ -20,22 +20,26 @@ case class LiveFileConnector() extends FileConnector {
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(file => ZIO.attemptBlocking(Files.deleteIfExists(file)).refineToOrDie[IOException])
 
-  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+  override def deletePathRecursively(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach { path =>
       val file = path.toFile
       if (file.isDirectory) {
-        (listPath(path) >>> deleteRecursivelyPath) *> (ZStream.succeed(path) >>> deletePath)
+        (listPath(path) >>> deletePathRecursively) *> (ZStream.succeed(path) >>> deletePath)
       } else {
         ZStream.succeed(path) >>> deletePath
       }
     }
 
-  override def existsPath(path: => Path)(implicit
+  def existsPath(implicit
     trace: Trace
-  ): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.fromZIO {
-      ZIO.attempt(Files.exists(path)).refineToOrDie[IOException]
-    }
+  ): ZSink[Any, IOException, Path, Path, Boolean] =
+    ZSink
+      .take[Path](1)
+      .map(_.headOption)
+      .mapZIO {
+        case Some(p) => ZIO.attempt(Files.exists(p)).refineToOrDie[IOException]
+        case None    => ZIO.succeed(false)
+      }
 
   private def initialRead(file: Path, queue: Queue[Byte], ref: Ref[Long]): ZIO[Any, IOException, Unit] =
     (for {
@@ -117,7 +121,7 @@ case class LiveFileConnector() extends FileConnector {
       }
       .refineOrDie { case e: IOException => e }
 
-  private def registerWatchService(file: Path): ZIO[Scope, IOException, WatchService] =
+  private def registerWatchService(file: Path): ZIO[Any, IOException, WatchService] =
     (for {
       watchService <- ZIO.attemptBlocking(file.getFileSystem.newWatchService())
       _ <- ZIO
@@ -151,7 +155,7 @@ case class LiveFileConnector() extends FileConnector {
       _            <- watchUpdates(path, watchService, queue, ref).repeat[Any, Long](Schedule.fixed(freq)).forever.fork
     } yield ZStream.fromQueueWithShutdown(queue)).refineToOrDie[IOException])
 
-  override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
+  override def tempPath(implicit trace: Trace): ZStream[Any, IOException, Path] = {
     val scopedTempFile: ZIO[Scope, IOException, Path] =
       ZIO.acquireRelease(
         ZIO
@@ -161,15 +165,15 @@ case class LiveFileConnector() extends FileConnector {
           .orDie
       )(path => (ZStream(path) >>> deletePath).orDie)
 
-    ZSink.unwrap(
+    ZStream.unwrapScoped(
       scopedTempFile.map(path =>
-        ZSink
+        ZStream
           .fromZIO(ZIO.succeed(path))
       )
     )
   }
 
-  override def tempDirPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
+  override def tempDirPath(implicit trace: Trace): ZStream[Any, IOException, Path] = {
 
     val scopedTempDir: ZIO[Scope, IOException, Path] =
       ZIO.acquireRelease(
@@ -178,38 +182,31 @@ case class LiveFileConnector() extends FileConnector {
             Files.createTempDirectory(UUID.randomUUID().toString)
           )
           .orDie
-      )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
+      )(path => (ZStream(path) >>> deletePathRecursively).orDie)
 
-    ZSink.unwrap(
+    ZStream.unwrapScoped(
       scopedTempDir.map(path =>
-        ZSink
+        ZStream
           .fromZIO(ZIO.succeed(path))
       )
     )
   }
 
-  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] = {
-
-    val scopedTempFile: ZIO[Scope, IOException, Path] = {
-      ZIO.acquireRelease(
-        ZIO
-          .attemptBlocking(
-            Files.createTempFile(dirPath, UUID.randomUUID().toString, ".tmp")
-          )
-          .orDie
-      )(path => (ZStream(path) >>> deletePath).orDie)
-    }
-
-    ZSink.unwrap(
-      scopedTempFile.map(path =>
-        ZSink
-          .fromZIO(ZIO.succeed(path))
-      )
+  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
+      ZIO
+        .acquireRelease(
+          ZIO
+            .attemptBlocking(
+              Files.createTempFile(dirPath, UUID.randomUUID().toString, ".tmp")
+            )
+            .orDie
+        )(path => (ZStream(path) >>> deletePath).orDie)
+        .map(a => ZStream(a))
     )
-  }
 
-  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
-    ZSink.unwrap(
+  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
       ZIO
         .acquireRelease(
           ZIO
@@ -217,9 +214,9 @@ case class LiveFileConnector() extends FileConnector {
               Files.createTempDirectory(dirPath, UUID.randomUUID().toString)
             )
             .orDie
-        )(path => (ZStream(path) >>> deleteRecursivelyPath).orDie)
+        )(path => (ZStream(path) >>> deletePathRecursively).orDie)
         .map(path =>
-          ZSink
+          ZStream
             .fromZIO(ZIO.succeed(path))
         )
     )
@@ -247,6 +244,6 @@ case class LiveFileConnector() extends FileConnector {
 }
 
 object LiveFileConnector {
-  val layer: ZLayer[Scope, Nothing, FileConnector] = ZLayer.succeed(LiveFileConnector())
+  val layer: ZLayer[Any, Nothing, FileConnector] = ZLayer.succeed(LiveFileConnector())
 
 }

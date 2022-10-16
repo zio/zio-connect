@@ -12,22 +12,22 @@ object Example2 extends ZIOAppDefault {
    * Create and tail files created in temp path and then delete (recursively as path is non-empty)
    * @return
    */
-  def createTailAndDeleteDirectory: ZSink[FileConnector with Scope, IOException, Byte, Nothing, Unit] =
+  def createTailAndDeleteDirectory: ZStream[FileConnector, IOException, Unit] =
     for {
       path <- tempDirPath
       tmp1 <- tempPathIn(path)
       tmp2 <- tempPathIn(path)
-      fiber1 <- ZSink.fromZIO(takeAndDecode(1)(tailPath(tmp1, 1 seconds)).fork) // note we are forking here
-      fiber2 <- ZSink.fromZIO(takeAndDecode(1)(tailPath(tmp2, 1 seconds)).fork)
-      _      <- ZSink.fromZIO(listPath(path).foreach(p => (contentStream >>> writePath(p))))
-      _      <- ZSink.fromZIO(fiber1.join.debug(s"tailed ${tmp1.toString}"))
-      _      <- ZSink.fromZIO(fiber2.join.debug(s"tailed ${tmp2.toString}"))
-      _      <- ZSink.fromZIO(ZStream.succeed(path) >>> deleteRecursivelyPath)
+      fiber1 <- ZStream.fromZIO(takeAndDecode(1)(tailPath(tmp1, 1 seconds)).fork) // note we are forking here
+      fiber2 <- ZStream.fromZIO(takeAndDecode(1)(tailPath(tmp2, 1 seconds)).fork)
+      _      <- ZStream.fromZIO(listPath(path).foreach(p => (contentStream >>> writePath(p))))
+      _      <- ZStream.fromZIO(fiber1.join.debug(s"tailed ${tmp1.toString}"))
+      _      <- ZStream.fromZIO(fiber2.join.debug(s"tailed ${tmp2.toString}"))
+      _      <- ZStream.fromZIO(ZStream.succeed(path) >>> deletePathRecursively)
     } yield ()
 
-  val program = ZStream.succeed(1.toByte) >>> createTailAndDeleteDirectory
+  val program = createTailAndDeleteDirectory.runCollect
 
-  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] = program.provideSome[Scope](zio.connect.file.live)
+  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] = program.provide(zio.connect.file.fileConnectorLiveLayer)
 
   val content: String =
     """

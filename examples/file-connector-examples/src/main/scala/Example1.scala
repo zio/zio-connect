@@ -9,27 +9,27 @@ object Example1 extends ZIOAppDefault {
 
   /**
    * Checks if the content of the file is equal to the given string.
-   * Notes: Many of the methods in the file connector api create sinks, wrapping stream effects in [[ZSink.fromZIO]]
+   * Notes: Many of the methods in the file connector api create streams, wrapping stream effects in [[ZStream.fromZIO]]
    * will prove useful
    * @return
    */
-  def checkWrittenContent: ZSink[FileConnector with Scope, IOException, Byte, Nothing, Boolean] =
+  def checkWrittenContent: ZStream[FileConnector, IOException, Boolean] =
     for {
       dir    <- tempDirPath
-      exists <- existsPath(dir)
-      file   <- if (exists) tempPathIn(dir) else ZSink.fail(new IOException(s"path ${dir.toString} doesn't exist"))
-      _      <- ZSink.fromZIO(contentStream >>> writePath(file))
-      read   <- ZSink.fromZIO(readPath(file) >>> ZPipeline.utf8Decode >>> contentSink)
+      exists <- ZStream.fromZIO(ZStream(dir) >>> existsPath)
+      file   <- if (exists) tempPathIn(dir) else ZStream.fail(new IOException(s"path ${dir.toString} doesn't exist"))
+      _      <- ZStream.fromZIO(contentStream >>> writePath(file))
+      read   <- ZStream.fromZIO(readPath(file) >>> ZPipeline.utf8Decode >>> contentSink)
     } yield read == content
 
   // We need something to trigger our sink, in practice though you will likely have a stream of bytes to write
   // and consume
-  val program = ZStream.succeed(1.toByte) >>> checkWrittenContent
+  val program = checkWrittenContent.runCollect.map(_.headOption)
 
   override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] =
     program
-      .provideSome[Scope](zio.connect.file.live)
-      .tap(equal => Console.printLine(s"content is equal: $equal"))
+      .provide(zio.connect.file.fileConnectorLiveLayer)
+      .tap(equal => Console.printLine(s"content is equal: ${equal.contains(true)}"))
 
   val content: String =
     """
