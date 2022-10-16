@@ -26,9 +26,9 @@ val sink: ZSink[Any, Nothing, Byte, Nothing, Unit] = ???
 for {
   dir        <- tempDirPath
   path       <- tempPathIn(dir)
-  fileExists <- existsPath(file).tap(a => ZIO.debug(s"$path exists? $a"))
-  _          <- ZSink.fromZIO(stream >>> writePath(file))
-  _          <- ZSink.fromZIO(readPath(file) >>> sink)
+  fileExists <- ZStream.fromZIO((ZStream(path) >>> existsPath(file)).tap(a => ZIO.debug(s"$path exists? $a")))
+  _          <- ZStream.fromZIO(stream >>> writePath(file))
+  _          <- ZStream.fromZIO(readPath(file) >>> sink)
 } yield fileExists
 ```
 
@@ -54,7 +54,7 @@ object MyTestSpec extends ZIOSpecDefault{
 
   override def spec =
     suite("MyTestSpec")(???)
-      .provide(zio.connect.file.test)
+      .provide(zio.connect.file.fileConnectorTestLayer)
 
 }
 ```
@@ -135,7 +135,7 @@ To delete non empty directories use the deleteRecursivelyX variants.
 import zio.connect.file._
 
 def example(paths: ZStream[Any, Nothing, Path]) =
-   ZStream(path) >>> deletePath
+   paths >>> deletePath
 ```
 
 deleteRecursivelyX
@@ -150,15 +150,14 @@ existsX
 
 - existsFile | existsFileName | existsPath | existsURI
 
-Takes a path/file/... and returns a Sink that completes with true if the given path/file/... exists or a false
-otherwise.
-Tip: It's functionally equivalent to `ZIO[Any, IOException, Boolean]`
+Creates a ZSink that emits true if the first path/file/... exists or a false
+otherwise. The files received after the first one can be found in the sink's leftovers.
 
 ```scala
 import zio.connect.file._
 
-def example(path: Path): ZSink[Any, IOException, Any, Nothing, Boolean] = 
-    existsPath(path)
+def example(stream: ZStream[Any, IOException, Path]): ZIO[Any, IOException, Boolean] = 
+    stream >>> existsPath
 ```
 
 listX

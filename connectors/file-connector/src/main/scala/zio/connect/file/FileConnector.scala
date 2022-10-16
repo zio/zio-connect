@@ -1,7 +1,7 @@
 package zio.connect.file
 
 import zio.stream.{ZSink, ZStream}
-import zio.{Duration, Scope, Trace, ZIO}
+import zio.{Duration, Trace, ZIO}
 
 import java.io.{File, IOException}
 import java.net.URI
@@ -15,41 +15,47 @@ trait FileConnector {
   final def deleteFileName(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
     deletePath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 
+  final def deleteFileNameRecursively(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
+    deletePathRecursively.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+
+  final def deleteFileRecursively(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
+    deletePathRecursively.contramapZIO(a => ZIO.attempt(a.toPath).refineToOrDie[IOException])
+
   /**
-   *  Will fail for non empty directories. For that use case use deleteRecursivelyPath
+   *  Will fail for non empty directories. For that use case use deletePathRecursively
    */
   def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
+
+  def deletePathRecursively(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
 
   final def deleteURI(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
     deletePath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 
-  final def deleteRecursivelyFile(implicit trace: Trace): ZSink[Any, IOException, File, Nothing, Unit] =
-    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(a.toPath).refineToOrDie[IOException])
+  final def deleteURIRecursively(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
+    deletePathRecursively.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
 
-  final def deleteRecursivelyFileName(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] =
-    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+  final def existsFile(implicit trace: Trace): ZSink[Any, IOException, File, File, Boolean] =
+    existsPath
+      .contramapZIO[Any, IOException, File](file => ZIO.attempt(file.toPath).refineToOrDie[IOException])
+      .toChannel
+      .mapOutZIO(paths => ZIO.foreach(paths)(a => ZIO.attempt(a.toFile).refineToOrDie[IOException]))
+      .toSink
 
-  def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit]
+  final def existsFileName(implicit trace: Trace): ZSink[Any, IOException, String, String, Boolean] =
+    existsPath
+      .contramapZIO[Any, IOException, String](name => ZIO.attempt(Path.of(name)).refineToOrDie[IOException])
+      .toChannel
+      .mapOutZIO(paths => ZIO.foreach(paths)(a => ZIO.attempt(a.toString).refineToOrDie[IOException]))
+      .toSink
 
-  final def deleteRecursivelyURI(implicit trace: Trace): ZSink[Any, IOException, URI, Nothing, Unit] =
-    deleteRecursivelyPath.contramapZIO(a => ZIO.attempt(Path.of(a)).refineToOrDie[IOException])
+  def existsPath(implicit trace: Trace): ZSink[Any, IOException, Path, Path, Boolean]
 
-  final def existsFile(file: => File)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.unwrap(
-      ZIO.attempt(file.toPath).refineToOrDie[IOException].map(path => existsPath(path))
-    )
-
-  final def existsFileName(name: => String)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.unwrap(
-      ZIO.attempt(Path.of(name)).refineToOrDie[IOException].map(path => existsPath(path))
-    )
-
-  def existsPath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean]
-
-  final def existsURI(uri: => URI)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.unwrap(
-      ZIO.attempt(Path.of(uri)).refineToOrDie[IOException].map(path => existsPath(path))
-    )
+  final def existsURI(implicit trace: Trace): ZSink[Any, IOException, URI, URI, Boolean] =
+    existsPath
+      .contramapZIO[Any, IOException, URI](uri => ZIO.attempt(Path.of(uri)).refineToOrDie[IOException])
+      .toChannel
+      .mapOutZIO(paths => ZIO.foreach(paths)(a => ZIO.attempt(a.toUri).refineToOrDie[IOException]))
+      .toSink
 
   final def listFile(file: => File)(implicit trace: Trace): ZStream[Any, IOException, File] =
     for {
@@ -80,6 +86,16 @@ trait FileConnector {
     movePath(fileToPath(locator)).contramap[File](file => file.toPath)
   }
 
+  final def moveFileName(
+    locator: String => String
+  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] = {
+    def toPath(f: String => String): Path => Path = { (path: Path) =>
+      Path.of(f(path.toString))
+    }
+
+    movePath(toPath(locator)).contramap[String](x => Path.of(x))
+  }
+
   final def moveFileZIO(locator: File => ZIO[Any, IOException, File])(implicit
     trace: Trace
   ): ZSink[Any, IOException, File, Nothing, Unit] = {
@@ -88,15 +104,6 @@ trait FileConnector {
     }
 
     movePathZIO(toPath(locator)).contramap[File](_.toPath)
-  }
-
-  final def moveFileName(
-    locator: String => String
-  )(implicit trace: Trace): ZSink[Any, IOException, String, Nothing, Unit] = {
-    def toPath(f: String => String): Path => Path = { (path: Path) =>
-      Path.of(f(path.toString))
-    }
-    movePath(toPath(locator)).contramap[String](x => Path.of(x))
   }
 
   final def moveFileNameZIO(locator: String => ZIO[Any, IOException, String])(implicit
@@ -174,12 +181,12 @@ trait FileConnector {
       r    <- tailPath(path, freq)
     } yield r
 
-  def tailPath(path: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
-
-  final def tailURI(uri: => URI, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+  final def tailFileNameUsingWatchService(fileName: => String, freq: => Duration)(implicit
+    trace: Trace
+  ): ZStream[Any, IOException, Byte] =
     for {
-      path <- ZStream.fromZIO(ZIO.attempt(Path.of(uri)).refineToOrDie[IOException])
-      r    <- tailPath(path, freq)
+      path <- ZStream.fromZIO(ZIO.attempt(Path.of(fileName)).refineToOrDie[IOException])
+      r    <- tailPathUsingWatchService(path, freq)
     } yield r
 
   final def tailFileUsingWatchService(file: => File, freq: => Duration)(implicit
@@ -190,17 +197,17 @@ trait FileConnector {
       r    <- tailPathUsingWatchService(path, freq)
     } yield r
 
-  final def tailFileNameUsingWatchService(fileName: => String, freq: => Duration)(implicit
-    trace: Trace
-  ): ZStream[Any, IOException, Byte] =
-    for {
-      path <- ZStream.fromZIO(ZIO.attempt(Path.of(fileName)).refineToOrDie[IOException])
-      r    <- tailPathUsingWatchService(path, freq)
-    } yield r
+  def tailPath(path: => Path, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
   def tailPathUsingWatchService(path: => Path, freq: => Duration)(implicit
     trace: Trace
   ): ZStream[Any, IOException, Byte]
+
+  final def tailURI(uri: => URI, freq: => Duration)(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    for {
+      path <- ZStream.fromZIO(ZIO.attempt(Path.of(uri)).refineToOrDie[IOException])
+      r    <- tailPath(path, freq)
+    } yield r
 
   final def tailURIUsingWatchService(uri: => URI, freq: => Duration)(implicit
     trace: Trace
@@ -210,77 +217,69 @@ trait FileConnector {
       r    <- tailPathUsingWatchService(path, freq)
     } yield r
 
-  final def tempFile(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
-    tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
+  final def tempDirFile(implicit trace: Trace): ZStream[Any, IOException, File] =
+    tempDirPath.mapZIO(p => ZIO.attempt(p.toFile).refineToOrDie[IOException])
 
-  final def tempFileIn(dirFile: => File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
-    ZSink
+  final def tempDirFileIn(dirFile: => File)(implicit trace: Trace): ZStream[Any, IOException, File] =
+    ZStream
       .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempPathIn(dirPath)
-          .flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
-      )
+      .flatMap(p => tempDirPathIn(p))
+      .mapZIO(p => ZIO.attempt(p.toFile).refineToOrDie[IOException])
 
-  final def tempFileName(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
-    tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
-
-  final def tempFileNameIn(dirName: => String)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
-    ZSink
-      .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
-      )
-
-  def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
-
-  def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
-
-  final def tempURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
-    tempPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
-
-  final def tempURIIn(dirURI: => URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
-    ZSink
-      .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
-      )
-
-  final def tempDirFile(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
-    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
-
-  final def tempDirFileName(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
-    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
-
-  def tempDirPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
-
-  final def tempDirURI(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
-    tempDirPath.flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
-
-  final def tempDirFileIn(dirFile: => File)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, File] =
-    ZSink
-      .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempDirPathIn(dirPath)
-          .flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toFile).refineToOrDie[IOException]))
-      )
+  final def tempDirFileName(implicit trace: Trace): ZStream[Any, IOException, String] =
+    tempDirPath.mapZIO(p => ZIO.attempt(p.toString).refineToOrDie[IOException])
 
   final def tempDirFileNameIn(
     dirName: => String
-  )(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, String] =
-    ZSink
+  )(implicit trace: Trace): ZStream[Any, IOException, String] =
+    ZStream
       .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempDirPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toString).refineToOrDie[IOException]))
-      )
+      .flatMap(p => tempDirPathIn(p))
+      .mapZIO(p => ZIO.attempt(p.toString).refineToOrDie[IOException])
 
-  def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path]
+  def tempDirPath(implicit trace: Trace): ZStream[Any, IOException, Path]
 
-  final def tempDirURIIn(dirURI: => URI)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, URI] =
-    ZSink
+  def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
+
+  final def tempDirURI(implicit trace: Trace): ZStream[Any, IOException, URI] =
+    tempDirPath.mapZIO(p => ZIO.attempt(p.toUri).refineToOrDie[IOException])
+
+  final def tempDirURIIn(dirURI: => URI)(implicit trace: Trace): ZStream[Any, IOException, URI] =
+    ZStream
       .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
-      .flatMap(dirPath =>
-        tempDirPathIn(dirPath).flatMap(p => ZSink.fromZIO(ZIO.attempt(p.toUri).refineToOrDie[IOException]))
-      )
+      .flatMap(p => tempDirPathIn(p))
+      .mapZIO(p => ZIO.attempt(p.toUri).refineToOrDie[IOException])
+
+  final def tempFile(implicit trace: Trace): ZStream[Any, IOException, File] =
+    tempPath.mapZIO(p => ZIO.attempt(p.toFile).refineToOrDie[IOException])
+
+  final def tempFileIn(dirFile: => File)(implicit trace: Trace): ZStream[Any, IOException, File] =
+    ZStream
+      .fromZIO(ZIO.attempt(dirFile.toPath).refineToOrDie[IOException])
+      .flatMap(dirPath => tempPathIn(dirPath))
+      .flatMap(path => ZStream.fromZIO(ZIO.attempt(path.toFile).refineToOrDie[IOException]))
+
+  final def tempFileName(implicit trace: Trace): ZStream[Any, IOException, String] =
+    tempPath.mapZIO(p => ZIO.attempt(p.toString).refineToOrDie[IOException])
+
+  final def tempFileNameIn(dirName: => String)(implicit trace: Trace): ZStream[Any, IOException, String] =
+    ZStream
+      .fromZIO(ZIO.attempt(Path.of(dirName)).refineToOrDie[IOException])
+      .flatMap(dirPath => tempPathIn(dirPath))
+      .flatMap(path => ZStream.fromZIO(ZIO.attempt(path.toString).refineToOrDie[IOException]))
+
+  def tempPath(implicit trace: Trace): ZStream[Any, IOException, Path]
+
+  def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path]
+
+  final def tempURI(implicit trace: Trace): ZStream[Any, IOException, URI] =
+    tempPath.mapZIO(p => ZIO.attempt(p.toUri).refineToOrDie[IOException])
+
+  final def tempURIIn(dirURI: => URI)(implicit trace: Trace): ZStream[Any, IOException, URI] =
+    ZStream
+      .fromZIO(ZIO.attempt(Path.of(dirURI)).refineToOrDie[IOException])
+      .flatMap(dirPath => tempPathIn(dirPath))
+      .flatMap(path => ZStream.fromZIO(ZIO.attempt(path.toUri).refineToOrDie[IOException]))
 
   final def writeFile(file: => File)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit] =
     for {

@@ -1,7 +1,7 @@
 package zio.connect
 
 import zio.stream.{ZSink, ZStream}
-import zio.{Duration, Scope, Trace, ZIO}
+import zio.{Duration, Trace, ZIO}
 
 import java.io.{File, IOException}
 import java.net.URI
@@ -9,52 +9,52 @@ import java.nio.file.Path
 
 package object file {
 
-  val live = LiveFileConnector.layer
-  val test = TestFileConnector.layer
-
   def deleteFile(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteFile)
 
   def deleteFileName(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteFileName)
 
+  def deleteFileNameRecursively(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteFileNameRecursively)
+
+  def deleteFileRecursively(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteFileRecursively)
+
   def deletePath(implicit trace: Trace): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deletePath)
+
+  def deletePathRecursively(implicit trace: Trace): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deletePathRecursively)
 
   def deleteURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteURI)
 
-  def deleteRecursivelyFile(implicit trace: Trace): ZSink[FileConnector, IOException, File, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.deleteRecursivelyFile)
+  def deleteURIRecursively(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.deleteURIRecursively)
 
-  def deleteRecursivelyFileName(implicit trace: Trace): ZSink[FileConnector, IOException, String, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.deleteRecursivelyFileName)
-
-  def deleteRecursivelyPath(implicit trace: Trace): ZSink[FileConnector, IOException, Path, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.deleteRecursivelyPath)
-
-  def deleteRecursivelyURI(implicit trace: Trace): ZSink[FileConnector, IOException, URI, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.deleteRecursivelyURI)
-
-  def existsFile(file: => File)(implicit
+  def existsFile(implicit
     trace: Trace
-  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
-    ZSink.environmentWithSink[FileConnector](_.get.existsFile(file))
+  ): ZSink[FileConnector, IOException, File, File, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsFile)
 
-  def existsFileName(name: => String)(implicit
+  def existsFileName(implicit
     trace: Trace
-  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
-    ZSink.environmentWithSink[FileConnector](_.get.existsFileName(name))
+  ): ZSink[FileConnector, IOException, String, String, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsFileName)
 
-  def existsPath(path: => Path)(implicit
+  def existsPath(implicit
     trace: Trace
-  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
-    ZSink.environmentWithSink[FileConnector](_.get.existsPath(path))
+  ): ZSink[FileConnector, IOException, Path, Path, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsPath)
 
-  def existsURI(uri: => URI)(implicit
+  def existsURI(implicit
     trace: Trace
-  ): ZSink[FileConnector, IOException, Any, Nothing, Boolean] =
-    ZSink.environmentWithSink[FileConnector](_.get.existsURI(uri))
+  ): ZSink[FileConnector, IOException, URI, URI, Boolean] =
+    ZSink.environmentWithSink[FileConnector](_.get.existsURI)
+
+  val fileConnectorLiveLayer     = LiveFileConnector.layer
+  val fileConnectorTestLayer = TestFileConnector.layer
 
   def listFile(file: => File)(implicit trace: Trace): ZStream[FileConnector, IOException, File] =
     ZStream.environmentWithStream(_.get.listFile(file))
@@ -73,11 +73,6 @@ package object file {
   ): ZSink[FileConnector, IOException, File, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFile(locator))
 
-  def moveFileZIO(locator: File => ZIO[Any, IOException, File])(implicit
-    trace: Trace
-  ): ZSink[FileConnector, IOException, File, Nothing, Unit] =
-    ZSink.environmentWithSink(_.get.moveFileZIO(locator))
-
   def moveFileName(locator: String => String)(implicit
     trace: Trace
   ): ZSink[FileConnector, IOException, String, Nothing, Unit] =
@@ -87,6 +82,11 @@ package object file {
     trace: Trace
   ): ZSink[FileConnector, IOException, String, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.moveFileNameZIO(locator))
+
+  def moveFileZIO(locator: File => ZIO[Any, IOException, File])(implicit
+    trace: Trace
+  ): ZSink[FileConnector, IOException, File, Nothing, Unit] =
+    ZSink.environmentWithSink(_.get.moveFileZIO(locator))
 
   def movePath(locator: Path => Path)(implicit
     trace: Trace
@@ -119,16 +119,9 @@ package object file {
 
   def readURI(uri: => URI)(implicit trace: Trace): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.readURI(uri))
-  def tempFile(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempFile)
 
   def tailFile(file: => File, duration: => Duration)(implicit trace: Trace): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailFile(file, duration))
-
-  def tailFileUsingWatchService(file: => File, duration: => Duration)(implicit
-    trace: Trace
-  ): ZStream[FileConnector, IOException, Byte] =
-    ZStream.environmentWithStream(_.get.tailFileUsingWatchService(file, duration))
 
   def tailFileName(name: => String, duration: => Duration)(implicit
     trace: Trace
@@ -139,6 +132,11 @@ package object file {
     trace: Trace
   ): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailFileNameUsingWatchService(name, duration))
+
+  def tailFileUsingWatchService(file: => File, duration: => Duration)(implicit
+    trace: Trace
+  ): ZStream[FileConnector, IOException, Byte] =
+    ZStream.environmentWithStream(_.get.tailFileUsingWatchService(file, duration))
 
   def tailPath(path: => Path, duration: => Duration)(implicit trace: Trace): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailPath(path, duration))
@@ -156,64 +154,67 @@ package object file {
   ): ZStream[FileConnector, IOException, Byte] =
     ZStream.environmentWithStream(_.get.tailURIUsingWatchService(uri, duration))
 
-  def tempFileIn(file: => File)(implicit
-    trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempFileIn(file))
-
-  def tempFileName(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempFileName)
-
-  def tempFileNameIn(name: => String)(implicit
-    trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempFileNameIn(name))
-
-  def tempPath(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempPath)
-
-  def tempPathIn(path: => Path)(implicit
-    trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempPathIn(path))
-
-  def tempURI(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempURI)
-
-  def tempURIIn(uri: => URI)(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempURIIn(uri))
-
-  def tempDirFile(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirFile)
+  def tempDirFile(implicit trace: Trace): ZStream[FileConnector, IOException, File] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirFile)
 
   def tempDirFileIn(file: => File)(implicit
     trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, File] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirFileIn(file))
+  ): ZStream[FileConnector, IOException, File] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirFileIn(file))
 
-  def tempDirFileName(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirFileName)
+  def tempDirFileName(implicit trace: Trace): ZStream[FileConnector, IOException, String] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirFileName)
 
   def tempDirFileNameIn(name: => String)(implicit
     trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, String] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirFileNameIn(name))
+  ): ZStream[FileConnector, IOException, String] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirFileNameIn(name))
 
-  def tempDirPath(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirPath)
+  def tempDirPath(implicit trace: Trace): ZStream[FileConnector, IOException, Path] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirPath)
 
   def tempDirPathIn(path: => Path)(implicit
     trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, Path] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirPathIn(path))
+  ): ZStream[FileConnector, IOException, Path] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirPathIn(path))
 
-  def tempDirURI(implicit trace: Trace): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirURI)
+  def tempDirURI(implicit trace: Trace): ZStream[FileConnector, IOException, URI] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirURI)
 
   def tempDirURIIn(uri: => URI)(implicit
     trace: Trace
-  ): ZSink[FileConnector with Scope, IOException, Byte, Nothing, URI] =
-    ZSink.environmentWithSink[FileConnector](_.get.tempDirURIIn(uri))
+  ): ZStream[FileConnector, IOException, URI] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempDirURIIn(uri))
+
+  def tempFile(implicit trace: Trace): ZStream[FileConnector, IOException, File] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempFile)
+
+  def tempFileIn(file: => File)(implicit
+    trace: Trace
+  ): ZStream[FileConnector, IOException, File] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempFileIn(file))
+
+  def tempFileName(implicit trace: Trace): ZStream[FileConnector, IOException, String] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempFileName)
+
+  def tempFileNameIn(name: => String)(implicit
+    trace: Trace
+  ): ZStream[FileConnector, IOException, String] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempFileNameIn(name))
+
+  def tempPath(implicit trace: Trace): ZStream[FileConnector, IOException, Path] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempPath)
+
+  def tempPathIn(path: => Path)(implicit
+    trace: Trace
+  ): ZStream[FileConnector, IOException, Path] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempPathIn(path))
+
+  def tempURI(implicit trace: Trace): ZStream[FileConnector, IOException, URI] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempURI)
+
+  def tempURIIn(uri: => URI)(implicit trace: Trace): ZStream[FileConnector, IOException, URI] =
+    ZStream.environmentWithStream[FileConnector](_.get.tempURIIn(uri))
 
   def writeFile(file: => File)(implicit trace: Trace): ZSink[FileConnector, IOException, Byte, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.writeFile(file))
