@@ -3,10 +3,10 @@ package zio.connect.file
 import zio.connect.file.TestFileConnector.TestFileSystem
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
+import zio.{Chunk, Duration, Queue, Ref, Schedule, Trace, ZIO, ZLayer}
 
 import java.io.{File, FileNotFoundException, IOException}
-import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
+import java.nio.file.{DirectoryNotEmptyException, Files, Path, Paths}
 import java.util.UUID
 
 private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
@@ -14,11 +14,17 @@ private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConne
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.delete(path))
 
-  override def deleteRecursivelyPath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
+  override def deletePathRecursively(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.deleteRecursively(path))
 
-  override def existsPath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Any, Nothing, Boolean] =
-    ZSink.fromZIO(fs.exists(path))
+  override def existsPath(implicit trace: Trace): ZSink[Any, IOException, Path, Path, Boolean] =
+    ZSink
+      .take[Path](1)
+      .map(_.headOption)
+      .mapZIO {
+        case Some(p) => ZIO.attempt(Files.exists(p)).refineToOrDie[IOException]
+        case None    => ZIO.succeed(false)
+      }
 
   override def listPath(path: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
     ZStream.unwrap(fs.list(path).map(a => ZStream.fromChunk(a)))
@@ -61,30 +67,30 @@ private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConne
     trace: Trace
   ): ZStream[Any, IOException, Byte] = tailPath(path, freq)
 
-  override def tempPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
-    ZSink.unwrap(
-      ZIO.acquireRelease(fs.tempPath)(path => fs.delete(path).orDie).map(path => ZSink.fromZIO(ZIO.succeed(path)))
+  override def tempPath(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
+      ZIO.acquireRelease(fs.tempPath)(path => fs.delete(path).orDie).map(path => ZStream.fromZIO(ZIO.succeed(path)))
     )
 
-  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
-    ZSink.unwrap(
+  override def tempPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
       ZIO
         .acquireRelease(fs.tempPathIn(dirPath))(path => fs.delete(path).orDie)
-        .map(path => ZSink.fromZIO(ZIO.succeed(path)))
+        .map(path => ZStream.fromZIO(ZIO.succeed(path)))
     )
 
-  override def tempDirPath(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
-    ZSink.unwrap(
+  override def tempDirPath(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
       ZIO
         .acquireRelease(fs.tempDirPath)(path => fs.deleteRecursively(path).orDie)
-        .map(path => ZSink.fromZIO(ZIO.succeed(path)))
+        .map(path => ZStream.fromZIO(ZIO.succeed(path)))
     )
 
-  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZSink[Scope, IOException, Any, Nothing, Path] =
-    ZSink.unwrap(
+  override def tempDirPathIn(dirPath: => Path)(implicit trace: Trace): ZStream[Any, IOException, Path] =
+    ZStream.unwrapScoped(
       ZIO
         .acquireRelease(fs.tempDirPathIn(dirPath))(path => fs.deleteRecursively(path).orDie)
-        .map(path => ZSink.fromZIO(ZIO.succeed(path)))
+        .map(path => ZStream.fromZIO(ZIO.succeed(path)))
     )
 
   override def writePath(path: => Path)(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit] =

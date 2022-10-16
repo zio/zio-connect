@@ -6,6 +6,6 @@ object LiveFileConnectorSpec extends FileConnectorSpec {
 
   override def spec =
     suite("LiveFileConnectorSpec")(fileConnectorSpec)
-      .provideSome[Scope](zio.connect.file.live)
+      .provideSome[Scope](zio.connect.file.fileConnectorLiveLayer)
 
 }
