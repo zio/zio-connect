@@ -75,9 +75,9 @@ need to import <code>zio.connect.file._</code></p>
 <span class="hljs-keyword">for</span> {
   dir        &lt;- tempDirPath
   path       &lt;- tempPathIn(dir)
-  fileExists &lt;- existsPath(file).tap(a =&gt; <span class="hljs-type">ZIO</span>.debug(<span class="hljs-string">s"<span class="hljs-subst">$path</span> exists? <span class="hljs-subst">$a</span>"</span>))
-  _          &lt;- <span class="hljs-type">ZSink</span>.fromZIO(stream &gt;&gt;&gt; writePath(file))
-  _          &lt;- <span class="hljs-type">ZSink</span>.fromZIO(readPath(file) &gt;&gt;&gt; sink)
+  fileExists &lt;- <span class="hljs-type">ZStream</span>.fromZIO((<span class="hljs-type">ZStream</span>(path) &gt;&gt;&gt; existsPath(file)).tap(a =&gt; <span class="hljs-type">ZIO</span>.debug(<span class="hljs-string">s"<span class="hljs-subst">$path</span> exists? <span class="hljs-subst">$a</span>"</span>)))
+  _          &lt;- <span class="hljs-type">ZStream</span>.fromZIO(stream &gt;&gt;&gt; writePath(file))
+  _          &lt;- <span class="hljs-type">ZStream</span>.fromZIO(readPath(file) &gt;&gt;&gt; sink)
 } <span class="hljs-keyword">yield</span> fileExists
 </code></pre>
 <ul>
@@ -100,7 +100,7 @@ internally an in memory filesystem to avoid the actual creation of files.</p>
 
   <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">spec</span> </span>=
     suite(<span class="hljs-string">"MyTestSpec"</span>)(???)
-      .provide(zio.connect.file.test)
+      .provide(zio.connect.file.fileConnectorTestLayer)
 
 }
 </code></pre>
@@ -159,24 +159,23 @@ To delete non empty directories use the deleteRecursivelyX variants.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.connect.file._
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">example</span></span>(paths: <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Path</span>]) =
-   <span class="hljs-type">ZStream</span>(path) &gt;&gt;&gt; deletePath
+   paths &gt;&gt;&gt; deletePath
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="deleterecursivelyx"></a><a href="#deleterecursivelyx" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>deleteRecursivelyX</h2>
+<h2><a class="anchor" aria-hidden="true" id="deletexrecursively"></a><a href="#deletexrecursively" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>deleteXRecursively</h2>
 <ul>
-<li>deleteRecursivelyFile | deleteRecursivelyFileName | deleteRecursivelyPath | deleteRecursivelyURI</li>
+<li>deleteFileRecursively | deleteFileNameRecursively | deletePathRecursively | deleteURIRecursively</li>
 </ul>
 <p>Same as deleteX operator + it can delete non empty directories.</p>
 <h2><a class="anchor" aria-hidden="true" id="existsx"></a><a href="#existsx" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>existsX</h2>
 <ul>
 <li>existsFile | existsFileName | existsPath | existsURI</li>
 </ul>
-<p>Takes a path/file/... and returns a Sink that completes with true if the given path/file/... exists or a false
-otherwise.
-Tip: It's functionally equivalent to <code>ZIO[Any, IOException, Boolean]</code></p>
+<p>Creates a ZSink that emits true if the first path/file/... exists or a false
+otherwise. The files received after the first one can be found in the sink's leftovers.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.connect.file._
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">example</span></span>(path: <span class="hljs-type">Path</span>): <span class="hljs-type">ZSink</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Boolean</span>] = 
-    existsPath(path)
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">example</span></span>(stream: <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Path</span>]): <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Boolean</span>] = 
+    stream &gt;&gt;&gt; existsPath
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="listx"></a><a href="#listx" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>listX</h2>
 <ul>
@@ -241,4 +240,4 @@ effect using them completes.</p>
        fileInSubDir  &lt;- tempPathIn(subDir)
     } <span class="hljs-keyword">yield</span> ()
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/zio-connect/docs/quickstart/quickstart_index"><span class="arrow-prev">← </span><span>Quick Start</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#setup">Setup</a></li><li><a href="#how-to-use-it-">How to use it ?</a></li><li><a href="#test--stub">Test / Stub</a></li><li><a href="#operators--examples">Operators &amp; Examples</a></li><li><a href="#readx">readX</a></li><li><a href="#writex">writeX</a></li><li><a href="#tailx">tailX</a></li><li><a href="#tailxusingwatchservice">tailXUsingWatchService</a></li><li><a href="#deletex">deleteX</a></li><li><a href="#deleterecursivelyx">deleteRecursivelyX</a></li><li><a href="#existsx">existsX</a></li><li><a href="#listx">listX</a></li><li><a href="#movex">moveX</a></li><li><a href="#movexzio">moveXZIO</a></li><li><a href="#tempx--tempxin--tempdirx--tempdirxin">tempX / tempXIn / tempDirX / tempDirXIn</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/zio-connect/" class="nav-home"><img src="/zio-connect/img/sidebar_brand2x.png" alt="zio-connect"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio-connect" data-icon="octicon-star" data-count-href="/zio/zio-connect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/zio-connect//img/discord.png" width="120" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="/zio-connect/api/index.html">Scaladoc of zio-connect</a></div></section><section class="copyright">Copyright © 2022 ZIO Maintainers</section></footer></div></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/zio-connect/docs/quickstart/quickstart_index"><span class="arrow-prev">← </span><span>Quick Start</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#setup">Setup</a></li><li><a href="#how-to-use-it-">How to use it ?</a></li><li><a href="#test--stub">Test / Stub</a></li><li><a href="#operators--examples">Operators &amp; Examples</a></li><li><a href="#readx">readX</a></li><li><a href="#writex">writeX</a></li><li><a href="#tailx">tailX</a></li><li><a href="#tailxusingwatchservice">tailXUsingWatchService</a></li><li><a href="#deletex">deleteX</a></li><li><a href="#deletexrecursively">deleteXRecursively</a></li><li><a href="#existsx">existsX</a></li><li><a href="#listx">listX</a></li><li><a href="#movex">moveX</a></li><li><a href="#movexzio">moveXZIO</a></li><li><a href="#tempx--tempxin--tempdirx--tempdirxin">tempX / tempXIn / tempDirX / tempDirXIn</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/zio-connect/" class="nav-home"><img src="/zio-connect/img/sidebar_brand2x.png" alt="zio-connect"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio-connect" data-icon="octicon-star" data-count-href="/zio/zio-connect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/zio-connect//img/discord.png" width="120" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="/zio-connect/api/index.html">Scaladoc of zio-connect</a></div></section><section class="copyright">Copyright © 2022 ZIO Maintainers</section></footer></div></body></html>
