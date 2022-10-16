@@ -7,7 +7,7 @@ import zio.{Duration, Queue, Ref, Schedule, Scope, Trace, ZIO, ZLayer}
 import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{Files, Path, StandardOpenOption, StandardWatchEventKinds, WatchService}
+import java.nio.file._
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 

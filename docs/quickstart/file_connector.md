@@ -138,10 +138,10 @@ def example(paths: ZStream[Any, Nothing, Path]) =
    paths >>> deletePath
 ```
 
-deleteRecursivelyX
+deleteXRecursively
 ---
 
-- deleteRecursivelyFile | deleteRecursivelyFileName | deleteRecursivelyPath | deleteRecursivelyURI
+- deleteFileRecursively | deleteFileNameRecursively | deletePathRecursively | deleteURIRecursively
 
 Same as deleteX operator + it can delete non empty directories.
 

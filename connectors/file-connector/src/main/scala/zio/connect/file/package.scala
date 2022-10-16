@@ -53,7 +53,7 @@ package object file {
   ): ZSink[FileConnector, IOException, URI, URI, Boolean] =
     ZSink.environmentWithSink[FileConnector](_.get.existsURI)
 
-  val fileConnectorLiveLayer     = LiveFileConnector.layer
+  val fileConnectorLiveLayer = LiveFileConnector.layer
   val fileConnectorTestLayer = TestFileConnector.layer
 
   def listFile(file: => File)(implicit trace: Trace): ZStream[FileConnector, IOException, File] =
