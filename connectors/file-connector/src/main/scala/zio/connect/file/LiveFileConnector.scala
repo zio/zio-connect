@@ -77,7 +77,7 @@ case class LiveFileConnector() extends FileConnector {
                   channel.close
                   if (numBytesRead > 0) Some(buffer.array()) else None
                 } else None
-              }.tapError(e => ZIO.debug(e.toString)).refineOrDie { case e: IOException => e }
+              }.refineOrDie { case e: IOException => e }
       _ <- ZIO.foreach(data)(d => queue.offerAll(d))
       _ <- ZIO.foreach(data)(d => ref.update(_ => cursor + d.size))
     } yield ()
