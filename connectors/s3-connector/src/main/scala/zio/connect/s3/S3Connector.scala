@@ -1,11 +1,9 @@
 package zio.connect.s3
 
 import zio.Trace
-import zio.aws.core.AwsError
 import zio.connect.s3.S3Connector.S3Exception
 import zio.stream.{ZSink, ZStream}
 
-//todo - update the S3Exception - turn it from an alias to a zio-connect specific type
 trait S3Connector {
 
   def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, Nothing, Unit]
@@ -16,7 +14,7 @@ trait S3Connector {
     trace: Trace
   ): ZSink[Any, S3Exception, S3Connector.ObjectId, Nothing, Unit]
 
-  def existsBucket(name: => String)(implicit trace: Trace): ZStream[Any, S3Exception, Boolean]
+  def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean]
 
   def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
 
@@ -30,6 +28,6 @@ object S3Connector {
 
   case class ObjectId(bucketName: String, objectKey: String)
 
-  type S3Exception = AwsError
+  case class S3Exception(reason: Throwable)
 
 }

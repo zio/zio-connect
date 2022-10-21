@@ -1,6 +1,6 @@
 package zio.connect.s3
 
-import zio.{Chunk, ZIO}
+import zio.{Chunk, Random, ZIO}
 import zio.connect.s3.S3Connector.S3Exception
 import zio.stream.ZStream
 import zio.test.Assertion._
@@ -10,7 +10,7 @@ import java.util.UUID
 
 trait S3ConnectorSpec extends ZIOSpecDefault {
 
-  val s3ConnectorSpec = createBucketSuite + deleteBucketSuite
+  val s3ConnectorSpec = createBucketSuite + deleteBucketSuite + putObjectSuite
 
   private lazy val createBucketSuite: Spec[S3Connector, S3Exception] =
     suite("createBucket") {
@@ -18,9 +18,9 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         val bucketName = UUID.randomUUID().toString
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
-          wasCreated <- existsBucket(bucketName).runHead.map(_.contains(true))
+          wasCreated <- ZStream(bucketName) >>> existsBucket
           _          <- ZStream.succeed(bucketName) >>> deleteEmptyBuckets
-          wasDeleted <- existsBucket(bucketName).runHead.map(_.contains(false))
+          wasDeleted <- (ZStream(bucketName) >>> existsBucket).map(!_)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
       }
     }
@@ -31,7 +31,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         val bucketName = UUID.randomUUID().toString
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
-          wasCreated <- existsBucket(bucketName).runHead.map(_.contains(true))
+          wasCreated <- ZStream(bucketName) >>> existsBucket
           _          <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, UUID.randomUUID().toString)
           wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true).catchSome { case _: S3Exception =>
                           ZIO.succeed(false)
@@ -42,11 +42,25 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         val bucketName = UUID.randomUUID().toString
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
-          wasCreated <- existsBucket(bucketName).runHead.map(_.contains(true))
+          wasCreated <- ZStream(bucketName) >>> existsBucket
           wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true).catchSome { case _: S3Exception =>
                           ZIO.succeed(false)
                         }
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
+      }
+    }
+
+  private lazy val putObjectSuite: Spec[S3Connector, S3Exception] =
+    suite("putObject") {
+      test("succeeds") {
+        val bucketName = UUID.randomUUID().toString
+        val objectKey  = UUID.randomUUID().toString
+        for {
+          _        <- ZStream.succeed(bucketName) >>> createBucket
+          testData <- Random.nextBytes(5)
+          _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, objectKey)
+          actual   <- getObject(bucketName, objectKey).runCollect
+        } yield assert(actual)(equalTo(testData))
       }
     }
 

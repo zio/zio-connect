@@ -16,7 +16,7 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
         localStackContainer,
         awsConfig,
         s3,
-        zio.connect.s3.live
+        zio.connect.s3.s3ConnectorLiveLayer
       )
 
   lazy val httpClient = NettyHttpClient.default

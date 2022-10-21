@@ -41,7 +41,7 @@ lazy val fileConnector = project
   .settings(stdSettings("zio-connect-file"))
   .settings(
     libraryDependencies ++= Seq(
-      `zio`,
+      zio,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
@@ -63,11 +63,13 @@ lazy val s3Connector = project
   .settings(stdSettings("zio-connect-s3"))
   .settings(
     libraryDependencies ++= Seq(
-      S3Dependencies.awsCore,
-      S3Dependencies.testContainers,
-      S3Dependencies.zioAwsNetty,
-      S3Dependencies.zioAwsS3,
-      `zio`,
+      S3Dependencies.`aws-core`,
+      S3Dependencies.`aws-java-sdk-core`,
+      S3Dependencies.localstack,
+      S3Dependencies.s3,
+      S3Dependencies.`zio-aws-netty`,
+      S3Dependencies.`zio-aws-s3`,
+      zio,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
@@ -95,7 +97,7 @@ lazy val docs = project
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
-      `zio`
+      zio
     ),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
     ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",

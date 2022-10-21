@@ -12,13 +12,17 @@ package object s3 {
   def deleteEmptyBuckets(implicit trace: Trace): ZSink[S3Connector, S3Exception, String, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteEmptyBucket)
 
-  def existsBucket(name: => String)(implicit trace: Trace): ZStream[S3Connector, S3Exception, Boolean] =
-    ZStream.environmentWithStream(_.get.existsBucket(name))
+  def existsBucket(implicit trace: Trace): ZSink[S3Connector, S3Exception, String, String, Boolean] =
+    ZSink.environmentWithSink(_.get.existsBucket)
+
+  def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[S3Connector, S3Exception, Byte] =
+    ZStream.environmentWithStream(_.get.getObject(bucketName, key))
 
   def listObjects(bucketName: => String)(implicit trace: Trace): ZStream[S3Connector, S3Exception, String] =
     ZStream.environmentWithStream(_.get.listObjects(bucketName))
 
-  val live = LiveS3Connector.live
+  val s3ConnectorLiveLayer = LiveS3Connector.live
+//  val s3ConnectorTestLayer = TestS3Connector.live
 
   def putObject(bucketName: => String, key: String)(implicit
     trace: Trace
