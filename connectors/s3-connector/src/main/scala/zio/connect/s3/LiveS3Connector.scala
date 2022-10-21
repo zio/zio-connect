@@ -1,11 +1,15 @@
 package zio.connect.s3
+import zio.aws.core.AwsError
 import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.aws.s3.S3
 import zio.aws.s3.model.{
   CreateBucketRequest,
+  Delete,
   DeleteBucketRequest,
+  DeleteObjectsRequest,
   GetObjectRequest,
   ListObjectsRequest,
+  ObjectIdentifier,
   PutObjectRequest
 }
 import zio.aws.s3.model.primitives.{BucketName, ContentLength, ObjectKey}
@@ -24,9 +28,19 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       s3.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
     }.mapError(a => S3Exception(a.toThrowable))
 
-  override def deleteObject(bucketName: => String, keys: Iterable[String])(implicit
+  override def deleteObjects(bucketName: => String)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, S3Connector.ObjectId, Nothing, Unit] = ???
+  ): ZSink[Any, S3Exception, String, String, Unit] =
+    ZSink
+      .foreachChunk[Any, AwsError, String] { objectKeys =>
+        s3.deleteObjects(
+          DeleteObjectsRequest(
+            bucket = BucketName(bucketName),
+            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(ObjectKey(a))))
+          )
+        )
+      }
+      .mapError(a => S3Exception(a.toThrowable))
 
   override def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean] =
     ZSink

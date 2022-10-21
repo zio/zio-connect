@@ -10,9 +10,9 @@ trait S3Connector {
 
   def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, Nothing, Unit]
 
-  def deleteObject(bucketName: => String, keys: Iterable[String])(implicit
+  def deleteObjects(bucketName: => String)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, S3Connector.ObjectId, Nothing, Unit]
+  ): ZSink[Any, S3Exception, String, String, Unit]
 
   def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean]
 

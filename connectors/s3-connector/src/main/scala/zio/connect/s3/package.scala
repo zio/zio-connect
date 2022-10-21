@@ -12,6 +12,9 @@ package object s3 {
   def deleteEmptyBuckets(implicit trace: Trace): ZSink[S3Connector, S3Exception, String, Nothing, Unit] =
     ZSink.environmentWithSink(_.get.deleteEmptyBucket)
 
+  def deleteObjects(bucketName: String)(implicit trace: Trace): ZSink[S3Connector, S3Exception, String, String, Unit] =
+    ZSink.environmentWithSink(_.get.deleteObjects(bucketName))
+
   def existsBucket(implicit trace: Trace): ZSink[S3Connector, S3Exception, String, String, Boolean] =
     ZSink.environmentWithSink(_.get.existsBucket)
 
