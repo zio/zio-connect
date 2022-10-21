@@ -12,7 +12,7 @@ import zio.aws.s3.S3
 object LiveS3ConnectorSpec extends S3ConnectorSpec {
   override def spec =
     suite("LiveS3ConnectorSpec")(s3ConnectorSpec)
-      .provideSome[Scope](
+      .provideSomeShared[Scope](
         localStackContainer,
         awsConfig,
         s3,

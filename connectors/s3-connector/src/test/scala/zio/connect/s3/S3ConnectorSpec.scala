@@ -10,7 +10,7 @@ import java.util.UUID
 
 trait S3ConnectorSpec extends ZIOSpecDefault {
 
-  val s3ConnectorSpec = createBucketSuite + deleteBucketSuite + putObjectSuite
+  val s3ConnectorSpec = createBucketSuite + deleteBucketSuite + listObjectsSuite + putObjectSuite
 
   private lazy val createBucketSuite: Spec[S3Connector, S3Exception] =
     suite("createBucket") {
@@ -47,6 +47,22 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
                           ZIO.succeed(false)
                         }
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
+      }
+    }
+
+  private lazy val listObjectsSuite =
+    suite("listObjects") {
+      test("succeeds") {
+        val bucketName = UUID.randomUUID().toString
+        val obj1       = UUID.randomUUID().toString
+        val obj2       = UUID.randomUUID().toString
+        for {
+          _        <- ZStream.succeed(bucketName) >>> createBucket
+          testData <- Random.nextBytes(5)
+          _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj1)
+          _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj2)
+          actual   <- listObjects(bucketName).runCollect
+        } yield assert(actual.sorted)(equalTo(Chunk(obj1, obj2).sorted))
       }
     }
 
