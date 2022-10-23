@@ -131,7 +131,7 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
 
 object LiveS3Connector {
 
-  val live: ZLayer[S3, Throwable, LiveS3Connector] =
+  val layer: ZLayer[S3, Nothing, LiveS3Connector] =
     ZLayer.fromZIO(ZIO.service[S3].map(LiveS3Connector(_)))
 
 }
