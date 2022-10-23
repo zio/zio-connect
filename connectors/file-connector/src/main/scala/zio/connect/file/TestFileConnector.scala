@@ -229,6 +229,45 @@ object TestFileConnector {
         children = Chunk.fromIterable(files.filter(_._1.startsWith(path))).map(_._2)
       } yield children
 
+    def movePath(sourcePath: Path, destinationPath: ZIO[Any, IOException, Path]): ZIO[Any, IOException, Unit] =
+      for {
+        dest <- destinationPath
+        r <- STM.atomically {
+               movePathSTM(sourcePath, dest)
+             }
+      } yield r
+
+    private def movePathSTM(
+      sourcePath: Path,
+      destinationPath: Path
+    ): ZSTM[Any, IOException, Unit] =
+      for {
+        sourceFile        <- getFile(sourcePath)
+        fileAlreadyExists <- findFileSTM(destinationPath).map(_.isDefined)
+        _ <-
+          STM.when(fileAlreadyExists)(
+            ZSTM.fail(new IOException(s"File already exists at destination $destinationPath"))
+          )
+        _ <- sourceFile match {
+               case a: FileSystemNode.Dir =>
+                 for {
+                   fileAndAllDescendants <- listFileAndAllDescendants(a.path)
+                   renamedFiles =
+                     fileAndAllDescendants.map(f =>
+                       f.replacePath(Paths.get(f.path.toString.replace(a.path.toString, destinationPath.toString)))
+                     )
+                   _ <- deleteRecursivelySTM(a.path)
+                   _ <- map.update(m => m ++ renamedFiles.map(f => f.path -> f))
+                 } yield ()
+               case a: FileSystemNode.File =>
+                 for {
+                   newFile <- STM.succeed(a.replacePath(destinationPath))
+                   _       <- map.update(m => m.updated(destinationPath, newFile))
+                   _       <- deleteSTM(a.path)
+                 } yield ()
+             }
+      } yield ()
+
     def removeContentIfExists(path: Path): ZIO[Any, IOException, Unit] =
       STM.atomically {
         for {
@@ -300,45 +339,6 @@ object TestFileConnector {
                }
         } yield ()
       }
-
-    def movePath(sourcePath: Path, destinationPath: ZIO[Any, IOException, Path]): ZIO[Any, IOException, Unit] =
-      for {
-        dest <- destinationPath
-        r <- STM.atomically {
-               movePathSTM(sourcePath, dest)
-             }
-      } yield r
-
-    private def movePathSTM(
-      sourcePath: Path,
-      destinationPath: Path
-    ): ZSTM[Any, IOException, Unit] =
-      for {
-        sourceFile        <- getFile(sourcePath)
-        fileAlreadyExists <- findFileSTM(destinationPath).map(_.isDefined)
-        _ <-
-          STM.when(fileAlreadyExists)(
-            ZSTM.fail(new IOException(s"File already exists at destination $destinationPath"))
-          )
-        _ <- sourceFile match {
-               case a: FileSystemNode.Dir =>
-                 for {
-                   fileAndAllDescendants <- listFileAndAllDescendants(a.path)
-                   renamedFiles =
-                     fileAndAllDescendants.map(f =>
-                       f.replacePath(Paths.get(f.path.toString.replace(a.path.toString, destinationPath.toString)))
-                     )
-                   _ <- deleteRecursivelySTM(a.path)
-                   _ <- map.update(m => m ++ renamedFiles.map(f => f.path -> f))
-                 } yield ()
-               case a: FileSystemNode.File =>
-                 for {
-                   newFile <- STM.succeed(a.replacePath(destinationPath))
-                   _       <- map.update(m => m.updated(destinationPath, newFile))
-                   _       <- deleteSTM(a.path)
-                 } yield ()
-             }
-      } yield ()
 
   }
 
