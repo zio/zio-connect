@@ -1,8 +1,8 @@
 package zio.connect.s3
 
-import zio.{Trace, ZIO}
 import zio.connect.s3.S3Connector.{CopyObject, MoveObject, S3Exception}
 import zio.stream.{ZSink, ZStream}
+import zio.{Trace, ZIO}
 
 trait S3Connector {
 

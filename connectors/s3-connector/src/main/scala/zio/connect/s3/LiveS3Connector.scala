@@ -1,7 +1,7 @@
 package zio.connect.s3
 import zio.aws.core.AwsError
-import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.aws.s3.S3
+import zio.aws.s3.model.primitives.{BucketName, ContentLength, CopySource, ObjectKey}
 import zio.aws.s3.model.{
   CopyObjectRequest,
   CreateBucketRequest,
@@ -14,9 +14,9 @@ import zio.aws.s3.model.{
   ObjectIdentifier,
   PutObjectRequest
 }
-import zio.aws.s3.model.primitives.{BucketName, ContentLength, CopySource, ObjectKey}
 import zio.connect.s3.S3Connector.{CopyObject, S3Exception}
 import zio.stream.{ZSink, ZStream}
+import zio.{Chunk, Trace, ZIO, ZLayer}
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets

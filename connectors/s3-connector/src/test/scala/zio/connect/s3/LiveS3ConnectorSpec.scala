@@ -4,10 +4,10 @@ import org.testcontainers.containers.localstack.LocalStackContainer.Service
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
-import zio.{Scope, ZIO, ZLayer}
 import zio.aws.core.config.AwsConfig
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
+import zio.{Scope, ZIO, ZLayer}
 
 object LiveS3ConnectorSpec extends S3ConnectorSpec {
   override def spec =
@@ -19,10 +19,10 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
         zio.connect.s3.s3ConnectorLiveLayer
       )
 
-  lazy val httpClient = NettyHttpClient.default
-  lazy val awsConfig  = httpClient >>> AwsConfig.default
+  lazy val httpClient                                   = NettyHttpClient.default
+  lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig] = httpClient >>> AwsConfig.default
 
-  lazy val localStackContainer =
+  lazy val localStackContainer: ZLayer[Any with Any with Scope, Throwable, LocalStackContainer] =
     ZLayer.fromZIO(
       ZIO.acquireRelease(ZIO.attempt {
         val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")

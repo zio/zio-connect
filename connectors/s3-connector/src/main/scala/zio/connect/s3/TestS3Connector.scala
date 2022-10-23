@@ -3,10 +3,10 @@ package zio.connect.s3
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException
 import zio.connect.s3.S3Connector.{CopyObject, MoveObject, S3Exception}
 import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
-import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.connect.s3.TestS3Connector.TestS3
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
+import zio.{Chunk, Trace, ZIO, ZLayer}
 
 case class TestS3Connector(s3: TestS3) extends S3Connector {
   override def copyObject(implicit

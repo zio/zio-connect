@@ -1,11 +1,11 @@
 package zio.connect.s3
 
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException
-import zio.{Chunk, Random, ZIO}
 import zio.connect.s3.S3Connector.{CopyObject, S3Exception}
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test._
+import zio.{Chunk, Random, ZIO}
 
 import java.util.UUID
 
