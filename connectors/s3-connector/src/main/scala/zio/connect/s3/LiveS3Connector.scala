@@ -61,25 +61,20 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean] =
-    ZSink
-      .take[String](1)
-      .map(_.headOption)
-      .mapZIO {
-        case Some(name) =>
-          for {
-            listResponse <- s3.listBuckets().flatMap(_.getBuckets)
-            bucketExists  = listResponse.exists(_.name.contains(name))
-          } yield bucketExists
-        case None => ZIO.succeed(false)
-      }
-      .mapError(a => S3Exception(a.toThrowable))
-
   override def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte] =
     ZStream
       .unwrap(
         s3.getObject(GetObjectRequest(bucket = BucketName(bucketName), key = ObjectKey(key)))
           .map(a => a.output)
+      )
+      .mapError(a => S3Exception(a.toThrowable))
+
+  override def listBuckets(implicit
+    trace: Trace
+  ): ZStream[Any, S3Exception, String] =
+    ZStream
+      .fromIterableZIO(
+        s3.listBuckets().flatMap(_.getBuckets.map(_.flatMap(_.name.toList)))
       )
       .mapError(a => S3Exception(a.toThrowable))
 

@@ -12,7 +12,7 @@ import java.util.UUID
 trait S3ConnectorSpec extends ZIOSpecDefault {
 
   val s3ConnectorSpec =
-    copyObjectSpec + createBucketSuite + deleteBucketSuite + listObjectsSuite + moveObjectSuite + putObjectSuite
+    copyObjectSpec + createBucketSuite + deleteBucketSuite + deleteObjectsSuite + listObjectsSuite + moveObjectSuite + putObjectSuite
 
   private lazy val copyObjectSpec =
     suite("copyObject")(
@@ -36,22 +36,22 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         val object2 = UUID.randomUUID().toString
         val bucket2 = UUID.randomUUID().toString
         for {
-          _             <- ZStream(bucket1, bucket2) >>> createBucket
-          o1Content     <- Random.nextBytes(5)
-          o2Content     <- Random.nextBytes(5)
-          _             <- ZStream.fromChunk(o1Content) >>> putObject(bucket1, object1)
-          _             <- ZStream.fromChunk(o2Content) >>> putObject(bucket1, object2)
-          _             <- ZStream(CopyObject(bucket1, object1, bucket2), CopyObject(bucket1, object2, bucket2)) >>> copyObject
-          initialFiles  <- listObjects(bucket2).runCollect
-          movedFiles    <- listObjects(bucket2).runCollect
-          movedContent1 <- getObject(bucket2, object1).runCollect
-          movedContent2 <- getObject(bucket2, object2).runCollect
+          _              <- ZStream(bucket1, bucket2) >>> createBucket
+          o1Content      <- Random.nextBytes(5)
+          o2Content      <- Random.nextBytes(5)
+          _              <- ZStream.fromChunk(o1Content) >>> putObject(bucket1, object1)
+          _              <- ZStream.fromChunk(o2Content) >>> putObject(bucket1, object2)
+          initialFiles   <- listObjects(bucket1).runCollect
+          _              <- ZStream(CopyObject(bucket1, object1, bucket2), CopyObject(bucket1, object2, bucket2)) >>> copyObject
+          copiedFiles    <- listObjects(bucket2).runCollect
+          copiedContent1 <- getObject(bucket2, object1).runCollect
+          copiedContent2 <- getObject(bucket2, object2).runCollect
 
-          filesWereMoved =
-            Chunk(object1, object2).sorted == initialFiles.sorted && initialFiles.sorted == movedFiles.sorted
-          o1CopyMatchesOriginal = o1Content == movedContent1
-          o2CopyMatchesOriginal = o2Content == movedContent2
-        } yield assertTrue(filesWereMoved) && assertTrue(o1CopyMatchesOriginal) && assertTrue(o2CopyMatchesOriginal)
+          filesWereCopied =
+            Chunk(object1, object2).sorted == initialFiles.sorted && initialFiles.sorted == copiedFiles.sorted
+          o1CopyMatchesOriginal = o1Content == copiedContent1
+          o2CopyMatchesOriginal = o2Content == copiedContent2
+        } yield assertTrue(filesWereCopied) && assertTrue(o1CopyMatchesOriginal) && assertTrue(o2CopyMatchesOriginal)
       }
     )
 
@@ -92,6 +92,16 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
                         }
         } yield assertTrue(wasCreated) && assert(wasDeleted)(equalTo(false))
       },
+      test("fails if bucket not exists") {
+        val bucketName = UUID.randomUUID().toString
+        for {
+          wasCreated <- ZStream(bucketName) >>> existsBucket
+          deleteFails <-
+            (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(false).catchSome { case _: S3Exception =>
+              ZIO.succeed(true)
+            }
+        } yield assert(wasCreated)(equalTo(false)) && assertTrue(deleteFails)
+      },
       test("succeeds if bucket is empty") {
         val bucketName = UUID.randomUUID().toString
         for {
@@ -99,6 +109,42 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           wasCreated <- ZStream(bucketName) >>> existsBucket
           wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
+      }
+    )
+
+  private lazy val deleteObjectsSuite: Spec[S3Connector, S3Exception] =
+    suite("deleteObjects")(
+      test("succeeds if object not exists") {
+        val bucketName = UUID.randomUUID().toString
+        val key        = UUID.randomUUID().toString
+        for {
+          _                          <- ZStream.succeed(bucketName) >>> createBucket
+          objectExistsBeforeDeletion <- ZStream(key) >>> existsObject(bucketName)
+          _                          <- ZStream(key) >>> deleteObjects(bucketName)
+        } yield assert(objectExistsBeforeDeletion)(equalTo(false))
+      },
+      test("succeeds") {
+        val bucketName = UUID.randomUUID().toString
+        val key1       = UUID.randomUUID().toString
+        val key2       = UUID.randomUUID().toString
+        val key3       = UUID.randomUUID().toString
+        for {
+          _                           <- ZStream.succeed(bucketName) >>> createBucket
+          _                           <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, key1)
+          _                           <- ZStream.fromChunk[Byte](Chunk(1)) >>> putObject(bucketName, key2)
+          _                           <- ZStream.fromChunk[Byte](Chunk(2)) >>> putObject(bucketName, key3)
+          object1ExistsBeforeDeletion <- ZStream(key1) >>> existsObject(bucketName)
+          object2ExistsBeforeDeletion <- ZStream(key2) >>> existsObject(bucketName)
+          object3ExistsBeforeDeletion <- ZStream(key3) >>> existsObject(bucketName)
+          objectsExistBeforeDeletion =
+            object1ExistsBeforeDeletion && object2ExistsBeforeDeletion && object3ExistsBeforeDeletion
+          _                          <- ZStream(key1, key2, key3) >>> deleteObjects(bucketName)
+          object1ExistsAfterDeletion <- ZStream(key1) >>> existsObject(bucketName)
+          object2ExistsAfterDeletion <- ZStream(key2) >>> existsObject(bucketName)
+          object3ExistsAfterDeletion <- ZStream(key3) >>> existsObject(bucketName)
+          objectsExistAfterDeletion =
+            object1ExistsAfterDeletion || object2ExistsAfterDeletion || object3ExistsAfterDeletion
+        } yield assertTrue(objectsExistBeforeDeletion) && assert(objectsExistAfterDeletion)(equalTo(false))
       }
     )
 
