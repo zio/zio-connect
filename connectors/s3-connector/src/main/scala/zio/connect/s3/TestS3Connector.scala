@@ -115,7 +115,7 @@ object TestS3Connector {
           _ <-
             bucketOp match {
               case Some(b) =>
-                if (b.objects.isEmpty) repo.getAndUpdate(m => m.removed(bucket))
+                if (b.objects.isEmpty) repo.getAndUpdate(m => m - bucket)
                 else ZSTM.fail(S3Exception(new RuntimeException("Bucket not empty")))
               case None =>
                 ZSTM.fail(S3Exception(new RuntimeException("Bucket does not exist")))
@@ -131,7 +131,7 @@ object TestS3Connector {
             ZSTM
               .fromOption(map.get(bucket))
               .mapError(_ => bucketDoesntExistException(bucket))
-          _ <- repo.set(map.updated(bucket.id, S3Bucket(bucket.id, bucket.objects.removed(key))))
+          _ <- repo.set(map.updated(bucket.id, S3Bucket(bucket.id, bucket.objects - key)))
         } yield ()
       )
 
@@ -179,7 +179,7 @@ object TestS3Connector {
                  destinationBucket.id,
                  S3Bucket(destinationBucket.id, destinationBucket.objects.updated(m.targetObjectKey, sourceObject))
                )
-               m1.updated(sourceBucket.id, S3Bucket(sourceBucket.id, sourceBucket.objects.removed(m.objectKey)))
+               m1.updated(sourceBucket.id, S3Bucket(sourceBucket.id, sourceBucket.objects - m.objectKey))
              }
       } yield ())
 
