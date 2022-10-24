@@ -22,7 +22,7 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
   lazy val httpClient                                   = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig] = httpClient >>> AwsConfig.default
 
-  lazy val localStackContainer: ZLayer[Any with Any with Scope, Throwable, LocalStackContainer] =
+  lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
     ZLayer.fromZIO(
       ZIO.acquireRelease(ZIO.attempt {
         val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")
