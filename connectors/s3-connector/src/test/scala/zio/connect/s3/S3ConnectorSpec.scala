@@ -1,7 +1,7 @@
 package zio.connect.s3
 
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException
-import zio.connect.s3.S3Connector.{CopyObject, S3Exception}
+import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, S3Exception}
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test._
@@ -17,9 +17,9 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val copyObjectSpec =
     suite("copyObject")(
       test("replaces preexisting object") {
-        val bucket1 = UUID.randomUUID().toString
-        val bucket2 = UUID.randomUUID().toString
-        val key     = UUID.randomUUID().toString
+        val bucket1 = BucketName(UUID.randomUUID().toString)
+        val bucket2 = BucketName(UUID.randomUUID().toString)
+        val key     = ObjectKey(UUID.randomUUID().toString)
         for {
           _             <- ZStream(bucket1, bucket2) >>> createBucket
           content1      <- Random.nextBytes(5)
@@ -31,10 +31,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         } yield assert(copiedContent)(equalTo(content1))
       },
       test("succeeds") {
-        val bucket1 = UUID.randomUUID().toString
-        val object1 = UUID.randomUUID().toString
-        val object2 = UUID.randomUUID().toString
-        val bucket2 = UUID.randomUUID().toString
+        val bucket1 = BucketName(UUID.randomUUID().toString)
+        val object1 = ObjectKey(UUID.randomUUID().toString)
+        val object2 = ObjectKey(UUID.randomUUID().toString)
+        val bucket2 = BucketName(UUID.randomUUID().toString)
         for {
           _              <- ZStream(bucket1, bucket2) >>> createBucket
           o1Content      <- Random.nextBytes(5)
@@ -48,7 +48,8 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           copiedContent2 <- getObject(bucket2, object2).runCollect
 
           filesWereCopied =
-            Chunk(object1, object2).sorted == initialFiles.sorted && initialFiles.sorted == copiedFiles.sorted
+            Chunk(object1, object2).sortBy(_.toString) == initialFiles.sortBy(_.toString) &&
+              initialFiles.sortBy(_.toString) == copiedFiles.sortBy(_.toString)
           o1CopyMatchesOriginal = o1Content == copiedContent1
           o2CopyMatchesOriginal = o2Content == copiedContent2
         } yield assertTrue(filesWereCopied) && assertTrue(o1CopyMatchesOriginal) && assertTrue(o2CopyMatchesOriginal)
@@ -58,18 +59,18 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val createBucketSuite: Spec[S3Connector, S3Exception] =
     suite("createBucket")(
       test("changes nothing if bucket already exists") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           _             <- ZStream(bucketName) >>> createBucket
           content       <- Random.nextBytes(5)
-          _             <- ZStream.fromChunk(content) >>> putObject(bucketName, UUID.randomUUID().toString)
+          _             <- ZStream.fromChunk(content) >>> putObject(bucketName, ObjectKey(UUID.randomUUID().toString))
           objectsBefore <- listObjects(bucketName).runCollect
           _             <- ZStream(bucketName) >>> createBucket
           objectsAfter  <- listObjects(bucketName).runCollect
         } yield assert(objectsBefore)(equalTo(objectsAfter))
       },
       test("succeeds") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
@@ -82,18 +83,18 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val deleteBucketSuite: Spec[S3Connector, S3Exception] =
     suite("deleteBucket")(
       test("fails if bucket is not empty") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
-          _          <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, UUID.randomUUID().toString)
+          _          <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, ObjectKey(UUID.randomUUID().toString))
           wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true).catchSome { case _: S3Exception =>
                           ZIO.succeed(false)
                         }
         } yield assertTrue(wasCreated) && assert(wasDeleted)(equalTo(false))
       },
       test("fails if bucket not exists") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           wasCreated <- ZStream(bucketName) >>> existsBucket
           deleteFails <-
@@ -103,7 +104,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         } yield assert(wasCreated)(equalTo(false)) && assertTrue(deleteFails)
       },
       test("succeeds if bucket is empty") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
@@ -115,8 +116,8 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val deleteObjectsSuite: Spec[S3Connector, S3Exception] =
     suite("deleteObjects")(
       test("succeeds if object not exists") {
-        val bucketName = UUID.randomUUID().toString
-        val key        = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
+        val key        = ObjectKey(UUID.randomUUID().toString)
         for {
           _                          <- ZStream.succeed(bucketName) >>> createBucket
           objectExistsBeforeDeletion <- ZStream(key) >>> existsObject(bucketName)
@@ -124,10 +125,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         } yield assert(objectExistsBeforeDeletion)(equalTo(false))
       },
       test("succeeds") {
-        val bucketName = UUID.randomUUID().toString
-        val key1       = UUID.randomUUID().toString
-        val key2       = UUID.randomUUID().toString
-        val key3       = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
+        val key1       = ObjectKey(UUID.randomUUID().toString)
+        val key2       = ObjectKey(UUID.randomUUID().toString)
+        val key3       = ObjectKey(UUID.randomUUID().toString)
         for {
           _                           <- ZStream.succeed(bucketName) >>> createBucket
           _                           <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, key1)
@@ -151,7 +152,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val listObjectsSuite =
     suite("listObjects")(
       test("fails when bucket doesn't exist") {
-        val bucketName = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
         for {
           exit <- listObjects(bucketName).runCollect.exit
           failsWithExpectedError <-
@@ -161,9 +162,9 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         } yield assertTrue(failsWithExpectedError)
       },
       test("succeeds") {
-        val bucketName = UUID.randomUUID().toString
-        val obj1       = UUID.randomUUID().toString
-        val obj2       = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
+        val obj1       = ObjectKey(UUID.randomUUID().toString)
+        val obj2       = ObjectKey(UUID.randomUUID().toString)
         for {
           _                   <- ZStream.succeed(bucketName) >>> createBucket
           testData            <- Random.nextBytes(5)
@@ -172,16 +173,18 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           actual              <- listObjects(bucketName).runCollect
           _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName)
           afterObjectDeletion <- listObjects(bucketName).runCollect
-        } yield assert(actual.sorted)(equalTo(Chunk(obj1, obj2).sorted)) && assertTrue(afterObjectDeletion.isEmpty)
+        } yield assert(actual.sortBy(_.toString))(equalTo(Chunk(obj1, obj2).sortBy(_.toString))) && assertTrue(
+          afterObjectDeletion.isEmpty
+        )
       }
     )
 
   private lazy val moveObjectSuite =
     suite("moveObject")(
       test("replaces preexisting object") {
-        val bucket1 = UUID.randomUUID().toString
-        val bucket2 = UUID.randomUUID().toString
-        val key     = UUID.randomUUID().toString
+        val bucket1 = BucketName(UUID.randomUUID().toString)
+        val bucket2 = BucketName(UUID.randomUUID().toString)
+        val key     = ObjectKey(UUID.randomUUID().toString)
         for {
           _             <- ZStream(bucket1, bucket2) >>> createBucket
           content1      <- Random.nextBytes(5)
@@ -194,12 +197,12 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
       },
       test("succeeds") {
 
-        val bucket1 = UUID.randomUUID().toString
-        val bucket2 = UUID.randomUUID().toString
-        val key1    = UUID.randomUUID().toString
-        val key2    = UUID.randomUUID().toString
-        val key3    = UUID.randomUUID().toString
-        val key4    = UUID.randomUUID().toString
+        val bucket1 = BucketName(UUID.randomUUID().toString)
+        val bucket2 = BucketName(UUID.randomUUID().toString)
+        val key1    = ObjectKey(UUID.randomUUID().toString)
+        val key2    = ObjectKey(UUID.randomUUID().toString)
+        val key3    = ObjectKey(UUID.randomUUID().toString)
+        val key4    = ObjectKey(UUID.randomUUID().toString)
 
         for {
           _                <- ZStream(bucket1, bucket2) >>> createBucket
@@ -217,10 +220,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           b1Objects        <- listObjects(bucket1).runCollect
           b2Objects        <- listObjects(bucket2).runCollect
 
-        } yield assert(initialB1Objects.sorted)(equalTo(Chunk(key1, key2, key3).sorted)) &&
+        } yield assert(initialB1Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key3).sortBy(_.toString))) &&
           assertTrue(initialB2Objects.isEmpty) &&
           assert(b1Objects)(equalTo(Chunk(key1))) &&
-          assert(b2Objects.sorted)(equalTo(Chunk(key1, key2, key4).sorted))
+          assert(b2Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key4).sortBy(_.toString)))
 
       }
     )
@@ -228,8 +231,8 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
   private lazy val putObjectSuite: Spec[S3Connector, S3Exception] =
     suite("putObject")(
       test("succeeds") {
-        val bucketName = UUID.randomUUID().toString
-        val objectKey  = UUID.randomUUID().toString
+        val bucketName = BucketName(UUID.randomUUID().toString)
+        val objectKey  = ObjectKey(UUID.randomUUID().toString)
         for {
           _        <- ZStream.succeed(bucketName) >>> createBucket
           testData <- Random.nextBytes(5)

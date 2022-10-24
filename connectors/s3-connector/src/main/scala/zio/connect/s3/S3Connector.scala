@@ -1,6 +1,7 @@
 package zio.connect.s3
 
-import zio.connect.s3.S3Connector.{CopyObject, MoveObject, S3Exception}
+import zio.connect.s3.S3Connector.{BucketName, CopyObject, MoveObject, ObjectKey, S3Exception}
+import zio.prelude.Newtype
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
 
@@ -8,17 +9,17 @@ trait S3Connector {
 
   def copyObject(implicit trace: Trace): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit]
 
-  def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit]
+  def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit]
 
-  def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit]
+  def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit]
 
-  def deleteObjects(bucketName: => String)(implicit
+  def deleteObjects(bucketName: => BucketName)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, String, String, Unit]
+  ): ZSink[Any, S3Exception, ObjectKey, ObjectKey, Unit]
 
-  final def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean] =
+  final def existsBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Boolean] =
     ZSink
-      .take[String](1)
+      .take[BucketName](1)
       .map(_.headOption)
       .mapZIO {
         case Some(name) =>
@@ -29,9 +30,11 @@ trait S3Connector {
         case None => ZIO.succeed(false)
       }
 
-  final def existsObject(bucket: => String)(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Boolean] =
+  final def existsObject(
+    bucket: => BucketName
+  )(implicit trace: Trace): ZSink[Any, S3Exception, ObjectKey, ObjectKey, Boolean] =
     ZSink
-      .take[String](1)
+      .take[ObjectKey](1)
       .map(_.headOption)
       .mapZIO {
         case Some(key) =>
@@ -42,33 +45,41 @@ trait S3Connector {
         case None => ZIO.succeed(false)
       }
 
-  def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
+  def getObject(bucketName: => BucketName, key: ObjectKey)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
 
-  def listBuckets(implicit trace: Trace): ZStream[Any, S3Exception, String]
+  def listBuckets(implicit trace: Trace): ZStream[Any, S3Exception, BucketName]
 
-  def listObjects(bucketName: => String)(implicit trace: Trace): ZStream[Any, S3Exception, String]
+  def listObjects(bucketName: => BucketName)(implicit trace: Trace): ZStream[Any, S3Exception, ObjectKey]
 
   def moveObject(implicit trace: Trace): ZSink[Any, S3Exception, MoveObject, MoveObject, Unit]
 
-  def putObject(bucketName: => String, key: String)(implicit trace: Trace): ZSink[Any, S3Exception, Byte, Nothing, Unit]
+  def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
+    trace: Trace
+  ): ZSink[Any, S3Exception, Byte, Nothing, Unit]
 
 }
 
 object S3Connector {
 
+  object BucketName extends Newtype[String]
+  type BucketName = BucketName.Type
+
+  object ObjectKey extends Newtype[String]
+  type ObjectKey = ObjectKey.Type
+
   case class S3Exception(reason: Throwable)
 
   final case class CopyObject(
-    sourceBucketName: String,
-    objectKey: String,
-    targetBucketName: String
+    sourceBucketName: BucketName,
+    objectKey: ObjectKey,
+    targetBucketName: BucketName
   )
 
   final case class MoveObject(
-    bucketName: String,
-    objectKey: String,
-    targetBucketName: String,
-    targetObjectKey: String
+    bucketName: BucketName,
+    objectKey: ObjectKey,
+    targetBucketName: BucketName,
+    targetObjectKey: ObjectKey
   )
 
 }

@@ -1,7 +1,7 @@
 package zio.connect.s3
 import zio.aws.core.AwsError
 import zio.aws.s3.S3
-import zio.aws.s3.model.primitives.{BucketName, ContentLength, CopySource, ObjectKey}
+import zio.aws.s3.model.primitives.{BucketName => AwsBucketName, ContentLength, CopySource, ObjectKey => AwsObjectKey}
 import zio.aws.s3.model.{
   CopyObjectRequest,
   CreateBucketRequest,
@@ -14,7 +14,7 @@ import zio.aws.s3.model.{
   ObjectIdentifier,
   PutObjectRequest
 }
-import zio.connect.s3.S3Connector.{CopyObject, S3Exception}
+import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, S3Exception}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
@@ -28,8 +28,8 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreach[Any, AwsError, CopyObject] { m =>
         s3.copyObject(
           CopyObjectRequest(
-            destinationBucket = BucketName(m.targetBucketName),
-            destinationKey = ObjectKey(m.objectKey),
+            destinationBucket = AwsBucketName(m.targetBucketName.toString),
+            destinationKey = AwsObjectKey(m.objectKey.toString),
             copySource =
               CopySource(URLEncoder.encode(s"${m.sourceBucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
           )
@@ -37,58 +37,60 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit] =
+  override def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit] =
     ZSink
-      .foreach[Any, AwsError, String] { name =>
-        s3.createBucket(CreateBucketRequest(bucket = BucketName(name)))
+      .foreach[Any, AwsError, BucketName] { name =>
+        s3.createBucket(CreateBucketRequest(bucket = AwsBucketName(name.toString)))
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit] =
+  override def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit] =
     ZSink
-      .foreach[Any, AwsError, String] { name =>
-        s3.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
+      .foreach[Any, AwsError, BucketName] { name =>
+        s3.deleteBucket(DeleteBucketRequest(bucket = AwsBucketName(name.toString)))
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def deleteObjects(bucketName: => String)(implicit
+  override def deleteObjects(bucketName: => BucketName)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, String, String, Unit] =
+  ): ZSink[Any, S3Exception, ObjectKey, ObjectKey, Unit] =
     ZSink
-      .foreachChunk[Any, AwsError, String] { objectKeys =>
+      .foreachChunk[Any, AwsError, ObjectKey] { objectKeys =>
         s3.deleteObjects(
           DeleteObjectsRequest(
-            bucket = BucketName(bucketName),
-            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(ObjectKey(a))))
+            bucket = AwsBucketName(bucketName.toString),
+            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(AwsObjectKey(a.toString))))
           )
         )
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def getObject(bucketName: => String, key: String)(implicit trace: Trace): ZStream[Any, S3Exception, Byte] =
+  override def getObject(bucketName: => BucketName, key: ObjectKey)(implicit
+    trace: Trace
+  ): ZStream[Any, S3Exception, Byte] =
     ZStream
       .unwrap(
-        s3.getObject(GetObjectRequest(bucket = BucketName(bucketName), key = ObjectKey(key)))
+        s3.getObject(GetObjectRequest(bucket = AwsBucketName(bucketName.toString), key = AwsObjectKey(key.toString)))
           .map(a => a.output)
       )
       .mapError(a => S3Exception(a.toThrowable))
 
   override def listBuckets(implicit
     trace: Trace
-  ): ZStream[Any, S3Exception, String] =
+  ): ZStream[Any, S3Exception, BucketName] =
     ZStream
       .fromIterableZIO(
-        s3.listBuckets().flatMap(_.getBuckets.map(_.flatMap(_.name.toList)))
+        s3.listBuckets().flatMap(_.getBuckets.map(_.flatMap(_.name.toList.map(BucketName(_)))))
       )
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def listObjects(bucketName: => String)(implicit
+  override def listObjects(bucketName: => BucketName)(implicit
     trace: Trace
-  ): ZStream[Any, S3Exception, String] =
+  ): ZStream[Any, S3Exception, ObjectKey] =
     ZStream
       .fromIterableZIO(
-        s3.listObjects(ListObjectsRequest(bucket = BucketName(bucketName)))
-          .map(_.contents.map(_.flatMap(_.key.toChunk)).getOrElse(Chunk.empty[String]))
+        s3.listObjects(ListObjectsRequest(bucket = AwsBucketName(bucketName.toString)))
+          .map(_.contents.map(_.flatMap(_.key.toChunk.map(ObjectKey(_)))).getOrElse(Chunk.empty[ObjectKey]))
       )
       .mapError(a => S3Exception(a.toThrowable))
 
@@ -99,29 +101,29 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreach[Any, AwsError, S3Connector.MoveObject] { m =>
         s3.copyObject(
           CopyObjectRequest(
-            destinationBucket = BucketName(m.targetBucketName),
-            destinationKey = ObjectKey(m.targetObjectKey),
+            destinationBucket = AwsBucketName(m.targetBucketName.toString),
+            destinationKey = AwsObjectKey(m.targetObjectKey.toString),
             copySource =
               CopySource(URLEncoder.encode(s"${m.bucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
           )
         ) *> s3.deleteObject(
           DeleteObjectRequest(
-            bucket = BucketName(m.bucketName),
-            key = ObjectKey(m.objectKey)
+            bucket = AwsBucketName(m.bucketName.toString),
+            key = AwsObjectKey(m.objectKey.toString)
           )
         )
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def putObject(bucketName: => String, key: String)(implicit
+  override def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
     trace: Trace
   ): ZSink[Any, S3Exception, Byte, Nothing, Unit] =
     ZSink
       .foreachChunk[Any, AwsError, Byte] { content =>
         s3.putObject(
           request = PutObjectRequest(
-            bucket = BucketName(bucketName),
-            key = ObjectKey(key),
+            bucket = AwsBucketName(bucketName.toString),
+            key = AwsObjectKey(key.toString),
             contentLength = Some(ContentLength(content.length.toLong))
           ),
           body = ZStream.fromChunk(content).rechunk(1024)
