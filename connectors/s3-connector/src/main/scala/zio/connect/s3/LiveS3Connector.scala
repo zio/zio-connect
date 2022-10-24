@@ -38,14 +38,18 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       .mapError(a => S3Exception(a.toThrowable))
 
   override def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit] =
-    ZSink.foreach { name: String =>
-      s3.createBucket(CreateBucketRequest(bucket = BucketName(name)))
-    }.mapError(a => S3Exception(a.toThrowable))
+    ZSink
+      .foreach[Any, AwsError, String] { name =>
+        s3.createBucket(CreateBucketRequest(bucket = BucketName(name)))
+      }
+      .mapError(a => S3Exception(a.toThrowable))
 
   override def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, String, String, Unit] =
-    ZSink.foreach { name: String =>
-      s3.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
-    }.mapError(a => S3Exception(a.toThrowable))
+    ZSink
+      .foreach[Any, AwsError, String] { name =>
+        s3.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
+      }
+      .mapError(a => S3Exception(a.toThrowable))
 
   override def deleteObjects(bucketName: => String)(implicit
     trace: Trace
@@ -112,16 +116,18 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
   override def putObject(bucketName: => String, key: String)(implicit
     trace: Trace
   ): ZSink[Any, S3Exception, Byte, Nothing, Unit] =
-    ZSink.foreachChunk { content: Chunk[Byte] =>
-      s3.putObject(
-        request = PutObjectRequest(
-          bucket = BucketName(bucketName),
-          key = ObjectKey(key),
-          contentLength = Some(ContentLength(content.length.toLong))
-        ),
-        body = ZStream.fromChunk(content).rechunk(1024)
-      )
-    }.mapError(a => S3Exception(a.toThrowable))
+    ZSink
+      .foreachChunk[Any, AwsError, Byte] { content =>
+        s3.putObject(
+          request = PutObjectRequest(
+            bucket = BucketName(bucketName),
+            key = ObjectKey(key),
+            contentLength = Some(ContentLength(content.length.toLong))
+          ),
+          body = ZStream.fromChunk(content).rechunk(1024)
+        )
+      }
+      .mapError(a => S3Exception(a.toThrowable))
 }
 
 object LiveS3Connector {
