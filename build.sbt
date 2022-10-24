@@ -35,6 +35,7 @@ lazy val root = project
     fileConnector,
     s3Connector
   )
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
@@ -56,7 +57,6 @@ lazy val fileConnector = project
     }
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .enablePlugins(BuildInfoPlugin)
 
 lazy val s3Connector = project
   .in(file("connectors/s3-connector"))
@@ -87,7 +87,6 @@ lazy val s3Connector = project
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     Test / fork := true
   )
-  .enablePlugins(BuildInfoPlugin)
 
 lazy val docs = project
   .in(file("zio-connect-docs"))
