@@ -5,7 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage     := Some(url("https://zio.dev")),
+    homepage := Some(url("https://zio.dev")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -50,7 +50,7 @@ lazy val fileConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
+        case _ => Seq.empty
       }
     }
   )
@@ -63,6 +63,7 @@ lazy val ftpConnector = project
   .settings(
     libraryDependencies ++= Seq(
       FtpDependencies.zioFtp,
+      "dev.zio" %% "zio-aws-s3" % "5.17.280.1",
       `zio`,
       `zio-streams`,
       `zio-test`,
@@ -73,7 +74,7 @@ lazy val ftpConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
+        case _ => Seq.empty
       }
     }
   )
@@ -84,16 +85,16 @@ lazy val docs = project
   .in(file("zio-connect-docs"))
   .settings(
     publish / skip := true,
-    moduleName     := "zio-connect-docs",
+    moduleName := "zio-connect-docs",
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
       `zio`
     ),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector),
-    ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
-    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
   )
   .dependsOn(fileConnector)
@@ -103,7 +104,7 @@ lazy val examples = project
   .in(file("examples"))
   .settings(
     publishArtifact := false,
-    moduleName      := "zio-connect-examples"
+    moduleName := "zio-connect-examples"
   )
   .aggregate(fileConnectorExamples)
 
