@@ -26,7 +26,7 @@ object Example2 extends ZIOAppDefault {
 
   val program = createTailAndDeleteDirectory.runCollect
 
-  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] =
+  override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
     program.provide(zio.connect.file.fileConnectorLiveLayer)
 
   val content: String =

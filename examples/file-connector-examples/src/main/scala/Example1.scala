@@ -25,7 +25,7 @@ object Example1 extends ZIOAppDefault {
   // and consume
   val program = checkWrittenContent.runCollect.map(_.headOption)
 
-  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] =
+  override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
     program
       .provide(zio.connect.file.fileConnectorLiveLayer)
       .tap(equal => Console.printLine(s"content is equal: ${equal.contains(true)}"))
