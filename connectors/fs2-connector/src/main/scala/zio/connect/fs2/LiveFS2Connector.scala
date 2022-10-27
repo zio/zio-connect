@@ -2,15 +2,62 @@ package zio.connect.fs2
 
 import cats.effect.Resource
 import cats.effect.kernel.Async
+import cats.effect.std.Dispatcher
 import cats.~>
 import zio._
-import zio.stream.ZStream
+import zio.stream._
 import zio.interop._
 import zio.interop.catz._
 
 case class LiveFS2Connector() extends FS2Connector {
 
-  override def fromStream[F[_], A](original: fs2.Stream[F, A])(implicit trace: Trace): ZStream[Any, Throwable, A] = ???
+  override def fromStream[F[_]: Dispatcher, R, A](original: fs2.Stream[F, A], queueSize: Int = 16)(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] = {
+    def toZStreamSingle[R1 <: R](implicit trace: Trace): ZStream[R1, Throwable, A] =
+      ZStream
+        .scoped[R1] {
+          for {
+            queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](1))(_.shutdown)
+            _ <- {
+              original
+                .translate(f2zio)
+                .evalTap(a => queue.offer(Take.single(a))) ++
+                fs2.Stream.eval(queue.offer(Take.end))
+            }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
+              .compile
+              .resource
+              .drain
+              .toScopedZIO
+              .forkScoped
+          } yield ZStream.fromQueue(queue).flattenTake
+        }
+        .flatten
+
+    def toZStreamChunk[R1 <: R](queueSize: Int)(implicit trace: Trace): ZStream[R1, Throwable, A] =
+      ZStream
+        .scoped[R1] {
+          for {
+            queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](queueSize))(_.shutdown)
+            _ <- {
+              original
+                .translate(f2zio)
+                .chunkLimit(queueSize)
+                .evalTap(a => queue.offer(Take.chunk(zio.Chunk.fromIterable(a.toList))))
+                .chunkLimit(1)
+                .unchunks ++ fs2.Stream.eval(queue.offer(Take.end))
+            }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
+              .compile
+              .resource
+              .drain
+              .toScopedZIO
+              .forkScoped
+          } yield ZStream.fromQueue(queue).flattenTake
+        }
+        .flatten
+
+    if (queueSize > 1) toZStreamChunk(queueSize) else toZStreamSingle
+  }
 
   override def toStream[F[_]: Async, R: Runtime, A](
     original: ZStream[R, Throwable, A]
@@ -25,10 +72,14 @@ case class LiveFS2Connector() extends FS2Connector {
             fs2.Stream.chunk(fs2.Chunk.indexedSeq(chunk))
           }
       }
-      .translate(fk[F, R])
+      .translate(zio2f[F, R])
 
-  private def fk[F[_]: Async, R: Runtime]: RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
-    override def apply[A](fa: RIO[R, A]): F[A] = toEffect[F, R, A](fa)
+  private def zio2f[F[_]: Async, R: Runtime]: RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
+    override def apply[A](fa: RIO[R, A]): F[A] = fa.toEffect[F]
+  }
+
+  private def f2zio[F[_]: Dispatcher]: F ~> Task = new (F ~> Task) {
+    override def apply[A](fa: F[A]): Task[A] = fromEffect(fa)
   }
 
 }
