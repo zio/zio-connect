@@ -19,7 +19,7 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
 
   implicit private val runtime0: Runtime[Any] = runtime
 
-  lazy val toStreamSpec =
+  private lazy val toStreamSpec =
     suite("toStream")(
       test("simple stream")(check(Gen.chunkOf(Gen.int)) { (chunk: Chunk[Int]) =>
         ZIO.serviceWithZIO[FS2Connector] { service =>
@@ -50,7 +50,7 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val fromStreamSpec =
+  private lazy val fromStreamSpec =
     suite("fromStream")(
       test("simple stream")(check(Gen.chunkOf(Gen.int)) { (chunk: Chunk[Int]) =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
