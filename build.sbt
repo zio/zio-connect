@@ -15,6 +15,12 @@ inThisBuild(
         "John De Goes",
         "john@degoes.net",
         url("http://degoes.net")
+      ),
+      Developer(
+        "sgeorgakis",
+        "Stefanos Georgakis",
+        "s_georgakis@hotmail.com",
+        url("https://github.com/sgeorgakis")
       )
     )
   )
@@ -32,6 +38,7 @@ lazy val root = project
   )
   .aggregate(
     awsLambdaConnector,
+    cassandraConnector,
     couchbaseConnector,
     fileConnector,
     fs2Connector,
@@ -67,6 +74,30 @@ lazy val awsLambdaConnector = project
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     Test / fork := true
   )
+
+lazy val cassandraConnector = project
+  .in(file("connectors/cassandra-connector"))
+  .settings(stdSettings("zio-connect-cassandra"))
+  .settings(
+    libraryDependencies ++= Seq(
+      CassandraDependencies.cassandraConnector,
+      CassandraDependencies.cassandraQueryBuilder,
+      CassandraDependencies.cassandraContainer,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
 
 lazy val couchbaseConnector = project
   .in(file("connectors/couchbase-connector"))
