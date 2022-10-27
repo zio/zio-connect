@@ -11,7 +11,6 @@ object Example1 extends ZIOAppDefault {
    * Checks if the content of the file is equal to the given string.
    * Notes: Many of the methods in the file connector api create streams, wrapping stream effects in [[ZStream.fromZIO]]
    * will prove useful
-   * @return
    */
   def checkWrittenContent: ZStream[FileConnector, IOException, Boolean] =
     for {

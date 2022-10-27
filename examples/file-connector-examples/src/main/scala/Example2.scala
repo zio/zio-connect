@@ -10,7 +10,6 @@ object Example2 extends ZIOAppDefault {
 
   /**
    * Create and tail files created in temp path and then delete (recursively as path is non-empty)
-   * @return
    */
   def createTailAndDeleteDirectory: ZStream[FileConnector, IOException, Unit] =
     for {
@@ -27,7 +26,8 @@ object Example2 extends ZIOAppDefault {
 
   val program = createTailAndDeleteDirectory.runCollect
 
-  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] = program.provide(zio.connect.file.fileConnectorLiveLayer)
+  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] =
+    program.provide(zio.connect.file.fileConnectorLiveLayer)
 
   val content: String =
     """
