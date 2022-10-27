@@ -108,7 +108,8 @@ object BuildHelper {
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros",
-          "-noindent"
+          "-noindent",
+          "-Ykind-projector"
         )
       case Some((2, 13)) =>
         Seq(

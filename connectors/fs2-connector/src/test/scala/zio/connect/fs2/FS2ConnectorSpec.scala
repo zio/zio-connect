@@ -54,17 +54,20 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
     suite("fromStream")(
       test("simple stream")(check(Gen.chunkOf(Gen.int)) { (chunk: Chunk[Int]) =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
-          assertEqual(fromStream(fs2StreamFromChunk[RIO[FS2Connector, *], Int](chunk)), ZStream.fromChunk(chunk))
+          assertEqual(
+            fromStream[RIO[FS2Connector, *], Any, Int](fs2StreamFromChunk[RIO[FS2Connector, *], Int](chunk)),
+            ZStream.fromChunk(chunk)
+          )
         }
       }),
       test("non empty stream")(check(Gen.chunkOf1(Gen.long)) { chunk =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
-          assertEqual(fromStream(fs2StreamFromChunk(chunk)), ZStream.fromChunk(chunk))
+          assertEqual(fromStream[RIO[FS2Connector, *], Any, Long](fs2StreamFromChunk(chunk)), ZStream.fromChunk(chunk))
         }
       }),
       test("100 element stream")(check(Gen.chunkOfN(100)(Gen.long)) { chunk =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
-          assertEqual(fromStream(fs2StreamFromChunk(chunk)), ZStream.fromChunk(chunk))
+          assertEqual(fromStream[RIO[FS2Connector, *], Any, Long](fs2StreamFromChunk(chunk)), ZStream.fromChunk(chunk))
         }
       }),
       test("error propagation") {
@@ -90,20 +93,29 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
           for {
             queueSize <- nextIntBetween(32, 256)
-            result    <- assertEqual(fromStream(fs2StreamFromChunk(chunk), queueSize), ZStream.fromChunk(chunk))
+            result <- assertEqual(
+                        fromStream[RIO[FS2Connector, *], Any, Long](fs2StreamFromChunk(chunk), queueSize),
+                        ZStream.fromChunk(chunk)
+                      )
           } yield result
         }
       }),
       test("queueSize == 1")(check(Gen.chunkOfN(10)(Gen.long)) { chunk =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
-          assertEqual(fromStream(fs2StreamFromChunk(chunk), 1), ZStream.fromChunk(chunk))
+          assertEqual(
+            fromStream[RIO[FS2Connector, *], Any, Long](fs2StreamFromChunk(chunk), 1),
+            ZStream.fromChunk(chunk)
+          )
         }
       }),
       test("negative queueSize")(check(Gen.chunkOfN(10)(Gen.long)) { chunk =>
         withDispatcher[RIO[FS2Connector, *]] { implicit dispatcher =>
           for {
             queueSize <- nextIntBetween(-128, 0)
-            result    <- assertEqual(fromStream(fs2StreamFromChunk(chunk), queueSize), ZStream.fromChunk(chunk))
+            result <- assertEqual(
+                        fromStream[RIO[FS2Connector, *], Any, Long](fs2StreamFromChunk(chunk), queueSize),
+                        ZStream.fromChunk(chunk)
+                      )
           } yield result
         }
       }),
