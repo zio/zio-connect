@@ -1,7 +1,7 @@
 package zio.connect.ftp
 
 import zio._
-import zio.connect.ftp.FtpConnector.PathName
+import zio.connect.ftp.FtpConnector._
 import zio.ftp.FtpResource
 import zio.prelude.Newtype
 import zio.stream.{ZSink, ZStream}
@@ -20,11 +20,11 @@ trait FtpConnector {
 
   def ls(path: => PathName)(implicit trace: Trace): ZStream[Any, IOException, FtpResource]
 
-  def lsDescendant(path: => String): ZStream[Any, IOException, FtpResource]
+  def lsDescendant(path: => PathName): ZStream[Any, IOException, FtpResource]
 
-  def readFile(path: => String, chunkSize: => Int = 2048)(implicit trace: Trace): ZStream[Any, IOException, Byte]
+  def readFile(path: => PathName, chunkSize: Int = 2048)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def upload(implicit trace: Trace): ZSink[Any, IOException, Byte, Nothing, Unit]
+  def upload(pathName: => PathName)(implicit trace: Trace): ZSink[Scope, IOException, Byte, Nothing, Unit]
 
 }
 
