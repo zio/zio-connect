@@ -25,8 +25,7 @@ case class LiveFS2Connector() extends FS2Connector {
             _ <- {
               original
                 .translate(f2zio)
-                .evalTap(a => queue.offer(Take.single(a))) ++
-                fs2.Stream.eval(queue.offer(Take.end))
+                .evalTap(a => queue.offer(Take.single(a))) ++ fs2.Stream.eval(queue.offer(Take.end))
             }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
               .compile
               .resource
@@ -77,11 +76,11 @@ case class LiveFS2Connector() extends FS2Connector {
       }
       .translate(zio2f[F, R])
 
-  private def zio2f[F[_]: Async, R: Runtime]: RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
+  private def zio2f[F[_]: Async, R: Runtime](implicit trace: Trace): RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
     override def apply[A](fa: RIO[R, A]): F[A] = fa.toEffect[F]
   }
 
-  private def f2zio[F[_]: Dispatcher]: F ~> Task = new (F ~> Task) {
+  private def f2zio[F[_]: Dispatcher](implicit trace: Trace): F ~> Task = new (F ~> Task) {
     override def apply[A](fa: F[A]): Task[A] = fromEffect(fa)
   }
 
