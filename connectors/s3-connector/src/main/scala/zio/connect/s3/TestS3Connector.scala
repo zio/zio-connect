@@ -8,7 +8,7 @@ import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
-case class TestS3Connector(s3: TestS3) extends S3Connector {
+private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
   override def copyObject(implicit
     trace: Trace
   ): ZSink[Any, S3Connector.S3Exception, S3Connector.CopyObject, S3Connector.CopyObject, Unit] =
@@ -27,7 +27,7 @@ case class TestS3Connector(s3: TestS3) extends S3Connector {
   ): ZSink[Any, S3Connector.S3Exception, ObjectKey, ObjectKey, Unit] =
     ZSink.foreach(key => s3.deleteObject(bucketName, key))
 
-  override def getObject(bucketName: => BucketName, key: ObjectKey)(implicit
+  override def getObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZStream[Any, S3Connector.S3Exception, Byte] =
     s3.getObject(bucketName, key)
@@ -45,7 +45,7 @@ case class TestS3Connector(s3: TestS3) extends S3Connector {
   ): ZSink[Any, S3Connector.S3Exception, S3Connector.MoveObject, S3Connector.MoveObject, Unit] =
     ZSink.foreach(moveObject => s3.moveObject(moveObject))
 
-  override def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
+  override def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZSink[Any, S3Connector.S3Exception, Byte, Nothing, Unit] =
     ZSink.unwrap(for {

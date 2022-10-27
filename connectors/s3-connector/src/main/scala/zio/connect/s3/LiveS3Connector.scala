@@ -21,7 +21,7 @@ import zio.{Chunk, Trace, ZIO, ZLayer}
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-case class LiveS3Connector(s3: S3) extends S3Connector {
+final case class LiveS3Connector(s3: S3) extends S3Connector {
 
   override def copyObject(implicit trace: Trace): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit] =
     ZSink
@@ -65,7 +65,7 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def getObject(bucketName: => BucketName, key: ObjectKey)(implicit
+  override def getObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZStream[Any, S3Exception, Byte] =
     ZStream
@@ -115,7 +115,7 @@ case class LiveS3Connector(s3: S3) extends S3Connector {
       }
       .mapError(a => S3Exception(a.toThrowable))
 
-  override def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
+  override def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZSink[Any, S3Exception, Byte, Nothing, Unit] =
     ZSink

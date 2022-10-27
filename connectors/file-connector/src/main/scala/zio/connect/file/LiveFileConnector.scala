@@ -11,7 +11,7 @@ import java.nio.file._
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
-case class LiveFileConnector() extends FileConnector {
+final case class LiveFileConnector() extends FileConnector {
 
   lazy val BUFFER_SIZE = 4096
 

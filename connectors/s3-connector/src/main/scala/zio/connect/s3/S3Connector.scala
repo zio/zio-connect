@@ -45,7 +45,7 @@ trait S3Connector {
         case None => ZIO.succeed(false)
       }
 
-  def getObject(bucketName: => BucketName, key: ObjectKey)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
+  def getObject(bucketName: => BucketName, key: => ObjectKey)(implicit trace: Trace): ZStream[Any, S3Exception, Byte]
 
   def listBuckets(implicit trace: Trace): ZStream[Any, S3Exception, BucketName]
 
@@ -53,7 +53,7 @@ trait S3Connector {
 
   def moveObject(implicit trace: Trace): ZSink[Any, S3Exception, MoveObject, MoveObject, Unit]
 
-  def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
+  def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZSink[Any, S3Exception, Byte, Nothing, Unit]
 
