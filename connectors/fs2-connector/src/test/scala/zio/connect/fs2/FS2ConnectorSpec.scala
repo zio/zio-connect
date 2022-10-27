@@ -22,31 +22,31 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
   private lazy val toStreamSpec =
     suite("toStream")(
       test("simple stream")(check(Gen.chunkOf(Gen.int)) { (chunk: Chunk[Int]) =>
-        ZIO.serviceWithZIO[FS2Connector] { service =>
-          assertEqual(
-            service.toStream[RIO[Any, *], Any, Int](ZStream.fromChunk(chunk)),
-            fs2StreamFromChunk[RIO[Any, *], Int](chunk)
-          )
-        }
+        for {
+          stream <- toStream[RIO[Any, *], Any, Int](ZStream.fromChunk(chunk))
+          result <- assertEqual(stream, fs2StreamFromChunk[RIO[Any, *], Int](chunk))
+        } yield result
       }),
       test("non empty stream")(check(Gen.chunkOf1(Gen.long)) { chunk =>
-        ZIO.serviceWithZIO[FS2Connector] { service =>
-          assertEqual(
-            service.toStream[RIO[Any, *], Any, Long](ZStream.fromChunk(chunk)),
-            fs2StreamFromChunk[RIO[Any, *], Long](chunk)
-          )
-        }
+        for {
+          stream <- toStream[RIO[Any, *], Any, Long](ZStream.fromChunk(chunk))
+          result <- assertEqual(
+                      stream,
+                      fs2StreamFromChunk[RIO[Any, *], Long](chunk)
+                    )
+        } yield result
       }),
       test("100 element stream")(check(Gen.chunkOfN(100)(Gen.long)) { chunk =>
-        ZIO.serviceWithZIO[FS2Connector] { service =>
-          assertEqual(service.toStream[RIO[Any, *], Any, Long](ZStream.fromChunk(chunk)), fs2StreamFromChunk(chunk))
-        }
+        for {
+          stream <- toStream[RIO[Any, *], Any, Long](ZStream.fromChunk(chunk))
+          result <- assertEqual(stream, fs2StreamFromChunk(chunk))
+        } yield result
       }),
       test("error propagation") {
-        ZIO.serviceWithZIO[FS2Connector] { service =>
-          val result = service.toStream[RIO[Any, *], Any, Nothing](ZStream.fail(exception)).compile.drain.exit
-          assertZIO(result)(fails(equalTo(exception)))
-        }
+        for {
+          stream <- toStream[RIO[Any, *], Any, Nothing](ZStream.fail(exception))
+          result <- assertZIO(stream.compile.drain.exit)(fails(equalTo(exception)))
+        } yield result
       }
     )
 
