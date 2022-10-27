@@ -100,12 +100,12 @@ lazy val fs2Connector = project
       `zio-test-sbt`
     )
   )
-  .settings(addCompilerPlugin(FS2Dependencies.`kind-projector`))
   .settings(
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
+        case Some((2, 12)) | Some((2, 13)) =>
+          Seq(`scala-compact-collection`, compilerPlugin(FS2Dependencies.`kind-projector`))
+        case _ => Seq.empty
       }
     }
   )
