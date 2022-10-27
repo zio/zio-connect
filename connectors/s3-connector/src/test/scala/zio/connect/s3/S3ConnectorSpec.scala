@@ -1,6 +1,5 @@
 package zio.connect.s3
 
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException
 import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, S3Exception}
 import zio.stream.ZStream
 import zio.test.Assertion._
@@ -156,9 +155,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         for {
           exit <- listObjects(bucketName).runCollect.exit
           failsWithExpectedError <-
-            exit.as(false).catchSome { case S3Exception(err) =>
-              ZIO.succeed(err.isInstanceOf[NoSuchBucketException])
-            }
+            exit.as(false).catchSome { case S3Exception(_) => ZIO.succeed(true) }
         } yield assertTrue(failsWithExpectedError)
       },
       test("succeeds") {

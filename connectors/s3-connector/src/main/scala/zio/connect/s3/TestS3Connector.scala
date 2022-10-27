@@ -1,6 +1,5 @@
 package zio.connect.s3
 
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException
 import zio.connect.s3.S3Connector.{BucketName, CopyObject, MoveObject, ObjectKey, S3Exception}
 import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
 import zio.connect.s3.TestS3Connector.TestS3
@@ -157,7 +156,9 @@ object TestS3Connector {
           map <- repo.get
           bucket <- ZSTM
                       .fromOption(map.get(bucketName))
-                      .mapError(_ => S3Exception(NoSuchBucketException.builder().build()))
+                      .mapError { _ =>
+                        S3Exception(new RuntimeException("No such bucket!"))
+                      }
         } yield Chunk.fromIterable(bucket.objects.keys)
       )
 
