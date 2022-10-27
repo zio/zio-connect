@@ -30,7 +30,7 @@ package object ftp {
   def readFile(path: => PathName, chunkSize: Int = 2048)(implicit trace: Trace): ZStream[FtpConnector, IOException, Byte] =
     ZStream.serviceWithStream(_.readFile(path, chunkSize))
 
-  def upload(pathName: => PathName)(implicit trace: Trace): ZSink[Scope & FtpConnector, IOException, Byte, Nothing, Unit] =
+  def upload[R](pathName: => PathName)(implicit trace: Trace): ZSink[R & Scope & FtpConnector, IOException, Byte, Nothing, Unit] =
     ZSink.serviceWithSink[FtpConnector](_.upload(pathName))
 
 }

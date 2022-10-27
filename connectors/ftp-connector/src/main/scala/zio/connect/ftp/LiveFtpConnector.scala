@@ -51,9 +51,9 @@ case class LiveFtpConnector(ftp: Ftp) extends FtpConnector {
     ftp.readFile(path.toString, chunkSize)
   }
 
-  override def upload(pathName: => PathName)(implicit trace: Trace): ZSink[Scope, IOException, Byte, Nothing, Unit] = {
+  override def upload[R](pathName: => PathName)(implicit trace: Trace): ZSink[R & Scope, IOException, Byte, Nothing, Unit] = {
     ZSink
-      .foreachChunk[Scope, IOException, Byte] { content =>
+      .foreachChunk[R & Scope, IOException, Byte] { content =>
         ftp.upload(
           path = pathName.toString,
           source = ZStream.fromChunk(content)
