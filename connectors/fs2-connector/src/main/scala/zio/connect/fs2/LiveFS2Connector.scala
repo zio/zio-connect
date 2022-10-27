@@ -11,7 +11,10 @@ import zio.interop.catz._
 
 case class LiveFS2Connector() extends FS2Connector {
 
-  override def fromStream[F[_]: Dispatcher, R, A](original: fs2.Stream[F, A], queueSize: Int = 16)(implicit
+  override def fromStream[F[_]: Dispatcher, R, A](
+    original: fs2.Stream[F, A],
+    queueSize: Int = 16
+  )(implicit
     trace: Trace
   ): ZStream[R, Throwable, A] = {
     def toZStreamSingle[R1 <: R](implicit trace: Trace): ZStream[R1, Throwable, A] =
