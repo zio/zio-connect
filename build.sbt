@@ -92,12 +92,15 @@ lazy val fs2Connector = project
   .settings(stdSettings("zio-connect-fs2"))
   .settings(
     libraryDependencies ++= Seq(
+      FS2Dependencies.`fs2-core`,
+      FS2Dependencies.`zio-interop-cats`,
       zio,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
     )
   )
+  .settings(addCompilerPlugin(FS2Dependencies.`kind-projector`))
   .settings(
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
