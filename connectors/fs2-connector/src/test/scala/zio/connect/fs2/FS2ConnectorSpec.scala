@@ -1,17 +1,17 @@
 package zio.connect.fs2
 
+import cats.effect.Concurrent
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import cats.effect.Concurrent
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import fs2.Stream
 import zio.Random.nextIntBetween
-import zio.{Chunk, RIO, Ref, Runtime, ZIO}
+import zio.interop.catz._
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test._
-import zio.interop.catz._
+import zio.{Chunk, RIO, Ref, Runtime, ZIO}
 
 trait FS2ConnectorSpec extends ZIOSpecDefault {
 

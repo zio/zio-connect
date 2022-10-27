@@ -109,7 +109,10 @@ lazy val fs2Connector = project
       }
     }
   )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val docs = project
   .in(file("zio-connect-docs"))

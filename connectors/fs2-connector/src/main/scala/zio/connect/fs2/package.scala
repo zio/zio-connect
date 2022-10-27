@@ -1,9 +1,9 @@
 package zio.connect
 
-import zio.Trace
-import zio.stream.ZStream
 import _root_.fs2.Stream
 import cats.effect.std.Dispatcher
+import zio.Trace
+import zio.stream.ZStream
 
 package object fs2 {
 
