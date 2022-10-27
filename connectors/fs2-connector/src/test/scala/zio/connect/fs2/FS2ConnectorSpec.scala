@@ -7,7 +7,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import fs2.Stream
 import zio.Random.nextIntBetween
-import zio.{Chunk, FiberRefs, RIO, Ref, Runtime, RuntimeFlags, ZEnvironment, ZIO}
+import zio.{Chunk, RIO, Ref, Runtime, ZIO}
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test._

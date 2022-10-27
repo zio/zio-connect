@@ -24,7 +24,7 @@ case class LiveFS2Connector() extends FS2Connector {
             queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](1))(_.shutdown)
             _ <- {
               original
-                .translate(f2zio)
+                .translate(fkFZio)
                 .evalTap(a => queue.offer(Take.single(a))) ++ fs2.Stream.eval(queue.offer(Take.end))
             }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
               .compile
@@ -43,7 +43,7 @@ case class LiveFS2Connector() extends FS2Connector {
             queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](queueSize))(_.shutdown)
             _ <- {
               original
-                .translate(f2zio)
+                .translate(fkFZio)
                 .chunkLimit(queueSize)
                 .evalTap(a => queue.offer(Take.chunk(zio.Chunk.fromIterable(a.toList))))
                 .chunkLimit(1)
@@ -74,13 +74,13 @@ case class LiveFS2Connector() extends FS2Connector {
             fs2.Stream.chunk(fs2.Chunk.indexedSeq(chunk))
           }
       }
-      .translate(zio2f[F, R])
+      .translate(fkZioF[F, R])
 
-  private def zio2f[F[_]: Async, R: Runtime](implicit trace: Trace): RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
+  private def fkZioF[F[_]: Async, R: Runtime](implicit trace: Trace): RIO[R, *] ~> F = new (RIO[R, *] ~> F) {
     override def apply[A](fa: RIO[R, A]): F[A] = fa.toEffect[F]
   }
 
-  private def f2zio[F[_]: Dispatcher](implicit trace: Trace): F ~> Task = new (F ~> Task) {
+  private def fkFZio[F[_]: Dispatcher](implicit trace: Trace): F ~> Task = new (F ~> Task) {
     override def apply[A](fa: F[A]): Task[A] = fromEffect(fa)
   }
 
