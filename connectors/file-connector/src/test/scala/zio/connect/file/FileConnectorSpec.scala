@@ -4,7 +4,7 @@ import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test.TestAspect.withLiveClock
 import zio.test.{Spec, TestAspect, TestClock, ZIOSpecDefault, assert, assertTrue, assertZIO}
-import zio.{Cause, Chunk, Duration, Queue, Scope, ZIO}
+import zio.{Cause, Chunk, Duration, Queue, Random, Scope, ZIO}
 
 import java.io.IOException
 import java.nio.file.{DirectoryNotEmptyException, Path, Paths}
@@ -429,14 +429,14 @@ trait FileConnectorSpec extends ZIOSpecDefault {
         prog.runCollect.map(_.head)
       },
       test("writes to file") {
-        val input = Chunk[Byte](1, 2, 3)
-        val prog = for {
-          path   <- tempPath
-          _      <- ZStream.fromZIO(ZStream.fromChunk(input) >>> writePath(path))
-          actual <- ZStream.fromZIO(readPath(path).runCollect)
-        } yield assert(input)(equalTo(actual))
-
-        prog.runCollect.map(_.head)
+        for {
+          content <- Random.nextBytes(100000)
+          actual <- (for {
+                      path          <- tempPath
+                      _             <- ZStream.fromZIO(ZStream.fromChunk(content) >>> writePath(path))
+                      actualContent <- readPath(path)
+                    } yield actualContent).runCollect
+        } yield assert(content)(equalTo(actual))
       }
     )
 }

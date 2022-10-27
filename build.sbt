@@ -31,16 +31,18 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
+    docs,
     fileConnector,
-    docs
+    s3Connector
   )
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
   .settings(stdSettings("zio-connect-file"))
   .settings(
     libraryDependencies ++= Seq(
-      `zio`,
+      zio,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
@@ -55,7 +57,34 @@ lazy val fileConnector = project
     }
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .enablePlugins(BuildInfoPlugin)
+
+lazy val s3Connector = project
+  .in(file("connectors/s3-connector"))
+  .settings(stdSettings("zio-connect-s3"))
+  .settings(
+    libraryDependencies ++= Seq(
+      S3Dependencies.`aws-java-sdk-core`,
+      S3Dependencies.localstack,
+      S3Dependencies.`zio-aws-netty`,
+      S3Dependencies.`zio-aws-s3`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val docs = project
   .in(file("zio-connect-docs"))
@@ -65,15 +94,15 @@ lazy val docs = project
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
-      `zio`
+      zio
     ),
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
     ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
   )
-  .dependsOn(fileConnector)
+  .dependsOn(fileConnector, s3Connector)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
 
 lazy val examples = project
