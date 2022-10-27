@@ -86,6 +86,27 @@ lazy val s3Connector = project
     Test / fork := true
   )
 
+lazy val fs2Connector = project
+  .in(file("connectors/fs2-connector"))
+  .settings(stdSettings("zio-connect-fs2"))
+  .settings(
+    libraryDependencies ++= Seq(
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+
 lazy val docs = project
   .in(file("zio-connect-docs"))
   .settings(
