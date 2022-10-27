@@ -24,7 +24,7 @@ trait FtpConnector {
 
   def readFile(path: => PathName, chunkSize: Int = 2048)(implicit trace: Trace): ZStream[Any, IOException, Byte]
 
-  def upload(pathName: => PathName)(implicit trace: Trace): ZSink[Scope, IOException, Byte, Nothing, Unit]
+  def upload[R](pathName: => PathName)(implicit trace: Trace): ZSink[R & Scope, IOException, Byte, Nothing, Unit]
 
 }
 
