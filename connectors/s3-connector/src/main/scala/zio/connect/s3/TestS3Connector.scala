@@ -157,7 +157,7 @@ object TestS3Connector {
           map <- repo.get
           bucket <- ZSTM
                       .fromOption(map.get(bucketName))
-                      .mapError(_ => S3Exception(NoSuchBucketException.builder().build()))
+                      .mapError(_ => S3Exception(new RuntimeException("No such bucket exception!")))
         } yield Chunk.fromIterable(bucket.objects.keys)
       )
 
