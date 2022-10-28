@@ -1,8 +1,9 @@
 package zio.connect
 
-import zio.Trace
+import zio.aws.s3.S3
 import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, S3Exception}
 import zio.stream.{ZSink, ZStream}
+import zio.{Trace, ULayer, URLayer}
 
 package object s3 {
 
@@ -41,8 +42,8 @@ package object s3 {
   ): ZSink[S3Connector, S3Exception, S3Connector.MoveObject, S3Connector.MoveObject, Unit] =
     ZSink.serviceWithSink(_.moveObject)
 
-  val s3ConnectorLiveLayer = LiveS3Connector.layer
-  val s3ConnectorTestLayer = TestS3Connector.layer
+  val s3ConnectorLiveLayer: URLayer[S3, LiveS3Connector] = LiveS3Connector.layer
+  val s3ConnectorTestLayer: ULayer[TestS3Connector]      = TestS3Connector.layer
 
   def putObject(bucketName: => BucketName, key: ObjectKey)(implicit
     trace: Trace

@@ -5,12 +5,14 @@ import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import zio.aws.core.config.AwsConfig
+import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
+import zio.test.Spec
 import zio.{Scope, ZIO, ZLayer}
 
 object LiveS3ConnectorSpec extends S3ConnectorSpec {
-  override def spec =
+  override def spec: Spec[Scope, Object] =
     suite("LiveS3ConnectorSpec")(s3ConnectorSpec)
       .provideSomeShared[Scope](
         localStackContainer,
@@ -19,8 +21,8 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
         zio.connect.s3.s3ConnectorLiveLayer
       )
 
-  lazy val httpClient                                   = NettyHttpClient.default
-  lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig] = httpClient >>> AwsConfig.default
+  lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
+  lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig]   = httpClient >>> AwsConfig.default
 
   lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
     ZLayer.fromZIO(

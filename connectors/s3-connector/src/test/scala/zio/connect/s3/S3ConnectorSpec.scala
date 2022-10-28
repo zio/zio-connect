@@ -10,7 +10,7 @@ import java.util.UUID
 
 trait S3ConnectorSpec extends ZIOSpecDefault {
 
-  val s3ConnectorSpec =
+  val s3ConnectorSpec: Spec[S3Connector, S3Exception] =
     copyObjectSpec + createBucketSuite + deleteBucketSuite + deleteObjectsSuite + listObjectsSuite + moveObjectSuite + putObjectSuite
 
   private lazy val copyObjectSpec =
@@ -27,7 +27,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key)
           _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject
           copiedContent <- getObject(bucket2, key).runCollect
-        } yield assert(copiedContent)(equalTo(content1))
+        } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
         val bucket1 = BucketName(UUID.randomUUID().toString)
@@ -47,8 +47,8 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           copiedContent2 <- getObject(bucket2, object2).runCollect
 
           filesWereCopied =
-            Chunk(object1, object2).sortBy(_.toString) == initialFiles.sortBy(_.toString) &&
-              initialFiles.sortBy(_.toString) == copiedFiles.sortBy(_.toString)
+            Chunk(object1, object2).sortBy(identity) == initialFiles.sortBy(identity) &&
+              initialFiles.sortBy(identity) == copiedFiles.sortBy(identity)
           o1CopyMatchesOriginal = o1Content == copiedContent1
           o2CopyMatchesOriginal = o2Content == copiedContent2
         } yield assertTrue(filesWereCopied) && assertTrue(o1CopyMatchesOriginal) && assertTrue(o2CopyMatchesOriginal)
@@ -66,7 +66,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           objectsBefore <- listObjects(bucketName).runCollect
           _             <- ZStream(bucketName) >>> createBucket
           objectsAfter  <- listObjects(bucketName).runCollect
-        } yield assert(objectsBefore)(equalTo(objectsAfter))
+        } yield assertTrue(objectsBefore == objectsAfter)
       },
       test("succeeds") {
         val bucketName = BucketName(UUID.randomUUID().toString)
@@ -170,7 +170,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           actual              <- listObjects(bucketName).runCollect
           _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName)
           afterObjectDeletion <- listObjects(bucketName).runCollect
-        } yield assert(actual.sortBy(_.toString))(equalTo(Chunk(obj1, obj2).sortBy(_.toString))) && assertTrue(
+        } yield assertTrue(actual.sortBy(identity) == Chunk(obj1, obj2).sortBy(identity)) && assertTrue(
           afterObjectDeletion.isEmpty
         )
       }
@@ -190,7 +190,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key)
           _             <- ZStream(S3Connector.MoveObject(bucket1, key, bucket2, key)) >>> moveObject
           copiedContent <- getObject(bucket2, key).runCollect
-        } yield assert(copiedContent)(equalTo(content1))
+        } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
 
@@ -217,10 +217,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           b1Objects        <- listObjects(bucket1).runCollect
           b2Objects        <- listObjects(bucket2).runCollect
 
-        } yield assert(initialB1Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key3).sortBy(_.toString))) &&
+        } yield assertTrue(initialB1Objects.sortBy(identity) == Chunk(key1, key2, key3).sortBy(identity)) &&
           assertTrue(initialB2Objects.isEmpty) &&
-          assert(b1Objects)(equalTo(Chunk(key1))) &&
-          assert(b2Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key4).sortBy(_.toString)))
+          assertTrue(b1Objects == Chunk(key1)) &&
+          assertTrue(b2Objects.sortBy(identity) == Chunk(key1, key2, key4).sortBy(identity))
 
       }
     )
@@ -235,7 +235,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           testData <- Random.nextBytes(5)
           _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, objectKey)
           actual   <- getObject(bucketName, objectKey).runCollect
-        } yield assert(actual)(equalTo(testData))
+        } yield assertTrue(actual == testData)
       }
     )
 
