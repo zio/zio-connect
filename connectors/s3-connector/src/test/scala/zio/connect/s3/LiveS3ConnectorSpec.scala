@@ -8,11 +8,10 @@ import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
-import zio.test.Spec
 import zio.{Scope, ZIO, ZLayer}
 
 object LiveS3ConnectorSpec extends S3ConnectorSpec {
-  override def spec: Spec[Scope, Object] =
+  override def spec =
     suite("LiveS3ConnectorSpec")(s3ConnectorSpec)
       .provideSomeShared[Scope](
         localStackContainer,

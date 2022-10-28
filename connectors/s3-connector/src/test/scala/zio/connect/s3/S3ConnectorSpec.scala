@@ -10,7 +10,7 @@ import java.util.UUID
 
 trait S3ConnectorSpec extends ZIOSpecDefault {
 
-  val s3ConnectorSpec: Spec[S3Connector, S3Exception] =
+  val s3ConnectorSpec =
     copyObjectSpec + createBucketSuite + deleteBucketSuite + deleteObjectsSuite + listObjectsSuite + moveObjectSuite + putObjectSuite
 
   private lazy val copyObjectSpec =
@@ -170,7 +170,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           actual              <- listObjects(bucketName).runCollect
           _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName)
           afterObjectDeletion <- listObjects(bucketName).runCollect
-        } yield assertTrue(actual.sortBy(identity) == Chunk(obj1, obj2).sortBy(identity)) && assertTrue(
+        } yield assertTrue(actual.sorted == Chunk(obj1, obj2).sortBy(identity)) && assertTrue(
           afterObjectDeletion.isEmpty
         )
       }

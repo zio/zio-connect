@@ -5,7 +5,7 @@ import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
 import zio.connect.s3.TestS3Connector.TestS3
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, Trace, ULayer, ZIO, ZLayer}
+import zio.{Chunk, Trace, ZIO, ZLayer}
 
 private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
   override def copyObject(implicit
@@ -57,7 +57,7 @@ private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
 
 object TestS3Connector {
 
-  val layer: ULayer[TestS3Connector] =
+  val layer: ZLayer[Any, Nothing, TestS3Connector] =
     ZLayer.fromZIO(STM.atomically {
       for {
         a <- TRef.make(Map.empty[BucketName, S3Bucket])

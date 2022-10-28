@@ -1,7 +1,18 @@
 package zio.connect.s3
 import zio.aws.core.AwsError
 import zio.aws.s3.S3
-import zio.aws.s3.model._
+import zio.aws.s3.model.{
+  CopyObjectRequest,
+  CreateBucketRequest,
+  Delete,
+  DeleteBucketRequest,
+  DeleteObjectRequest,
+  DeleteObjectsRequest,
+  GetObjectRequest,
+  ListObjectsRequest,
+  ObjectIdentifier,
+  PutObjectRequest
+}
 import zio.aws.s3.model.primitives.{ContentLength, CopySource, BucketName => AwsBucketName, ObjectKey => AwsObjectKey}
 import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, S3Exception}
 import zio.stream.{ZSink, ZStream}
