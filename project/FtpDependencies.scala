@@ -9,6 +9,8 @@ object FtpDependencies {
   lazy val testContainersJupiter = "org.testcontainers" % "junit-jupiter"  % testContainersVersion % "test"
   lazy val `junit-jupiter`       = "org.junit.jupiter"  % "junit-jupiter"  % "5.8.1"               % "test"
 
+  lazy val testContainersScala   = "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.11" % "test"
+
   val zioFtp = "dev.zio" %% "zio-ftp" % zioFtpVersion
 
 }

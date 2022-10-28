@@ -92,9 +92,7 @@ lazy val ftpConnector = project
   .settings(
     libraryDependencies ++= Seq(
       FtpDependencies.zioFtp,
-      FtpDependencies.testContainers,
-      FtpDependencies.testContainersJupiter,
-      FtpDependencies.`junit-jupiter`,
+      FtpDependencies.testContainersScala,
       `zio`,
       `zio-streams`,
       `zio-prelude`,
@@ -110,7 +108,11 @@ lazy val ftpConnector = project
       }
     }
   )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork    := true,
+    Test / parallelExecution := false
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val docs = project
