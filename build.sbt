@@ -63,12 +63,15 @@ lazy val ftpConnector = project
   .settings(
     libraryDependencies ++= Seq(
       FtpDependencies.zioFtp,
+      FtpDependencies.testContainers,
+      FtpDependencies.testContainersJupiter,
+      FtpDependencies.`junit-jupiter`,
       `zio`,
       `zio-streams`,
       `zio-prelude`,
       "dev.zio" %% "zio-aws-s3" % "5.17.280.1",
       `zio-test`,
-      `zio-test-sbt`
+      `zio-test-sbt`,
     )
   )
   .settings(

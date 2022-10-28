@@ -1,8 +1,7 @@
 package zio.connect.ftp
 
-import zio.Chunk
+import zio._
 import zio.connect.ftp.FtpConnector.PathName
-import zio.ftp.FtpResource
 import zio.stream.ZPipeline.utf8Decode
 import zio.stream.ZStream
 import zio.test.Assertion._
@@ -13,7 +12,10 @@ import java.util.UUID
 
 trait FtpConnectorSpec extends ZIOSpecDefault {
 
-  private lazy val statSuite: Spec[FtpConnector, IOException] =
+  val ftpConnectorSpec: Spec[Scope & FtpConnector, IOException] =
+    statSuite + rmSuite + rmDirSuite + mkDirSuite + lsSuite + lsDescendantSuite + readFileSuite +  uploadSuite
+
+  private lazy val statSuite: Spec[Scope & FtpConnector, IOException] =
     suite("stat")(
       test("returns None when path doesn't exist") {
         val path = PathName(UUID.randomUUID().toString)
@@ -44,7 +46,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val rmSuite: Spec[FtpConnector, IOException] =
+  private lazy val rmSuite: Spec[Scope & FtpConnector, IOException] =
     suite("rm")(
       test("fails when path is invalid") {
         val path = PathName(UUID.randomUUID().toString)
@@ -100,7 +102,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val lsSuite: Spec[FtpConnector, IOException] =
+  private lazy val lsSuite: Spec[Scope & FtpConnector, IOException] =
     suite("ls")(
       test("fails with invalid directory") {
         val path = PathName(UUID.randomUUID().toString)
@@ -138,7 +140,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
       },
     )
 
-  private lazy val readFileSuite: Spec[FtpConnector, IOException] =
+  private lazy val readFileSuite: Spec[Scope & FtpConnector, IOException] =
     suite("readFile")(
       test("fails when file doesn't exist") {
         val path = PathName(UUID.randomUUID().toString)
@@ -159,7 +161,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val uploadSuite: Spec[FtpConnector, IOException] =
+  private lazy val uploadSuite: Spec[Scope & FtpConnector, IOException] =
     suite("upload")(
       test("fails when path is invalid") {
         val path = PathName(UUID.randomUUID().toString)
