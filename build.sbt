@@ -33,8 +33,8 @@ lazy val root = project
   .aggregate(
     docs,
     fileConnector,
-    s3Connector,
-    fs2Connector
+    fs2Connector,
+    s3Connector
   )
   .enablePlugins(BuildInfoPlugin)
 
