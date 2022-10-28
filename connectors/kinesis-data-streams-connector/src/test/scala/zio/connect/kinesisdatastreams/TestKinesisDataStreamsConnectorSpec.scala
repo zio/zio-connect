@@ -1,4 +1,4 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 
 object TestKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSpec {
 

@@ -1,21 +1,21 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 
 import izumi.reflect.Tag
-import zio.connect.kinesisDataStreams.KinesisDataStreamsConnector.{
+import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{
   KinesisDataStreamsException,
   PartitionKey,
   ProducerRecord
 }
-import zio.connect.kinesisDataStreams.TestKinesisDataStreamsConnector.TestKinesisDataStream
+import zio.connect.kinesisdatastreams.TestKinesisDataStreamsConnector.TestKinesisDataStream
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.ZSink
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
-private[kinesisDataStreams] final case class TestKinesisDataStreamsConnector[T](
+private[kinesisdatastreams] final case class TestKinesisDataStreamsConnector[T](
   kinesisDataStream: TestKinesisDataStream[T]
 ) extends KinesisDataStreamsConnector[T] {
 
-  override def sinkChunked()(implicit
+  override def sinkChunked(implicit
     trace: Trace
   ): ZSink[Any, KinesisDataStreamsException, Chunk[ProducerRecord[T]], Nothing, Unit] =
     ZSink.foreach(records => kinesisDataStream.write(records))
@@ -31,7 +31,7 @@ object TestKinesisDataStreamsConnector {
       } yield TestKinesisDataStreamsConnector(TestKinesisDataStream[T](a))
     })
 
-  private[kinesisDataStreams] final case class TestKinesisDataStream[T](
+  private[kinesisdatastreams] final case class TestKinesisDataStream[T](
     repo: TRef[Map[PartitionKey, Chunk[ProducerRecord[T]]]]
   ) {
     def write(records: Chunk[ProducerRecord[T]])(implicit

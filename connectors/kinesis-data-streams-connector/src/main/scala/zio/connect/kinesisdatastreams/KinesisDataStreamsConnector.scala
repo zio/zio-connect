@@ -1,13 +1,13 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 
-import zio.connect.kinesisDataStreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, ProducerRecord}
+import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, ProducerRecord}
 import zio.prelude.Newtype
 import zio.stream.ZSink
 import zio.{Chunk, Trace}
 
 trait KinesisDataStreamsConnector[T] {
 
-  def sinkChunked()(implicit
+  def sinkChunked(implicit
     trace: Trace
   ): ZSink[Any, KinesisDataStreamsException, Chunk[ProducerRecord[T]], Nothing, Unit]
 }

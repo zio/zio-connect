@@ -1,6 +1,6 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 
-import zio.connect.kinesisDataStreams.KinesisDataStreamsConnector.{
+import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{
   KinesisDataStreamsException,
   PartitionKey,
   ProducerRecord
@@ -22,7 +22,7 @@ trait KinesisDataStreamsConnectorSpec extends ZIOSpecDefault {
         val record2 = ProducerRecord(PartitionKey("1"), "Data2")
         val record3 = ProducerRecord(PartitionKey("2"), "Data2")
         for {
-          result <- ZStream.succeed(Chunk(record1, record2, record3)).run(sinkChunked[String]())
+          result <- ZStream.succeed(Chunk(record1, record2, record3)).run(sinkChunked[String])
         } yield assert(result)(equalTo(result))
       }
     )

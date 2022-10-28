@@ -1,4 +1,4 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 
 import nl.vroste.zio.kinesis.client.Producer
 import nl.vroste.zio.kinesis.client.serde.Serde
@@ -20,7 +20,7 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
         localStackContainer,
         awsConfig,
         producer,
-        zio.connect.kinesisDataStreams.LiveKinesisDataStreamsConnector.layer[String]
+        zio.connect.kinesisdatastreams.LiveKinesisDataStreamsConnector.layer[String]
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default

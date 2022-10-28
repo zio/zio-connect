@@ -1,12 +1,12 @@
-package zio.connect.kinesisDataStreams
+package zio.connect.kinesisdatastreams
 import izumi.reflect.Tag
-import zio.connect.kinesisDataStreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, ProducerRecord}
+import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, ProducerRecord}
 import zio.stream.ZSink
 import zio.{Chunk, Trace, ZIO, ZLayer}
 import nl.vroste.zio.kinesis.client.Producer
 
 final case class LiveKinesisDataStreamsConnector[T](producer: Producer[T]) extends KinesisDataStreamsConnector[T] {
-  override def sinkChunked()(implicit
+  override def sinkChunked(implicit
     trace: Trace
   ): ZSink[Any, KinesisDataStreamsException, Chunk[KinesisDataStreamsConnector.ProducerRecord[T]], Nothing, Unit] =
     producer.sinkChunked
