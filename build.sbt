@@ -33,7 +33,8 @@ lazy val root = project
   .aggregate(
     docs,
     fileConnector,
-    s3Connector
+    s3Connector,
+    sqsConnector
   )
   .enablePlugins(BuildInfoPlugin)
 
@@ -67,6 +68,32 @@ lazy val s3Connector = project
       S3Dependencies.localstack,
       S3Dependencies.`zio-aws-netty`,
       S3Dependencies.`zio-aws-s3`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
+lazy val sqsConnector = project
+  .in(file("connectors/sqs-connector"))
+  .settings(stdSettings("zio-connect-sqs"))
+  .settings(
+    libraryDependencies ++= Seq(
+      SqsDependencies.`aws-java-sdk-core`,
+      SqsDependencies.`zio-prelude`,
       zio,
       `zio-streams`,
       `zio-test`,
