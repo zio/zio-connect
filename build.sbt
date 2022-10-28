@@ -58,6 +58,33 @@ lazy val fileConnector = project
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
 
+lazy val kinesisDataStreamsConnector = project
+  .in(file("connectors/kinesis-data-streams-connector"))
+  .settings(stdSettings("zio-connect-kinesis-data-streams"))
+  .settings(
+    libraryDependencies ++= Seq(
+      KinesisDataStreamsDependencies.`aws-java-sdk-core`,
+      KinesisDataStreamsDependencies.localstack,
+      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
 lazy val s3Connector = project
   .in(file("connectors/s3-connector"))
   .settings(stdSettings("zio-connect-s3"))
