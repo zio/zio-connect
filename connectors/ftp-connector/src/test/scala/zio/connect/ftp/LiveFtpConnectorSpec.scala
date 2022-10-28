@@ -20,11 +20,9 @@ object LiveFtpConnectorSpec extends FtpConnectorSpec {
       ZIO.acquireRelease(ZIO.attempt {
         val ftpImage = DockerImageName.parse("delfer/alpine-ftp-server:latest")
         val ftp = new GenericContainer(ftpImage)
-
-        ftp.withExposedPorts(2121)
-        ftp.withEnv("USERS", "usermame" + "|" + "password")
+        ftp.withExposedPorts(21)
+        ftp.withEnv("USERS", "usermame|password")
         ftp.start()
-
         ftp
       })(f => ZIO.attempt(f.stop()).orDie)
     )
@@ -34,6 +32,7 @@ object LiveFtpConnectorSpec extends FtpConnectorSpec {
       .fromZIO(
         for {
           containers <- ZIO.service[GenericContainer[_]]
+          _          <- ZIO.log(s"FTP >>> ${containers.getHost}  ${containers.getFirstMappedPort}")
           ftp        <- ZIO.succeed(
                     unsecure(UnsecureFtpSettings(containers.getHost, containers.getFirstMappedPort, FtpCredentials("username", "password")))
           )

@@ -3,7 +3,7 @@ package zio.connect.ftp
 import zio._
 import zio.connect.ftp.FtpConnector._
 import zio.ftp.FtpResource
-import zio.prelude.Newtype
+import zio.prelude.Subtype
 import zio.stream.{ZSink, ZStream}
 
 import java.io.IOException
@@ -30,7 +30,7 @@ trait FtpConnector {
 
 object FtpConnector {
 
-  object PathName extends Newtype[String]
+  object PathName extends Subtype[String]
   type PathName = PathName.Type
 
 }

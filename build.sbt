@@ -98,7 +98,6 @@ lazy val ftpConnector = project
       `zio`,
       `zio-streams`,
       `zio-prelude`,
-      "dev.zio" %% "zio-aws-s3" % "5.17.280.1",
       `zio-test`,
       `zio-test-sbt`,
     )

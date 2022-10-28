@@ -30,7 +30,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
           for {
             _        <- data >>> upload(path)
             resource <- ZStream.succeed(path) >>> stat
-            resourceHasSamePath = resource.get.path == path.toString
+            resourceHasSamePath = resource.get.path == path
             resourceIsFile = !resource.get.isDirectory.get
           } yield assertTrue(resourceHasSamePath) && assertTrue(resourceIsFile)
         ) <* (ZStream.succeed(path) >>> rm)
@@ -40,7 +40,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
         for {
           _                   <- ZStream.succeed(path) >>> mkDir
           resource            <- ZStream.succeed(path) >>> stat
-          resourceHasSamePath = resource.get.path == path.toString
+          resourceHasSamePath = resource.get.path == path
           resourceIsDirectory = resource.get.isDirectory.get
         } yield assertTrue(resourceHasSamePath) && assertTrue(resourceIsDirectory)
       }
@@ -71,7 +71,7 @@ trait FtpConnectorSpec extends ZIOSpecDefault {
         val path = PathName(UUID.randomUUID().toString)
         for {
           invalid <- (ZStream.succeed(path) >>> rmDir).foldCause(_.failureOption.map(_.getMessage).getOrElse(""), _ => "")
-        } yield assertTrue(invalid == s"Path is invalid. Cannot delete directory : ${path.toString}")
+        } yield assertTrue(invalid == s"Path is invalid. Cannot delete directory : $path")
       },
       test("succeeds") {
         val path = PathName(UUID.randomUUID().toString)
