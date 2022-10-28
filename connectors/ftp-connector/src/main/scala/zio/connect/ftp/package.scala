@@ -2,7 +2,7 @@ package zio.connect
 
 import zio._
 import zio.connect.ftp.FtpConnector.PathName
-import zio.ftp.FtpResource
+import zio.ftp.{Ftp, FtpResource}
 import zio.stream.{ZSink, ZStream}
 
 import java.io.IOException
@@ -32,5 +32,7 @@ package object ftp {
 
   def upload[R](pathName: => PathName)(implicit trace: Trace): ZSink[R & Scope & FtpConnector, IOException, Byte, Nothing, Unit] =
     ZSink.serviceWithSink[FtpConnector](_.upload(pathName))
+
+  val ftpConnectorLiveLayer: ZLayer[Ftp, Nothing, LiveFtpConnector] = LiveFtpConnector.layer
 
 }
