@@ -2,7 +2,6 @@ package zio.connect.sqs
 
 import zio.connect.sqs.SqsConnector.{
   MessageId,
-  QueueUrl,
   ReceiveMessage,
   SendMessage,
   SendMessageBatch,
@@ -14,7 +13,6 @@ import zio.{Chunk, Queue, Trace, ZIO, ZLayer}
 
 /*
   TODO:
- * Instead of having a single queue have multiple (create 1 per queue url passed)
  * Make receiveMessages not drop instantly from the queue and only when ack is called
  * Implement wait based on delaySeconds
  * Messages sent that share a messageDeduplicationId with a message in the queue should be dropped
@@ -54,9 +52,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
         )
       )
 
-  override def receiveMessages(
-    queueUrl: => QueueUrl
-  )(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
+  override def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
     ZStream
       .fromQueue(sqs)
       .map(batchEntry =>

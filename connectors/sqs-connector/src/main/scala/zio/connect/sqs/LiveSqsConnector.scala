@@ -15,13 +15,13 @@ import zio.connect.sqs.SqsConnector.{
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO, ZLayer}
 
-final case class LiveSqsConnector(sqs: AmazonSQS) extends SqsConnector {
+final case class LiveSqsConnector(sqs: AmazonSQS, queueUrl: QueueUrl) extends SqsConnector {
   override def sendMessage(implicit trace: Trace): ZSink[Any, SqsException, SendMessage, SendMessage, Unit] =
     ZSink
       .foreach[Any, SqsException, SendMessage] { m =>
         (for {
           request <- ZIO.attempt {
-                       val msg = new SendMessageRequest(m.queueUrl.toString, m.body.toString)
+                       val msg = new SendMessageRequest(queueUrl.toString, m.body.toString)
 
                        m.delaySeconds
                          .foreach(delay => msg.withDelaySeconds(DelaySeconds.unwrap(delay)))
@@ -63,7 +63,7 @@ final case class LiveSqsConnector(sqs: AmazonSQS) extends SqsConnector {
                        }
                      }
           request <- ZIO.attempt {
-                       new SendMessageBatchRequest(b.queueUrl.toString)
+                       new SendMessageBatchRequest(queueUrl.toString)
                          .withEntries(entries: _*)
                      }
           _ <- ZIO.attempt {
@@ -72,9 +72,7 @@ final case class LiveSqsConnector(sqs: AmazonSQS) extends SqsConnector {
         } yield ()).mapError(throwable => SqsException(throwable))
       }
 
-  override def receiveMessages(
-    queueUrl: => QueueUrl
-  )(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
+  override def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
     ZStream
       .fromIterableZIO(ZIO.attemptBlocking {
         val messageResult = sqs.receiveMessage(queueUrl.toString)
@@ -105,7 +103,11 @@ final case class LiveSqsConnector(sqs: AmazonSQS) extends SqsConnector {
 
 object LiveSqsConnector {
 
-  val layer: ZLayer[AmazonSQS, Nothing, LiveSqsConnector] =
-    ZLayer.fromZIO(ZIO.service[AmazonSQS].map(LiveSqsConnector(_)))
+  val layer: ZLayer[AmazonSQS with QueueUrl, Nothing, LiveSqsConnector] = {
+    ZLayer.fromZIO(for {
+      amazonSqs <- ZIO.service[AmazonSQS]
+      queue     <- ZIO.service[QueueUrl]
+    } yield LiveSqsConnector(amazonSqs, queue))
+  }
 
 }

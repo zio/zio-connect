@@ -1,7 +1,7 @@
 package zio.connect
 
 import zio.Trace
-import zio.connect.sqs.SqsConnector.{QueueUrl, ReceiveMessage, SendMessage, SendMessageBatch, SqsException}
+import zio.connect.sqs.SqsConnector.{ReceiveMessage, SendMessage, SendMessageBatch, SqsException}
 import zio.stream.{ZSink, ZStream}
 
 package object sqs {
@@ -14,8 +14,8 @@ package object sqs {
   ): ZSink[SqsConnector, SqsException, SendMessageBatch, SendMessageBatch, Unit] =
     ZSink.serviceWithSink(_.sendMessageBatch)
 
-  def receiveMessages(queueUrl: => QueueUrl)(implicit
+  def receiveMessages(implicit
     trace: Trace
   ): ZStream[SqsConnector, SqsException, ReceiveMessage] =
-    ZStream.serviceWithStream(_.receiveMessages(queueUrl))
+    ZStream.serviceWithStream(_.receiveMessages)
 }

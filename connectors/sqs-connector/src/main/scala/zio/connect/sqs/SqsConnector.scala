@@ -1,6 +1,6 @@
 package zio.connect.sqs
 
-import zio.connect.sqs.SqsConnector.{QueueUrl, ReceiveMessage, SendMessage, SendMessageBatch, SqsException}
+import zio.connect.sqs.SqsConnector.{ReceiveMessage, SendMessage, SendMessageBatch, SqsException}
 import zio.prelude.Newtype
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
@@ -8,7 +8,7 @@ import zio.{Trace, ZIO}
 trait SqsConnector {
   def sendMessage(implicit trace: Trace): ZSink[Any, SqsException, SendMessage, SendMessage, Unit]
   def sendMessageBatch(implicit trace: Trace): ZSink[Any, SqsException, SendMessageBatch, SendMessageBatch, Unit]
-  def receiveMessages(queueUrl: => QueueUrl)(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage]
+  def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage]
 }
 
 object SqsConnector {
@@ -33,7 +33,6 @@ object SqsConnector {
   case class SqsException(reason: Throwable)
 
   final case class SendMessage(
-    queueUrl: QueueUrl,
     body: MessageBody,
     delaySeconds: Option[DelaySeconds],
     messageGroupId: Option[MessageGroupId],
@@ -41,7 +40,6 @@ object SqsConnector {
   )
 
   final case class SendMessageBatch(
-    queueUrl: QueueUrl,
     entries: List[SendMessageBatchEntry]
   )
 
