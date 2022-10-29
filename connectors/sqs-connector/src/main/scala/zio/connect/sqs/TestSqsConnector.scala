@@ -8,24 +8,32 @@ import zio.connect.sqs.SqsConnector.{
   SendMessageBatchEntry,
   SqsException
 }
+import zio.connect.sqs.TestSqsConnector.TestQueueMessage
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, Queue, Trace, ZIO, ZLayer}
+import zio.{Chunk, Queue, Ref, Trace, ZIO, ZLayer}
 
 /*
   TODO:
- * Make receiveMessages not drop instantly from the queue and only when ack is called
  * Implement wait based on delaySeconds
  */
-private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]) extends SqsConnector {
+private[sqs] final case class TestSqsConnector(sqs: Queue[TestQueueMessage]) extends SqsConnector {
+
   override def sendMessage(implicit trace: Trace): ZSink[Any, SqsException, SendMessage, SendMessage, Unit] =
     ZSink
       .fromQueue(sqs)
-      .contramap(sendMessage =>
-        SendMessageBatchEntry(
-          MessageId("testId"),
-          sendMessage.body,
-          sendMessage.delaySeconds
-        )
+      .contramapZIO(sendMessage =>
+        Ref
+          .make(false)
+          .map(ack =>
+            TestQueueMessage(
+              SendMessageBatchEntry(
+                MessageId("testId"),
+                sendMessage.body,
+                sendMessage.delaySeconds
+              ),
+              ack
+            )
+          )
       )
 
   override def sendMessageBatch(implicit
@@ -33,8 +41,8 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
   ): ZSink[Any, SqsException, SendMessageBatch, SendMessageBatch, Unit] =
     ZSink
       .fromQueue(sqs)
-      .contramapChunks[SendMessageBatch](batchChunk =>
-        batchChunk.flatMap(batch =>
+      .contramapChunksZIO { (batchChunk: Chunk[SendMessageBatch]) =>
+        val entriesChunk = batchChunk.flatMap(batch =>
           Chunk(
             batch.entries.map(batchEntry =>
               SendMessageBatchEntry(
@@ -45,22 +53,30 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
             ): _*
           )
         )
-      )
+        ZIO.foreach(entriesChunk)(entry => Ref.make(false).map(TestQueueMessage(entry, _)))
+      }
 
   override def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
     ZStream
       .fromQueue(sqs)
-      .map(batchEntry =>
+      .filterZIO(_.ack.get)
+      .mapZIO(testMsg => sqs.offer(testMsg).as(testMsg))
+      .map(testMsg =>
         ReceiveMessage(
-          batchEntry.id,
-          batchEntry.body,
-          ZIO.unit
+          testMsg.message.id,
+          testMsg.message.body,
+          testMsg.ack.set(true)
         )
       )
 }
 
 object TestSqsConnector {
+  private[sqs] final case class TestQueueMessage(
+    message: SendMessageBatchEntry,
+    ack: Ref[Boolean]
+  )
+
   val layer: ZLayer[Any, Nothing, TestSqsConnector] = {
-    ZLayer.fromZIO(Queue.unbounded[SendMessageBatchEntry].map(TestSqsConnector(_)))
+    ZLayer.fromZIO(Queue.unbounded[TestQueueMessage].map(TestSqsConnector(_)))
   }
 }
