@@ -15,7 +15,6 @@ import zio.{Chunk, Queue, Trace, ZIO, ZLayer}
   TODO:
  * Make receiveMessages not drop instantly from the queue and only when ack is called
  * Implement wait based on delaySeconds
- * Messages sent that share a messageDeduplicationId with a message in the queue should be dropped
  */
 private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]) extends SqsConnector {
   override def sendMessage(implicit trace: Trace): ZSink[Any, SqsException, SendMessage, SendMessage, Unit] =
@@ -26,8 +25,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
           MessageId("testId"),
           sendMessage.body,
           sendMessage.delaySeconds,
-          sendMessage.messageGroupId,
-          sendMessage.messageDeduplicationId
+          sendMessage.messageGroupId
         )
       )
 
@@ -44,8 +42,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
                 batchEntry.id,
                 batchEntry.body,
                 batchEntry.delaySeconds,
-                batchEntry.messageGroupId,
-                batchEntry.messageDeduplicationId
+                batchEntry.messageGroupId
               )
             ): _*
           )

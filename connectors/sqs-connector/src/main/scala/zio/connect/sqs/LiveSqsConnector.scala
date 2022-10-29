@@ -29,9 +29,6 @@ final case class LiveSqsConnector(sqs: AmazonSQS, queueUrl: QueueUrl) extends Sq
                        m.messageGroupId
                          .foreach(groupId => msg.withMessageGroupId(groupId.toString))
 
-                       m.messageDeduplicationId
-                         .foreach(deduplicationId => msg.withMessageGroupId(deduplicationId.toString))
-
                        msg
                      }
           _ <- ZIO.attempt {
@@ -55,9 +52,6 @@ final case class LiveSqsConnector(sqs: AmazonSQS, queueUrl: QueueUrl) extends Sq
 
                          m.messageGroupId
                            .foreach(groupId => msg.withMessageGroupId(groupId.toString))
-
-                         m.messageDeduplicationId
-                           .foreach(deduplicationId => msg.withMessageGroupId(deduplicationId.toString))
 
                          msg
                        }
