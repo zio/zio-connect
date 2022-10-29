@@ -21,9 +21,6 @@ object SqsConnector {
   object DelaySeconds extends Newtype[Int]
   type DelaySeconds = DelaySeconds.Type
 
-  object MessageGroupId extends Newtype[String]
-  type MessageGroupId = MessageGroupId.Type
-
   object MessageId extends Newtype[String]
   type MessageId = MessageId.Type
 
@@ -31,8 +28,7 @@ object SqsConnector {
 
   final case class SendMessage(
     body: MessageBody,
-    delaySeconds: Option[DelaySeconds],
-    messageGroupId: Option[MessageGroupId]
+    delaySeconds: Option[DelaySeconds]
   )
 
   final case class SendMessageBatch(
@@ -42,8 +38,7 @@ object SqsConnector {
   final case class SendMessageBatchEntry(
     id: MessageId,
     body: MessageBody,
-    delaySeconds: Option[DelaySeconds],
-    messageGroupId: Option[MessageGroupId]
+    delaySeconds: Option[DelaySeconds]
   )
 
   final case class ReceiveMessage(

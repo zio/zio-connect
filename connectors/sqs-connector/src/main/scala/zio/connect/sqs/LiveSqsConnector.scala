@@ -26,9 +26,6 @@ final case class LiveSqsConnector(sqs: AmazonSQS, queueUrl: QueueUrl) extends Sq
                        m.delaySeconds
                          .foreach(delay => msg.withDelaySeconds(DelaySeconds.unwrap(delay)))
 
-                       m.messageGroupId
-                         .foreach(groupId => msg.withMessageGroupId(groupId.toString))
-
                        msg
                      }
           _ <- ZIO.attempt {
@@ -49,9 +46,6 @@ final case class LiveSqsConnector(sqs: AmazonSQS, queueUrl: QueueUrl) extends Sq
 
                          m.delaySeconds
                            .foreach(delay => msg.withDelaySeconds(DelaySeconds.unwrap(delay)))
-
-                         m.messageGroupId
-                           .foreach(groupId => msg.withMessageGroupId(groupId.toString))
 
                          msg
                        }

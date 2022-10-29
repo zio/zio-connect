@@ -24,8 +24,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
         SendMessageBatchEntry(
           MessageId("testId"),
           sendMessage.body,
-          sendMessage.delaySeconds,
-          sendMessage.messageGroupId
+          sendMessage.delaySeconds
         )
       )
 
@@ -41,8 +40,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[SendMessageBatchEntry]
               SendMessageBatchEntry(
                 batchEntry.id,
                 batchEntry.body,
-                batchEntry.delaySeconds,
-                batchEntry.messageGroupId
+                batchEntry.delaySeconds
               )
             ): _*
           )
