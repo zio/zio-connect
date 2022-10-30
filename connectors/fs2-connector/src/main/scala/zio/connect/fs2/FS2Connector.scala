@@ -1,21 +1,24 @@
 package zio.connect.fs2
 
-import cats.effect.kernel.Async
-import cats.effect.std.Dispatcher
 import zio._
+import zio.connect.fs2.FS2Connector.{FS2Exception, FS2Stream}
 import zio.stream.ZStream
 
 trait FS2Connector {
 
-  def fromStream[F[_]: Dispatcher, R, A](
-    original: fs2.Stream[F, A],
+  def fromStream[A](
+    original: FS2Stream[A],
     queueSize: Int = 16
   )(implicit
     trace: Trace
-  ): ZStream[R, Throwable, A]
+  ): ZStream[Any, FS2Exception, A]
 
-  def toStream[F[_]: Async, R: Runtime, A](
-    original: ZStream[R, Throwable, A]
-  )(implicit trace: Trace): fs2.Stream[F, A]
+}
+
+object FS2Connector {
+
+  final case class FS2Stream[A](stream: fs2.Stream[Task, A])
+
+  case class FS2Exception(reason: Throwable)
 
 }
