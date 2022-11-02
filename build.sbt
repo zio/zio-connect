@@ -37,6 +37,31 @@ lazy val root = project
   )
   .enablePlugins(BuildInfoPlugin)
 
+lazy val awsLambdaConnector = project
+  .in(file("connectors/aws-lambda-connector"))
+  .settings(stdSettings("zio-connect-aws-lambda"))
+  .settings(
+    libraryDependencies ++= Seq(
+      AWSLambdaDependencies.`aws-java-sdk-core`,
+      AWSLambdaDependencies.localstack,
+      AWSLambdaDependencies.`zio-aws-lambda`,
+      AWSLambdaDependencies.`zio-aws-netty`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
   .settings(stdSettings("zio-connect-file"))
