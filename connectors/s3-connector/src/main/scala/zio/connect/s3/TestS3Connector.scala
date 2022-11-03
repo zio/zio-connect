@@ -1,6 +1,6 @@
 package zio.connect.s3
 
-import zio.connect.s3.S3Connector.{BucketName, CopyObject, MoveObject, ObjectKey, S3Exception}
+import zio.connect.s3.S3Connector._
 import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
 import zio.connect.s3.TestS3Connector.TestS3
 import zio.stm.{STM, TRef, ZSTM}

@@ -27,7 +27,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key)
           _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject
           copiedContent <- getObject(bucket2, key).runCollect
-        } yield assert(copiedContent)(equalTo(content1))
+        } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
         val bucket1 = BucketName(UUID.randomUUID().toString)
@@ -66,7 +66,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           objectsBefore <- listObjects(bucketName).runCollect
           _             <- ZStream(bucketName) >>> createBucket
           objectsAfter  <- listObjects(bucketName).runCollect
-        } yield assert(objectsBefore)(equalTo(objectsAfter))
+        } yield assertTrue(objectsBefore == objectsAfter)
       },
       test("succeeds") {
         val bucketName = BucketName(UUID.randomUUID().toString)
@@ -170,7 +170,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           actual              <- listObjects(bucketName).runCollect
           _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName)
           afterObjectDeletion <- listObjects(bucketName).runCollect
-        } yield assert(actual.sortBy(_.toString))(equalTo(Chunk(obj1, obj2).sortBy(_.toString))) && assertTrue(
+        } yield assertTrue(actual.sortBy(_.toString) == Chunk(obj1, obj2).sortBy(_.toString)) && assertTrue(
           afterObjectDeletion.isEmpty
         )
       }
@@ -190,7 +190,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key)
           _             <- ZStream(S3Connector.MoveObject(bucket1, key, bucket2, key)) >>> moveObject
           copiedContent <- getObject(bucket2, key).runCollect
-        } yield assert(copiedContent)(equalTo(content1))
+        } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
 
@@ -217,10 +217,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           b1Objects        <- listObjects(bucket1).runCollect
           b2Objects        <- listObjects(bucket2).runCollect
 
-        } yield assert(initialB1Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key3).sortBy(_.toString))) &&
+        } yield assertTrue(initialB1Objects.sortBy(_.toString) == Chunk(key1, key2, key3).sortBy(_.toString)) &&
           assertTrue(initialB2Objects.isEmpty) &&
-          assert(b1Objects)(equalTo(Chunk(key1))) &&
-          assert(b2Objects.sortBy(_.toString))(equalTo(Chunk(key1, key2, key4).sortBy(_.toString)))
+          assertTrue(b1Objects == Chunk(key1)) &&
+          assertTrue(b2Objects.sortBy(_.toString) == Chunk(key1, key2, key4).sortBy(_.toString))
 
       }
     )
@@ -235,7 +235,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           testData <- Random.nextBytes(5)
           _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, objectKey)
           actual   <- getObject(bucketName, objectKey).runCollect
-        } yield assert(actual)(equalTo(testData))
+        } yield assertTrue(actual == testData)
       }
     )
 

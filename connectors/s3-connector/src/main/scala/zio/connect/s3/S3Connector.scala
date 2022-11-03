@@ -1,7 +1,7 @@
 package zio.connect.s3
 
-import zio.connect.s3.S3Connector.{BucketName, CopyObject, MoveObject, ObjectKey, S3Exception}
-import zio.prelude.Newtype
+import zio.connect.s3.S3Connector._
+import zio.prelude.Subtype
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
 
@@ -61,10 +61,10 @@ trait S3Connector {
 
 object S3Connector {
 
-  object BucketName extends Newtype[String]
+  object BucketName extends Subtype[String]
   type BucketName = BucketName.Type
 
-  object ObjectKey extends Newtype[String]
+  object ObjectKey extends Subtype[String]
   type ObjectKey = ObjectKey.Type
 
   case class S3Exception(reason: Throwable)

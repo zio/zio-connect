@@ -28,8 +28,8 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreach[Any, AwsError, CopyObject] { m =>
         s3.copyObject(
           CopyObjectRequest(
-            destinationBucket = AwsBucketName(m.targetBucketName.toString),
-            destinationKey = AwsObjectKey(m.objectKey.toString),
+            destinationBucket = AwsBucketName(m.targetBucketName),
+            destinationKey = AwsObjectKey(m.objectKey),
             copySource =
               CopySource(URLEncoder.encode(s"${m.sourceBucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
           )
@@ -40,14 +40,14 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
   override def createBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit] =
     ZSink
       .foreach[Any, AwsError, BucketName] { name =>
-        s3.createBucket(CreateBucketRequest(bucket = AwsBucketName(name.toString)))
+        s3.createBucket(CreateBucketRequest(bucket = AwsBucketName(name)))
       }
       .mapError(a => S3Exception(a.toThrowable))
 
   override def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit] =
     ZSink
       .foreach[Any, AwsError, BucketName] { name =>
-        s3.deleteBucket(DeleteBucketRequest(bucket = AwsBucketName(name.toString)))
+        s3.deleteBucket(DeleteBucketRequest(bucket = AwsBucketName(name)))
       }
       .mapError(a => S3Exception(a.toThrowable))
 
@@ -58,8 +58,8 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreachChunk[Any, AwsError, ObjectKey] { objectKeys =>
         s3.deleteObjects(
           DeleteObjectsRequest(
-            bucket = AwsBucketName(bucketName.toString),
-            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(AwsObjectKey(a.toString))))
+            bucket = AwsBucketName(bucketName),
+            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(AwsObjectKey(a))))
           )
         )
       }
@@ -70,7 +70,7 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
   ): ZStream[Any, S3Exception, Byte] =
     ZStream
       .unwrap(
-        s3.getObject(GetObjectRequest(bucket = AwsBucketName(bucketName.toString), key = AwsObjectKey(key.toString)))
+        s3.getObject(GetObjectRequest(bucket = AwsBucketName(bucketName), key = AwsObjectKey(key)))
           .map(a => a.output)
       )
       .mapError(a => S3Exception(a.toThrowable))
@@ -89,7 +89,7 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
   ): ZStream[Any, S3Exception, ObjectKey] =
     ZStream
       .fromIterableZIO(
-        s3.listObjects(ListObjectsRequest(bucket = AwsBucketName(bucketName.toString)))
+        s3.listObjects(ListObjectsRequest(bucket = AwsBucketName(bucketName)))
           .map(_.contents.map(_.flatMap(_.key.toChunk.map(ObjectKey(_)))).getOrElse(Chunk.empty[ObjectKey]))
       )
       .mapError(a => S3Exception(a.toThrowable))
@@ -101,15 +101,14 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreach[Any, AwsError, S3Connector.MoveObject] { m =>
         s3.copyObject(
           CopyObjectRequest(
-            destinationBucket = AwsBucketName(m.targetBucketName.toString),
-            destinationKey = AwsObjectKey(m.targetObjectKey.toString),
-            copySource =
-              CopySource(URLEncoder.encode(s"${m.bucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
+            destinationBucket = AwsBucketName(m.targetBucketName),
+            destinationKey = AwsObjectKey(m.targetObjectKey),
+            copySource = CopySource(URLEncoder.encode(s"${m.bucketName}/${m.objectKey}", StandardCharsets.UTF_8))
           )
         ) *> s3.deleteObject(
           DeleteObjectRequest(
-            bucket = AwsBucketName(m.bucketName.toString),
-            key = AwsObjectKey(m.objectKey.toString)
+            bucket = AwsBucketName(m.bucketName),
+            key = AwsObjectKey(m.objectKey)
           )
         )
       }
@@ -122,8 +121,8 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
       .foreachChunk[Any, AwsError, Byte] { content =>
         s3.putObject(
           request = PutObjectRequest(
-            bucket = AwsBucketName(bucketName.toString),
-            key = AwsObjectKey(key.toString),
+            bucket = AwsBucketName(bucketName),
+            key = AwsObjectKey(key),
             contentLength = Some(ContentLength(content.length.toLong))
           ),
           body = ZStream.fromChunk(content).rechunk(1024)
