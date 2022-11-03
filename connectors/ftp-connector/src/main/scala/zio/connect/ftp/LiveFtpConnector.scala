@@ -28,7 +28,7 @@ case class LiveFtpConnector(ftp: Ftp) extends FtpConnector {
   override def rmDir(implicit trace: Trace): ZSink[Any, IOException, PathName, PathName, Unit] = {
     ZSink
       .foreach[Any, IOException, PathName] { path =>
-        ftp.rm(path)
+        ftp.rmdir(path)
       }
   }
 

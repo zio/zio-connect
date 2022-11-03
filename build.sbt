@@ -110,8 +110,7 @@ lazy val ftpConnector = project
   )
   .settings(
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork    := true,
-    Test / parallelExecution := false
+    Test / fork    := true
   )
   .enablePlugins(BuildInfoPlugin)
 
