@@ -86,6 +86,31 @@ lazy val s3Connector = project
     Test / fork := true
   )
 
+lazy val couchbaseConnector = project
+  .in(file("connectors/couchbase-connector"))
+  .settings(stdSettings("zio-connect-couchbase"))
+  .settings(
+    libraryDependencies ++= Seq(
+      CouchbaseDependencies.couchbase,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
 lazy val docs = project
   .in(file("zio-connect-docs"))
   .settings(
