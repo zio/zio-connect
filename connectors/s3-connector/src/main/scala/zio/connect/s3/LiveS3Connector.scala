@@ -103,7 +103,8 @@ final case class LiveS3Connector(s3: S3) extends S3Connector {
           CopyObjectRequest(
             destinationBucket = AwsBucketName(m.targetBucketName),
             destinationKey = AwsObjectKey(m.targetObjectKey),
-            copySource = CopySource(URLEncoder.encode(s"${m.bucketName}/${m.objectKey}", StandardCharsets.UTF_8))
+            copySource =
+              CopySource(URLEncoder.encode(s"${m.bucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
           )
         ) *> s3.deleteObject(
           DeleteObjectRequest(
