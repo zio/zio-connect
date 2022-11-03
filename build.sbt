@@ -86,6 +86,50 @@ lazy val s3Connector = project
     Test / fork := true
   )
 
+lazy val couchbaseConnector = project
+  .in(file("connectors/couchbase-connector"))
+  .settings(stdSettings("zio-connect-couchbase"))
+  .settings(
+    libraryDependencies ++= Seq(
+      CouchbaseDependencies.couchbase,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
+lazy val docs = project
+  .in(file("zio-connect-docs"))
+  .settings(
+    publish / skip := true,
+    moduleName     := "zio-connect-docs",
+    scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings",
+    libraryDependencies ++= Seq(
+      zio
+    ),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
+    ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
+  )
+  .dependsOn(fileConnector, s3Connector)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+
 lazy val examples = project
   .in(file("examples"))
   .settings(
