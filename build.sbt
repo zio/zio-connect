@@ -111,7 +111,7 @@ lazy val examples = project
     publishArtifact := false,
     moduleName      := "zio-connect-examples"
   )
-  .aggregate(fileConnectorExamples)
+  .aggregate(fileConnectorExamples, s3ConnectorExamples)
 
 lazy val fileConnectorExamples = project
   .in(file("examples/file-connector-examples"))
@@ -120,3 +120,11 @@ lazy val fileConnectorExamples = project
     scalacOptions -= "-Xfatal-warnings"
   )
   .dependsOn(LocalProject("fileConnector"))
+
+lazy val s3ConnectorExamples = project
+  .in(file("examples/s3-connector-examples"))
+  .settings(
+    publish / skip := true,
+    scalacOptions -= "-Xfatal-warnings"
+  )
+  .dependsOn(LocalProject("s3Connector"))
