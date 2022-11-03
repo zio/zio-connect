@@ -1,0 +1,190 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>S3Connector · zio-connect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Setup"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="S3Connector · zio-connect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.github.io/zio-connect/"/><meta property="og:description" content="Setup"/><meta property="og:image" content="https://zio.github.io/zio-connect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://zio.github.io/zio-connect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/zio-connect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><script src="/zio-connect/js/scrollSpy.js"></script><link rel="stylesheet" href="/zio-connect/css/main.css"/><script src="/zio-connect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zio-connect/"><img class="logo" src="/zio-connect/img/navbar_brand2x.png" alt="zio-connect"/><h2 class="headerTitleWithLogo">zio-connect</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/zio-connect/docs/quickstart/quickstart_index" target="_self">Quickstart</a></li><li class=""><a href="/zio-connect/docs/about/about_index" target="_self">About</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Quickstart</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Quickstart</h3><ul class=""><li class="navListItem"><a class="navItem" href="/zio-connect/docs/quickstart/quickstart_index">Quick Start</a></li><li class="navListItem"><a class="navItem" href="/zio-connect/docs/quickstart/quickstart_file_connector">FileConnector</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/zio-connect/docs/quickstart/quickstart_s3_connector">S3Connector</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">S3Connector</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="setup"></a><a href="#setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup</h2>
+<pre><code class="hljs">libraryDependencies += <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-connect-s3"</span> % <span class="hljs-string">"&lt;version&gt;"</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="how-to-use-it"></a><a href="#how-to-use-it" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How to use it?</h2>
+<p>All available S3Connector combinators and operations are available in the package object <code>zio.connect.s3</code>, you only need to import <code>zio.connect.s3._</code></p>
+<p>First, you must configure the underlying S3 connection provided by <code>zio-aws</code> you can read more about how to configure it <a href="https://zio.github.io/zio-aws/docs/overview/overview_config">here</a>
+If you have default credentials in the system environment typically at <code>~/.aws/credentials</code> or as env variables
+the following configuration will likely work.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.connect.s3._
+<span class="hljs-keyword">import</span> zio.stream._
+<span class="hljs-keyword">import</span> zio.aws.core.config.<span class="hljs-type">AwsConfig</span>
+<span class="hljs-keyword">import</span> zio.aws.netty.<span class="hljs-type">NettyHttpClient</span>
+
+<span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> zioAwsConfig = <span class="hljs-type">NettyHttpClient</span>.<span class="hljs-keyword">default</span> &gt;&gt;&gt; <span class="hljs-type">AwsConfig</span>.<span class="hljs-keyword">default</span>
+</code></pre>
+<p>Now let's create a bucket:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> bucketName = <span class="hljs-type">BucketName</span>(<span class="hljs-string">"this-very-charming-bucket-name"</span>) <span class="hljs-comment">// BucketName is a zio prelude newtype of String</span>
+
+<span class="hljs-keyword">val</span> program1: <span class="hljs-type">ZIO</span>[<span class="hljs-type">S3Connector</span>, <span class="hljs-type">S3Exception</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- <span class="hljs-type">ZStream</span>(bucketName) &gt;&gt;&gt; createBucket
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>The way to understand this is to recognize that <code>createBucket</code> is a <code>ZSink</code> that expects elements of type <code>BucketName</code> as its streamed input.
+In this case we have a <code>ZStream</code> with a single element of type <code>BucketName</code> but we could have an arbitrary number of buckets and the code
+would look and work virtually the same.</p>
+<p>Okay, let's put some readable bytes into that bucket:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> objectKey = <span class="hljs-type">ObjectKey</span>(<span class="hljs-string">"my-object"</span>) <span class="hljs-comment">// ObjectKey is a zio prelude newtype of String</span>
+
+<span class="hljs-keyword">val</span> program2: <span class="hljs-type">ZIO</span>[<span class="hljs-type">S3Connector</span>, <span class="hljs-type">S3Exception</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    content &lt;- <span class="hljs-type">Random</span>.nextString(<span class="hljs-number">100</span>).map(_.getBytes).map(<span class="hljs-type">Chunk</span>.fromArray)
+    _       &lt;- <span class="hljs-type">ZStream</span>.fromChunk(content) &gt;&gt;&gt; putObject(bucketName, objectKey)
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>Here a stream of chunks of bytes are streamed into the <code>putObject</code> sink. The sink takes two arguments, the bucket name and the object key to associate with the data
+being streamed in.</p>
+<p>Let's list objects in the bucket:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> program3: <span class="hljs-type">ZIO</span>[<span class="hljs-type">S3Connector</span>, <span class="hljs-type">S3Exception</span>, <span class="hljs-type">Chunk</span>[<span class="hljs-type">ObjectKey</span>]] =
+  <span class="hljs-keyword">for</span> {
+    keys &lt;- listObjects(bucketName).runCollect
+  } <span class="hljs-keyword">yield</span> keys
+</code></pre>
+<p><code>listObjects</code> is a <code>ZStream</code> that emits elements of type <code>ObjectKey</code> and we can use the <code>runCollect</code> operator to collect
+all the elements into a <code>Chunk</code>.</p>
+<p>Here's what it looks like to get an object put earlier:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> program5: <span class="hljs-type">ZIO</span>[<span class="hljs-type">S3Connector</span>, <span class="hljs-type">Object</span>, <span class="hljs-type">String</span>] =
+  <span class="hljs-keyword">for</span> {
+    content &lt;- getObject(bucketName, objectKey) &gt;&gt;&gt; <span class="hljs-type">ZPipeline</span>.utf8Decode &gt;&gt;&gt; <span class="hljs-type">ZSink</span>.mkString
+  } <span class="hljs-keyword">yield</span> content
+</code></pre>
+<p>Finally, let's look at how to run one of these program:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span> </span>= program1.provide(zioAwsConfig, <span class="hljs-type">S3</span>.live, s3ConnectorLiveLayer)
+</code></pre>
+<p>You need to provide the configuration layer for <code>zio-aws</code>, the <code>S3</code> layer from <code>zio-aws</code> and the <code>s3ConnectorLiveLayer</code>
+which is the live implementation of the <code>S3Connector</code> interface.</p>
+<h2><a class="anchor" aria-hidden="true" id="test--stub"></a><a href="#test--stub" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Test / Stub</h2>
+<p>A stub implementation of S3Connector is provided for testing purposes via the <code>TestS3Connector.layer</code>. It uses
+internally an <code>TRef[Map[BucketName, S3Bucket]]</code> instead of talking to S3. You can use create the test harness as follows:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.connect.s3._
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyTestSpec</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">ZIOSpecDefault</span> </span>{
+
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">spec</span> </span>=
+    suite(<span class="hljs-string">"MyTestSpec"</span>)(???)
+      .provide(s3ConnectorTestLayer)
+
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="operators--examples"></a><a href="#operators--examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Operators &amp; Examples</h2>
+<p>The following operators are available:</p>
+<h2><a class="anchor" aria-hidden="true" id="copyobject"></a><a href="#copyobject" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>copyObject</code></h2>
+<p>Copy an object from one bucket to another</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(<span class="hljs-type">CopyObject</span>(bucket1, objectKey, bucket2)) &gt;&gt;&gt; copyObject
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="createbucket"></a><a href="#createbucket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>createBucket</code></h2>
+<p>Creates S3 buckets</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(bucketName1, bucketName2) &gt;&gt;&gt; createBucket
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="deleteemptybucket"></a><a href="#deleteemptybucket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>deleteEmptyBucket</code></h2>
+<p>Deletes empty S3 buckets</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(bucketName1, bucketName2) &gt;&gt;&gt; deleteEmptyBucket
+</code></pre>
+<p>The buckets must be empty, if they are not you will get an <code>BucketsNotEmptyException</code> from S3</p>
+<h2><a class="anchor" aria-hidden="true" id="deleteobjects"></a><a href="#deleteobjects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>deleteObjects</code></h2>
+<p>Deletes objects from an S3 bucket</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(objectKey1, objectKey2) &gt;&gt;&gt; deleteObjects(bucketName)
+</code></pre>
+<p>Does not result in an error, if object keys do not exist</p>
+<h2><a class="anchor" aria-hidden="true" id="existsbucket"></a><a href="#existsbucket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>existsBucket</code></h2>
+<p>Checks if a bucket exists</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(bucketName1, bucketName2) &gt;&gt;&gt; existsBucket
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="existsobject"></a><a href="#existsobject" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>existsObject</code></h2>
+<p>Checks if an object exists in an s3 bucket</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(objectKey1, objectKey2) &gt;&gt;&gt; existsObject(bucketName)
+</code></pre>
+<p>It expects the bucket to exist and will return a <code>NoSuchBucketException</code> if the <em>bucket</em> does not</p>
+<h2><a class="anchor" aria-hidden="true" id="getobject"></a><a href="#getobject" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>getObject</code></h2>
+<p>Gets an object from an S3 bucket</p>
+<pre><code class="hljs css language-scala">getObject(bucket2, objectKey) &gt;&gt;&gt; <span class="hljs-type">ZPipeline</span>.utf8Decode &gt;&gt;&gt; <span class="hljs-type">ZSink</span>.mkString
+</code></pre>
+<p>You will receive the objects as a stream of bytes, parsing/decoding of course depends on the object contents.
+The example here assumes you have a stream of utf-8 encoded bytes and you want to decode them into a string.</p>
+<h2><a class="anchor" aria-hidden="true" id="listbuckets"></a><a href="#listbuckets" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>listBuckets</code></h2>
+<p>Lists all buckets in the account</p>
+<pre><code class="hljs css language-scala">listBuckets &gt;&gt;&gt; <span class="hljs-type">ZSink</span>.collectAll
+</code></pre>
+<p>Currently, gets ALL buckets, there is no pagination support yet. You may want to use some other ZStream combinators
+to filter the lists prior to collecting bucket names</p>
+<h2><a class="anchor" aria-hidden="true" id="listobjects"></a><a href="#listobjects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>listObjects</code></h2>
+<p>Lists all objects keys in a bucket takes a <code>BucketName</code> as an argument</p>
+<pre><code class="hljs css language-scala">listObjects(bucketName) &gt;&gt;&gt; <span class="hljs-type">ZSink</span>.collectAll
+</code></pre>
+<p>Currently, gets ALL objects in the bucket, there is no pagination support yet. You may want to use some other ZStream combinators
+to filter the lists prior to collecting object keys</p>
+<h2><a class="anchor" aria-hidden="true" id="moveobject"></a><a href="#moveobject" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>moveObject</code></h2>
+<p>Move an object from one bucket to another</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>(<span class="hljs-type">MoveObject</span>(sourceBucket, sourceKey, targetBucket, targetKey)) &gt;&gt;&gt; moveObject
+</code></pre>
+<p>The <code>sourceBucket</code>, <code>sourceKey</code>, and <code>targetBucket</code> must exist. If the <code>targetKey</code> exists, it will be overwritten.</p>
+<h2><a class="anchor" aria-hidden="true" id="putobject"></a><a href="#putobject" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>putObject</code></h2>
+<p>Puts an object into an S3 bucket</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">ZStream</span>.fromChunk(content) &gt;&gt;&gt; putObject(bucketName, objectKey)
+</code></pre>
+<p>Expects as stream of bytes, returns a <code>Unit</code> if successful.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/zio-connect/docs/quickstart/quickstart_file_connector"><span class="arrow-prev">← </span><span class="function-name-prevnext">FileConnector</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#setup">Setup</a></li><li><a href="#how-to-use-it">How to use it?</a></li><li><a href="#test--stub">Test / Stub</a></li><li><a href="#operators--examples">Operators &amp; Examples</a></li><li><a href="#copyobject"><code>copyObject</code></a></li><li><a href="#createbucket"><code>createBucket</code></a></li><li><a href="#deleteemptybucket"><code>deleteEmptyBucket</code></a></li><li><a href="#deleteobjects"><code>deleteObjects</code></a></li><li><a href="#existsbucket"><code>existsBucket</code></a></li><li><a href="#existsobject"><code>existsObject</code></a></li><li><a href="#getobject"><code>getObject</code></a></li><li><a href="#listbuckets"><code>listBuckets</code></a></li><li><a href="#listobjects"><code>listObjects</code></a></li><li><a href="#moveobject"><code>moveObject</code></a></li><li><a href="#putobject"><code>putObject</code></a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/zio-connect/" class="nav-home"><img src="/zio-connect/img/sidebar_brand2x.png" alt="zio-connect"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio-connect" data-icon="octicon-star" data-count-href="/zio/zio-connect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="/zio-connect//img/discord.png" width="120" alt="discord"/></a></div><div><h5>Additional resources</h5><a href="/zio-connect/api/index.html">Scaladoc of zio-connect</a></div></section><section class="copyright">Copyright © 2022 ZIO Maintainers</section></footer></div></body></html>
