@@ -73,7 +73,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
-          _          <- ZStream.succeed(bucketName) >>> deleteEmptyBuckets
+          _          <- ZStream.succeed(bucketName) >>> deleteEmptyBucket
           wasDeleted <- (ZStream(bucketName) >>> existsBucket).map(!_)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
       }
@@ -87,7 +87,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
           _          <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, ObjectKey(UUID.randomUUID().toString))
-          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true).catchSome { case _: S3Exception =>
+          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBucket).as(true).catchSome { case _: S3Exception =>
                           ZIO.succeed(false)
                         }
         } yield assertTrue(wasCreated) && assert(wasDeleted)(equalTo(false))
@@ -97,7 +97,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         for {
           wasCreated <- ZStream(bucketName) >>> existsBucket
           deleteFails <-
-            (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(false).catchSome { case _: S3Exception =>
+            (ZStream.succeed(bucketName) >>> deleteEmptyBucket).as(false).catchSome { case _: S3Exception =>
               ZIO.succeed(true)
             }
         } yield assert(wasCreated)(equalTo(false)) && assertTrue(deleteFails)
@@ -107,7 +107,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
         for {
           _          <- ZStream.succeed(bucketName) >>> createBucket
           wasCreated <- ZStream(bucketName) >>> existsBucket
-          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBuckets).as(true)
+          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBucket).as(true)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
       }
     )

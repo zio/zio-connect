@@ -12,7 +12,7 @@ package object s3 {
   def createBucket(implicit trace: Trace): ZSink[S3Connector, S3Exception, BucketName, BucketName, Unit] =
     ZSink.serviceWithSink(_.createBucket)
 
-  def deleteEmptyBuckets(implicit trace: Trace): ZSink[S3Connector, S3Exception, BucketName, BucketName, Unit] =
+  def deleteEmptyBucket(implicit trace: Trace): ZSink[S3Connector, S3Exception, BucketName, BucketName, Unit] =
     ZSink.serviceWithSink(_.deleteEmptyBucket)
 
   def deleteObjects(bucketName: BucketName)(implicit
@@ -32,6 +32,9 @@ package object s3 {
     trace: Trace
   ): ZStream[S3Connector, S3Exception, Byte] =
     ZStream.serviceWithStream(_.getObject(bucketName, key))
+
+  def listBuckets(implicit trace: Trace): ZStream[S3Connector, S3Exception, BucketName] =
+    ZStream.serviceWithStream(_.listBuckets)
 
   def listObjects(bucketName: => BucketName)(implicit trace: Trace): ZStream[S3Connector, S3Exception, ObjectKey] =
     ZStream.serviceWithStream(_.listObjects(bucketName))
