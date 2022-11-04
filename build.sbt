@@ -93,6 +93,7 @@ lazy val couchbaseConnector = project
     libraryDependencies ++= Seq(
       CouchbaseDependencies.couchbase,
       zio,
+      `zio-prelude`,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
