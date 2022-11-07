@@ -1,13 +1,13 @@
 ---
-id: quickstart_file_connector
-title: "FileConnector"
+id: file-connector
+title: "File Connector"
 ---
 
 Setup
 -----
 
-```
-libraryDependencies += "dev.zio" %% "zio-connect-file" % "<version>"
+```scala
+libraryDependencies += "dev.zio" %% "zio-connect-file" % "@VERSION@"
 ```
 
 How to use it ?

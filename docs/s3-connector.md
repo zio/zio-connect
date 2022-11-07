@@ -1,13 +1,13 @@
 ---
-id: quickstart_s3_connector
-title: "S3Connector"
+id: s3-connector
+title: "S3 Connector"
 ---
 
 Setup
 -----
 
-```
-libraryDependencies += "dev.zio" %% "zio-connect-s3" % "<version>"
+```scala
+libraryDependencies += "dev.zio" %% "zio-connect-s3" % "@VERSION@"
 ```
 
 How to use it?
