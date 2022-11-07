@@ -1,9 +1,11 @@
 ---
-id: quickstart_index
-title: "Quick Start"
+id: index
+title: "Introduction to ZIO Connectors"
+sidebar_label: "Introduction"
 ---
 
-Connectors are easy to use, and they are designed to be composable. You can use them to build pipelines that can be used to process data.
+ZIO connectors are Sources, Sinks and Pipelines for channeling data. They are easy to use, and they are designed to be composable. You can use them to build pipelines that can be used to process data.
+
 Each connector is defined as a separate module and can be used independently or in combination with other connectors.
 
 Connectors

@@ -47,11 +47,8 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check Website Generation
-        run: |
-          ./scripts/createSite.sh ${{ github.ref }}
+        run: sbt compileDocs
 
   test:
     runs-on: ubuntu-20.04
