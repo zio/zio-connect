@@ -86,7 +86,7 @@ trait CouchbaseConnectorSpec extends ZIOSpecDefault {
   private lazy val replaceSuite =
     suite("replace")(
       test("fails if key doesn't exist") {
-        val key = DocumentKey(UUID.randomUUID().toString)
+        val key     = DocumentKey(UUID.randomUUID().toString)
         val content = Chunk[Byte](1, 2, 3)
         for {
           wasReplaced <- (ZStream.succeed(ContentQueryObject(bucketName, scopeName, collectionName, key, content)) >>> replace).as(true)
@@ -96,7 +96,7 @@ trait CouchbaseConnectorSpec extends ZIOSpecDefault {
         } yield assert(wasReplaced)(equalTo(false))
       },
       test("succeeds") {
-        val key = DocumentKey(UUID.randomUUID().toString)
+        val key     = DocumentKey(UUID.randomUUID().toString)
         val content = Chunk[Byte](1, 2, 3)
         for {
           _            <- ZStream.succeed(ContentQueryObject(bucketName, scopeName, collectionName, key, Chunk[Byte](1))) >>> insert

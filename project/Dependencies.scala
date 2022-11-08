@@ -6,6 +6,7 @@ object Dependencies {
 
   val zioVersion     = "2.0.2"
   val zioPreludeVersion = "1.0.0-RC16"
+
   val zio            = "dev.zio" %% "zio"          % zioVersion
   val `zio-prelude`  = "dev.zio" %% "zio-prelude"  % zioPreludeVersion
   val `zio-streams`  = "dev.zio" %% "zio-streams"  % zioVersion
