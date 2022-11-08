@@ -23,5 +23,6 @@ package object couchbase {
     ZSink.serviceWithSink(_.remove)
 
   val couchbaseConnectorLiveLayer: ZLayer[Cluster, Nothing, LiveCouchbaseConnector] = LiveCouchbaseConnector.layer
+  val couchbaseConnectorTestLayer: ZLayer[Any, Nothing, TestCouchbaseConnector]     = TestCouchbaseConnector.layer
 
 }
