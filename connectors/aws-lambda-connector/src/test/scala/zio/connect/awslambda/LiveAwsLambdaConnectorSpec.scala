@@ -26,7 +26,7 @@ object LiveAwsLambdaConnectorSpec extends AwsLambdaConnectorSpec {
   lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
     ZLayer.fromZIO(
       ZIO.acquireRelease(ZIO.attempt {
-        val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")
+        val localstackImage = DockerImageName.parse("localstack/localstack:0.13.0")
         val localstack = new LocalStackContainer(localstackImage)
           .withServices(Service.LAMBDA)
         localstack.start()

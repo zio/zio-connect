@@ -1,7 +1,8 @@
 package zio.connect
 
-import zio.Trace
-import zio.connect.awslambda.AwsLambdaConnector.{AwsLambdaException, CreateFunctionRequest, InvokeRequest}
+import zio.{Chunk, Trace}
+import zio.aws.core.AwsError
+import zio.aws.lambda.model.{CreateFunctionRequest, CreateFunctionResponse, InvokeRequest, InvokeResponse}
 import zio.stream.ZSink
 
 package object awslambda {
@@ -10,10 +11,12 @@ package object awslambda {
 
   def createFunction(implicit
     trace: Trace
-  ): ZSink[AwsLambdaConnector, AwsLambdaException, CreateFunctionRequest, CreateFunctionRequest, Unit] =
+  ): ZSink[AwsLambdaConnector, AwsError, CreateFunctionRequest, Nothing, Chunk[CreateFunctionResponse]] =
     ZSink.serviceWithSink(_.createFunction)
 
-  def invoke(implicit trace: Trace): ZSink[AwsLambdaConnector, AwsLambdaException, InvokeRequest, InvokeRequest, Unit] =
+  def invoke(implicit
+    trace: Trace
+  ): ZSink[AwsLambdaConnector, AwsError, InvokeRequest, Nothing, Chunk[InvokeResponse]] =
     ZSink.serviceWithSink(_.invoke)
 
 }

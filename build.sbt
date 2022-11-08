@@ -60,7 +60,10 @@ lazy val awsLambdaConnector = project
       }
     }
   )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
