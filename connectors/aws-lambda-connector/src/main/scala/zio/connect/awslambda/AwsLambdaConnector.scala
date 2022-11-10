@@ -2,21 +2,14 @@ package zio.connect.awslambda
 
 import zio.{Chunk, Trace}
 import zio.aws.core.AwsError
-import zio.aws.lambda.model.{
-  CreateFunctionRequest,
-  CreateFunctionResponse,
-  CreateFunctionUrlConfigRequest,
-  CreateFunctionUrlConfigResponse,
-  InvokeRequest,
-  InvokeResponse
-}
-import zio.stream.ZSink
+import zio.aws.lambda.model._
+import zio.stream._
 
 trait AwsLambdaConnector {
 
   def createFunction(implicit
     trace: Trace
-  ): ZSink[Any, AwsError, CreateFunctionRequest, Nothing, Chunk[CreateFunctionResponse]]
+  ): ZSink[Any, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]]
 
   def createFunctionUrlConfig(implicit
     trace: Trace
@@ -24,26 +17,39 @@ trait AwsLambdaConnector {
     Any,
     AwsError,
     CreateFunctionUrlConfigRequest,
-    Nothing,
+    CreateFunctionUrlConfigRequest,
     Chunk[CreateFunctionUrlConfigResponse]
   ]
 
-  def invoke(implicit trace: Trace): ZSink[Any, AwsError, InvokeRequest, Nothing, Chunk[InvokeResponse]]
+  def deleteAlias(implicit trace: Trace): ZSink[Any, AwsError, DeleteAliasRequest, DeleteAliasRequest, Unit]
 
-}
+  def deleteFunction(implicit trace: Trace): ZSink[Any, AwsError, DeleteFunctionRequest, DeleteFunctionRequest, Unit]
 
-object AwsLambdaConnector {
+  def getAlias(implicit trace: Trace): ZSink[Any, AwsError, GetAliasRequest, GetAliasRequest, Chunk[GetAliasResponse]]
 
-//  zio.aws.lambda.Lambda.createFunction(cfr)
-//  zio.aws.lambda.Lambda.invoke(cfr)
-//
-//  zio.aws.lambda.Lambda.getFunction()
-//  zio.aws.lambda.Lambda.deleteFunction()
-//  zio.aws.lambda.Lambda.listFunctions()
-//  zio.aws.lambda.Lambda.deleteAlias()
-//  zio.aws.lambda.Lambda.getAlias()
-//  zio.aws.lambda.Lambda.listAliases()
-//  zio.aws.lambda.Lambda.getFunctionConcurrency()
-//  zio.aws.lambda.Lambda.listTags()
+  def getFunction(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, GetFunctionRequest, GetFunctionRequest, Chunk[GetFunctionResponse]]
 
+  def getFunctionConcurrency(implicit
+    trace: Trace
+  ): ZSink[
+    Any,
+    AwsError,
+    GetFunctionConcurrencyRequest,
+    GetFunctionConcurrencyRequest,
+    GetFunctionConcurrencyResponse
+  ]
+
+  def invoke(implicit trace: Trace): ZSink[Any, AwsError, InvokeRequest, InvokeRequest, Chunk[InvokeResponse]]
+
+  def listAliases(m: => ListAliasesRequest)(implicit
+    trace: Trace
+  ): ZStream[Any, AwsError, AliasConfiguration]
+
+  def listFunctions(m: => ListFunctionsRequest)(implicit
+    trace: Trace
+  ): ZStream[Any, AwsError, FunctionConfiguration]
+
+  def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse]
 }
