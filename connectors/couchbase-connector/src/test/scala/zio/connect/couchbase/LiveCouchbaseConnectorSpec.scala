@@ -18,7 +18,8 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
   lazy val couchbaseContainer: ZLayer[Scope, Throwable, CouchbaseContainer] =
     ZLayer.fromZIO(
       ZIO.acquireRelease(ZIO.attempt {
-        val dockerImageName = DockerImageName.parse("couchbase:enterprise")
+        val dockerImageName = DockerImageName
+          .parse("couchbase:enterprise")
           .asCompatibleSubstituteFor("couchbase/server")
         val container = new CouchbaseContainer(dockerImageName)
           .withBucket(new BucketDefinition("CouchbaseConnectorBucket"))
@@ -31,13 +32,13 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
     ZLayer
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
-        cluster   <- ZIO.fromTry(
-          Cluster.connect(
-            container.getConnectionString,
-            container.getUsername,
-            container.getPassword
-          )
-        )
+        cluster <- ZIO.fromTry(
+                     Cluster.connect(
+                       container.getConnectionString,
+                       container.getUsername,
+                       container.getPassword
+                     )
+                   )
       } yield cluster)
 
 }

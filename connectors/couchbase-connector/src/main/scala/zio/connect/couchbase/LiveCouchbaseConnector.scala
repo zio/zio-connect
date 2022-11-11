@@ -9,38 +9,23 @@ import zio.{Chunk, Trace, ZIO, ZLayer}
 
 final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseConnector {
 
-  override def insert(implicit trace: Trace): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] = {
+  override def exists(implicit trace: Trace): ZSink[Any, CouchbaseException, QueryObject, QueryObject, Boolean] =
     ZSink
-      .foreach[Any, Throwable, ContentQueryObject] { query =>
-        ZIO.fromTry {
-          couchbase
-            .bucket(query.bucketName)
-            .scope(query.scopeName)
-            .collection(query.collectionName)
-            .insert(
-              query.documentKey,
-              query.content.toArray,
-              InsertOptions().transcoder(RawBinaryTranscoder.Instance)
+      .take[QueryObject](1)
+      .map(_.headOption)
+      .mapZIO {
+        case Some(query) =>
+          ZIO
+            .fromTry(
+              couchbase
+                .bucket(query.bucketName)
+                .scope(query.scopeName)
+                .collection(query.collectionName)
+                .exists(query.documentKey)
+                .map(_.exists)
             )
-        }
-      }
-      .mapError(CouchbaseException)
-  }
-
-  override def upsert(implicit trace: Trace): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
-    ZSink
-      .foreach[Any, Throwable, ContentQueryObject] { query =>
-        ZIO.fromTry {
-          couchbase
-            .bucket(query.bucketName)
-            .scope(query.scopeName)
-            .collection(query.collectionName)
-            .upsert(
-              query.documentKey,
-              query.content.iterator.toArray,
-              UpsertOptions().transcoder(RawBinaryTranscoder.Instance)
-            )
-        }
+        case None =>
+          ZIO.succeed(false)
       }
       .mapError(CouchbaseException)
 
@@ -48,7 +33,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
     ZStream
       .fromIterableZIO(
         ZIO
-          .fromTry {
+          .fromTry(
             couchbase
               .bucket(queryObject.bucketName)
               .scope(queryObject.scopeName)
@@ -56,11 +41,46 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
               .get(queryObject.documentKey, GetOptions().transcoder(RawBinaryTranscoder.Instance))
               .flatMap(_.contentAs[Array[Byte]])
               .map(Chunk.fromArray)
-          }
-          .mapError(CouchbaseException)
+          )
       )
+      .mapError(CouchbaseException)
 
-  override def replace(implicit trace: Trace): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
+  override def insert(implicit
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
+    ZSink
+      .foreach[Any, Throwable, ContentQueryObject] { query =>
+        ZIO
+          .fromTry(
+            couchbase
+              .bucket(query.bucketName)
+              .scope(query.scopeName)
+              .collection(query.collectionName)
+              .insert(
+                query.documentKey,
+                query.content.toArray,
+                InsertOptions().transcoder(RawBinaryTranscoder.Instance)
+              )
+          )
+      }
+      .mapError(CouchbaseException)
+
+  override def remove(implicit trace: Trace): ZSink[Any, CouchbaseException, QueryObject, QueryObject, Unit] =
+    ZSink
+      .foreach[Any, Throwable, QueryObject] { query =>
+        ZIO.fromTry(
+          couchbase
+            .bucket(query.bucketName)
+            .scope(query.scopeName)
+            .collection(query.collectionName)
+            .remove(query.documentKey)
+        )
+      }
+      .mapError(CouchbaseException)
+
+  override def replace(implicit
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
         ZIO.fromTry(
@@ -77,19 +97,24 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
       }
       .mapError(CouchbaseException)
 
-  override def remove(implicit trace: Trace): ZSink[Any, CouchbaseException, QueryObject, QueryObject, Unit] = {
+  override def upsert(implicit
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
-      .foreach[Any, Throwable, QueryObject] { query =>
-        ZIO.fromTry(
+      .foreach[Any, Throwable, ContentQueryObject] { query =>
+        ZIO.fromTry {
           couchbase
             .bucket(query.bucketName)
             .scope(query.scopeName)
             .collection(query.collectionName)
-            .remove(query.documentKey)
-        )
+            .upsert(
+              query.documentKey,
+              query.content.iterator.toArray,
+              UpsertOptions().transcoder(RawBinaryTranscoder.Instance)
+            )
+        }
       }
       .mapError(CouchbaseException)
-  }
 
 }
 
