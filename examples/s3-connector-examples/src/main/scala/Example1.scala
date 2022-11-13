@@ -6,7 +6,7 @@ import zio.aws.s3.S3
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector.CopyObject
 import zio.connect.s3._
-import zio.connect.s3.multiregion.MultiRegionS3Connector
+import zio.connect.s3.multiregion._
 import zio.stream._
 
 import java.nio.charset.StandardCharsets
