@@ -8,6 +8,7 @@ import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
 
 trait S3Connector {
+
   def copyObject(region: => Region)(implicit
     trace: Trace
   ): ZSink[Any, AwsError, CopyObject, CopyObject, Unit]
