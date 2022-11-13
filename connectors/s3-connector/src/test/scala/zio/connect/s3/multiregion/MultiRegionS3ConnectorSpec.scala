@@ -1,8 +1,9 @@
-package zio.connect.s3
+package zio.connect.s3.multiregion
 
 import software.amazon.awssdk.regions.Region
 import zio.aws.core.AwsError
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
+import zio.connect.s3.S3Connector
 import zio.connect.s3.S3Connector.CopyObject
 import zio.stream.ZStream
 import zio.test.Assertion._
@@ -11,7 +12,7 @@ import zio.{Chunk, Random, ZIO}
 
 import java.util.UUID
 
-trait S3ConnectorSpec extends ZIOSpecDefault {
+trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
 
   val s3ConnectorSpec =
     copyObjectSpec + createBucketSuite + deleteBucketSuite + deleteObjectsSuite + listObjectsSuite + moveObjectSuite + putObjectSuite
@@ -76,7 +77,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val createBucketSuite: Spec[S3Connector, AwsError] =
+  private lazy val createBucketSuite =
     suite("createBucket")(
       test("changes nothing if bucket already exists") {
         val bucketName = BucketName(UUID.randomUUID().toString)
@@ -102,7 +103,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val deleteBucketSuite: Spec[S3Connector, AwsError] =
+  private lazy val deleteBucketSuite =
     suite("deleteBucket")(
       test("fails if bucket is not empty") {
         val bucketName = BucketName(UUID.randomUUID().toString)
@@ -142,7 +143,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val deleteObjectsSuite: Spec[S3Connector, AwsError] =
+  private lazy val deleteObjectsSuite =
     suite("deleteObjects")(
       test("succeeds if object not exists") {
         val bucketName = BucketName(UUID.randomUUID().toString)
@@ -200,7 +201,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           actual              <- listObjects(bucketName, Region.US_EAST_1).runCollect
           _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName, Region.US_EAST_1)
           afterObjectDeletion <- listObjects(bucketName, Region.US_EAST_1).runCollect
-        } yield assertTrue(actual.sortBy(_.toString) == Chunk(obj1, obj2).sortBy(_.toString)) && assertTrue(
+        } yield assertTrue(actual.sorted == Chunk(obj1, obj2).sorted) && assertTrue(
           afterObjectDeletion.isEmpty
         )
       }
@@ -247,10 +248,10 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
           b1Objects        <- listObjects(bucket1, Region.US_EAST_1).runCollect
           b2Objects        <- listObjects(bucket2, Region.US_EAST_1).runCollect
 
-        } yield assertTrue(initialB1Objects.sortBy(_.toString) == Chunk(key1, key2, key3).sortBy(_.toString)) &&
+        } yield assertTrue(initialB1Objects.sorted == Chunk(key1, key2, key3).sorted) &&
           assertTrue(initialB2Objects.isEmpty) &&
           assertTrue(b1Objects == Chunk(key1)) &&
-          assertTrue(b2Objects.sortBy(_.toString) == Chunk(key1, key2, key4).sortBy(_.toString))
+          assertTrue(b2Objects.sorted == Chunk(key1, key2, key4).sorted)
 
       },
       test("moves preexisting object cross region") {
@@ -273,7 +274,7 @@ trait S3ConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  private lazy val putObjectSuite: Spec[S3Connector, AwsError] =
+  private lazy val putObjectSuite =
     suite("putObject")(
       test("succeeds") {
         val bucketName = BucketName(UUID.randomUUID().toString)

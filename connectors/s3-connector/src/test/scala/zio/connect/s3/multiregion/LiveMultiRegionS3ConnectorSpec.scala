@@ -1,4 +1,5 @@
-package zio.connect.s3
+package zio.connect.s3.multiregion
+
 import org.testcontainers.containers.localstack.LocalStackContainer
 import org.testcontainers.containers.localstack.LocalStackContainer.Service
 import org.testcontainers.utility.DockerImageName
@@ -10,14 +11,14 @@ import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
 import zio.{Scope, ZIO, ZLayer}
 
-object LiveS3ConnectorSpec extends S3ConnectorSpec {
+object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
   override def spec =
-    suite("LiveS3ConnectorSpec")(s3ConnectorSpec)
+    suite("LiveMultiRegionS3ConnectorSpec")(s3ConnectorSpec)
       .provideSomeShared[Scope](
         localStackContainer,
         awsConfig,
         s3,
-        zio.connect.s3.s3ConnectorLiveLayer
+        zio.connect.s3.multiregion.multiRegionS3ConnectorLiveLayer
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
@@ -44,7 +45,7 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
                          _.credentialsProvider(
                            StaticCredentialsProvider
                              .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                         ).region(Region.of(localstack.getRegion))
+                         ).region(Region.US_WEST_2)
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )
@@ -55,7 +56,7 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
                          _.credentialsProvider(
                            StaticCredentialsProvider
                              .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                         ).region(Region.of(localstack.getRegion))
+                         ).region(Region.US_EAST_1)
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )

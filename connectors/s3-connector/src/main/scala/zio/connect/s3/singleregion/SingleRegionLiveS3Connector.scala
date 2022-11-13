@@ -1,25 +1,25 @@
-package zio.connect.s3
-import software.amazon.awssdk.regions.Region
+package zio.connect.s3.singleregion
+
 import zio.aws.core.AwsError
 import zio.aws.s3.S3
-import zio.aws.s3.model.primitives._
 import zio.aws.s3.model._
-import zio.connect.s3.S3Connector.CopyObject
+import zio.aws.s3.model.primitives._
+import zio.connect.s3.S3Connector
+import zio.connect.s3.S3Connector.{CopyObject, MoveObject}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
+final case class SingleRegionLiveS3Connector(s3: S3) extends SingleRegionS3Connector {
 
-  override def copyObject(region: => Region)(implicit
+  override def copyObject(implicit
     trace: Trace
   ): ZSink[Any, AwsError, CopyObject, CopyObject, Unit] =
     ZSink
       .foreach[Any, AwsError, CopyObject] { m =>
         for {
-          s3 <- getS3(region)
           copySource <-
             ZIO
               .attempt(URLEncoder.encode(s"${m.sourceBucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
@@ -34,61 +34,46 @@ final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
         } yield ()
       }
 
-  private def getS3(region: Region) = ZIO
-    .fromOption(s3Map.get(region))
-    .orElseFail(new RuntimeException(s"Connector not found for Region $region"))
-    .orDie
-
-  override def createBucket(
-    region: => Region
-  )(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
+  override def createBucket(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
     ZSink
       .foreach[Any, AwsError, BucketName] { name =>
-        getS3(region).flatMap(
-          _.createBucket(CreateBucketRequest(bucket = BucketName(name)))
-        )
+        s3.createBucket(CreateBucketRequest(bucket = BucketName(name)))
+
       }
 
-  override def deleteEmptyBucket(
-    region: => Region
-  )(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
+  override def deleteEmptyBucket(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
     ZSink
       .foreach[Any, AwsError, BucketName] { name =>
-        getS3(region).flatMap(
-          _.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
-        )
+        s3.deleteBucket(DeleteBucketRequest(bucket = BucketName(name)))
       }
 
-  override def deleteObjects(bucketName: => BucketName, region: => Region)(implicit
+  override def deleteObjects(bucketName: => BucketName)(implicit
     trace: Trace
   ): ZSink[Any, AwsError, ObjectKey, ObjectKey, Unit] =
     ZSink
       .foreachChunk[Any, AwsError, ObjectKey] { objectKeys =>
-        getS3(region).flatMap(
-          _.deleteObjects(
-            DeleteObjectsRequest(
-              bucket = BucketName(bucketName),
-              delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(ObjectKey(a))))
-            )
+        s3.deleteObjects(
+          DeleteObjectsRequest(
+            bucket = BucketName(bucketName),
+            delete = Delete(objects = objectKeys.map(a => ObjectIdentifier(ObjectKey(a))))
           )
         )
       }
 
-  override def getObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
+  override def getObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZStream[Any, AwsError, Byte] =
-    ZStream.unwrap(getS3(region).flatMap { s3 =>
+    ZStream.unwrap(
       s3.getObject(GetObjectRequest(bucket = BucketName(bucketName), key = ObjectKey(key)))
         .map(_.output)
         .map((r: ZStream[Any, AwsError, Byte]) => r)
-    })
+    )
 
-  override def listBuckets(region: => Region)(implicit
+  override def listBuckets(implicit
     trace: Trace
   ): ZStream[Any, AwsError, BucketName] =
     ZStream.fromIterableZIO {
       for {
-        s3          <- getS3(region)
         listBuckets <- s3.listBuckets()
         buckets     <- listBuckets.getBuckets
         bucketNames <- ZIO.succeed(buckets.flatMap(b => b.name.toList.map(BucketName(_))))
@@ -96,12 +81,11 @@ final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
       } yield bucketNames
     }
 
-  override def listObjects(bucketName: => BucketName, region: => Region)(implicit
+  override def listObjects(bucketName: => BucketName)(implicit
     trace: Trace
   ): ZStream[Any, AwsError, ObjectKey] =
     ZStream.fromIterableZIO {
       for {
-        s3 <- getS3(region)
         objects <- s3.listObjects(ListObjectsRequest(bucket = BucketName(bucketName)))
                      .map(
                        _.contents.map(_.flatMap(_.key.toChunk.map(ObjectKey(_)))).getOrElse(Chunk.empty[ObjectKey])
@@ -110,13 +94,24 @@ final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
 
     }
 
-  override def putObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
+  override def moveObject(implicit trace: Trace): ZSink[Any, AwsError, MoveObject, MoveObject, Unit] =
+    ZSink
+      .foreach[Any, AwsError, S3Connector.MoveObject] { m =>
+        for {
+          _ <- getObject(m.bucketName, m.objectKey) >>> putObject(
+                 m.targetBucketName,
+                 m.targetObjectKey
+               )
+          _ <- ZStream(m.objectKey) >>> deleteObjects(m.bucketName)
+        } yield ()
+      }
+
+  override def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace
   ): ZSink[Any, AwsError, Byte, Nothing, Unit] =
     ZSink
       .foreachChunk[Any, AwsError, Byte] { content =>
         for {
-          s3 <- getS3(region)
           _ <- s3.putObject(
                  request = PutObjectRequest(
                    bucket = BucketName(bucketName),
@@ -130,9 +125,9 @@ final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
 
 }
 
-object LiveS3Connector {
+object SingleRegionLiveS3Connector {
 
-  val layer: ZLayer[Map[Region, S3], Nothing, LiveS3Connector] =
-    ZLayer.fromZIO(ZIO.service[Map[Region, S3]].map(LiveS3Connector(_)))
+  val layer: ZLayer[S3, Nothing, SingleRegionLiveS3Connector] =
+    ZLayer.fromZIO(ZIO.service[S3].map(SingleRegionLiveS3Connector(_)))
 
 }

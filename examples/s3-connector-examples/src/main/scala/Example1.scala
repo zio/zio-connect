@@ -6,6 +6,7 @@ import zio.aws.s3.S3
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector.CopyObject
 import zio.connect.s3._
+import zio.connect.s3.multiregion.MultiRegionS3Connector
 import zio.stream._
 
 import java.nio.charset.StandardCharsets
@@ -26,7 +27,7 @@ object Example1 extends ZIOAppDefault {
   // 6. Deletes the objects in both buckets
   // 7. Checks for the existence of the objects in both buckets
   // 8. Deletes the buckets provided they are empty
-  val program: ZIO[S3Connector, Object, String] = {
+  val program: ZIO[MultiRegionS3Connector, Object, String] = {
     for {
       bucket1          <- Random.nextUUID.map(_.toString).map(uuid => BucketName(s"zio-connect-s3-bucket-$uuid"))
       bucket2          <- Random.nextUUID.map(_.toString).map(uuid => BucketName(s"zio-connect-s3-bucket-$uuid"))
@@ -52,7 +53,7 @@ object Example1 extends ZIOAppDefault {
 
   override def run: ZIO[Any with ZIOAppArgs with Scope, Object, String] =
     program
-      .provide(zioAwsConfig, S3.live, s3ConnectorLiveLayer)
+      .provide(zioAwsConfig, S3.live, multiRegionS3ConnectorLiveLayer)
       .tapBoth(
         error => Console.printLine(s"error: ${error}"),
         text => Console.printLine(s"${text} ==\n ${quote}\nis ${text == quote}")
