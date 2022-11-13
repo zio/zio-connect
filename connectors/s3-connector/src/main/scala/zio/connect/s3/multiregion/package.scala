@@ -1,9 +1,8 @@
 package zio.connect.s3
 
 import software.amazon.awssdk.regions.Region
-import zio.{Trace, ZLayer}
+import zio.Trace
 import zio.aws.core.AwsError
-import zio.aws.s3.S3
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector.CopyObject
 import zio.connect.s3.singleregion.SingleRegionS3Connector
@@ -70,10 +69,6 @@ package object multiregion {
     trace: Trace
   ): ZSink[MultiRegionS3Connector, AwsError, S3Connector.MoveObject, S3Connector.MoveObject, Unit] =
     ZSink.serviceWithSink(_.moveObject(sourceRegion, destinationRegion))
-
-  val multiRegionS3ConnectorLiveLayer: ZLayer[Map[Region, S3], Nothing, MultiRegionS3Connector] =
-    MultiRegionLiveS3Connector.layer
-  val multiRegionS3ConnectorTestLayer: ZLayer[Any, Nothing, MultiRegionS3Connector] = TestMultiRegionS3Connector.layer
 
   def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace

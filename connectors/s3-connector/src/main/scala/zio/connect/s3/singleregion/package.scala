@@ -1,8 +1,7 @@
 package zio.connect.s3
 
-import zio.{Trace, ZLayer}
+import zio.Trace
 import zio.aws.core.AwsError
-import zio.aws.s3.S3
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector.CopyObject
 import zio.stream.{ZSink, ZStream}
@@ -58,10 +57,6 @@ package object singleregion {
     trace: Trace
   ): ZSink[SingleRegionS3Connector, AwsError, S3Connector.MoveObject, S3Connector.MoveObject, Unit] =
     ZSink.serviceWithSink(_.moveObject)
-
-  val singleRegionS3ConnectorLiveLayer: ZLayer[S3, Nothing, SingleRegionS3Connector] = SingleRegionLiveS3Connector.layer
-  val singleRegionS3ConnectorTestLayer: ZLayer[Any, Nothing, SingleRegionS3Connector] =
-    TestSingleRegionS3Connector.layer
 
   def putObject(bucketName: => BucketName, key: => ObjectKey)(implicit
     trace: Trace

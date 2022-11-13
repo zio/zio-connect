@@ -9,6 +9,7 @@ import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
+import zio.connect.s3.multiRegionS3ConnectorLiveLayer
 import zio.{Scope, ZIO, ZLayer}
 
 object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
@@ -18,7 +19,7 @@ object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
         localStackContainer,
         awsConfig,
         s3,
-        zio.connect.s3.multiregion.multiRegionS3ConnectorLiveLayer
+        multiRegionS3ConnectorLiveLayer
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
