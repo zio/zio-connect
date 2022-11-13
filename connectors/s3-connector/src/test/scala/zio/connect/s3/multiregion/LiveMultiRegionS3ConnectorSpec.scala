@@ -50,19 +50,19 @@ object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )
-      s3USEast1 <- ZIO
+      s3USEast2 <- ZIO
                      .service[S3]
                      .provideSome[AwsConfig](
                        S3.customized(
                          _.credentialsProvider(
                            StaticCredentialsProvider
                              .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                         ).region(Region.US_EAST_1)
+                         ).region(Region.US_EAST_2)
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )
 
-    } yield Map(Region.US_EAST_1 -> s3USEast1, Region.US_WEST_2 -> s3USWest2)
+    } yield Map(Region.US_EAST_2 -> s3USEast2, Region.US_WEST_2 -> s3USWest2)
     ZLayer
       .fromZIO(res)
   }
