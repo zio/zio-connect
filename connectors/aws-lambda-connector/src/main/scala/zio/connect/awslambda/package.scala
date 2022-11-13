@@ -9,6 +9,11 @@ package object awslambda {
 
   val awsLambdaConnectorLiveLayer = LiveAwsLambdaConnector.layer
 
+  def createAlias(implicit
+    trace: Trace
+  ): ZSink[AwsLambdaConnector, AwsError, CreateAliasRequest, CreateAliasRequest, Chunk[CreateAliasResponse]] =
+    ZSink.serviceWithSink(_.createAlias)
+
   def createFunction(implicit
     trace: Trace
   ): ZSink[AwsLambdaConnector, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]] =

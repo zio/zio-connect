@@ -7,6 +7,10 @@ import zio.stream._
 
 trait AwsLambdaConnector {
 
+  def createAlias(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, CreateAliasRequest, CreateAliasRequest, Chunk[CreateAliasResponse]]
+
   def createFunction(implicit
     trace: Trace
   ): ZSink[Any, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]]
@@ -52,4 +56,5 @@ trait AwsLambdaConnector {
   ): ZStream[Any, AwsError, FunctionConfiguration]
 
   def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse]
+
 }

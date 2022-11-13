@@ -8,6 +8,14 @@ import zio.aws.lambda.model._
 
 case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
 
+  override def createAlias(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, CreateAliasRequest, CreateAliasRequest, Chunk[CreateAliasResponse]] =
+    ZSink
+      .foldLeftZIO[Any, AwsError, CreateAliasRequest, Chunk[CreateAliasResponse]](
+        Chunk.empty[CreateAliasResponse]
+      )((s, m) => lambda.createAlias(m).map(_.asEditable).map(a => s :+ a))
+
   override def createFunction(implicit
     trace: Trace
   ): ZSink[Any, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]] =

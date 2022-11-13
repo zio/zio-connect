@@ -1,8 +1,9 @@
 package zio.connect.awslambda
 
-import zio.Chunk
-import zio.aws.lambda.model.{CreateFunctionRequest, FunctionCode, InvokeRequest}
-import zio.aws.lambda.model.primitives.{Blob, FunctionName, Handler, NamespacedFunctionName, RoleArn}
+import zio.aws.core.{AwsError, GenericAwsError}
+import zio.{Chunk, ZIO}
+import zio.aws.lambda.model._
+import zio.aws.lambda.model.primitives._
 import zio.stream.{ZPipeline, ZStream}
 import zio.test._
 import zio.test.Assertion._
@@ -11,12 +12,69 @@ import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  val awsLambdaConnectorSpec = invokeLambdaSpec
+  val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec
+
+  lazy val createAliasSpec =
+    suite("createAlias")(
+      test("succeeds") {
+        val alias1 = Alias("alias1")
+        val alias2 = Alias("alias2")
+        for {
+          zipFile     <- ZStream.fromFileURI(this.getClass.getResource("/handler.js.zip").toURI).runCollect
+          functionName = FunctionName(UUID.randomUUID().toString)
+          createFunctionResponse <-
+            ZStream(
+              CreateFunctionRequest(
+                functionName = FunctionName(functionName),
+                runtime = Some(zio.aws.lambda.model.Runtime.`nodejs14.x`),
+                role = RoleArn("cool-stacklifter"),
+                handler = Some(Handler("handler.handler")),
+                code = FunctionCode(zipFile = Some(Blob(zipFile)))
+              )
+            ) >>> createFunction
+          functionVersion <-
+            ZIO
+              .fromOption(
+                createFunctionResponse
+                  .find(_.functionName.map(_.toString).contains(functionName.toString))
+                  .flatMap(_.version.toOption)
+              )
+              .orElseFail(new RuntimeException("No functionVersion in response"))
+              .orDie
+          createdAliases1 <- ZStream(
+                               CreateAliasRequest(functionName, alias1, functionVersion)
+                             ) >>> createAlias
+          createdAliases2 <- ZStream(
+                               CreateAliasRequest(functionName, alias2, functionVersion)
+                             ) >>> createAlias
+          createdAliases = createdAliases1 ++ createdAliases2
+          listedAliases <- listAliases(ListAliasesRequest(functionName)).runCollect.map(_.map(_.name.toChunk).flatten)
+
+          _ <- ZStream(DeleteAliasRequest(functionName, alias2)) >>> deleteAlias
+          remainingAliases <-
+            listAliases(ListAliasesRequest(functionName)).runCollect.map(_.map(_.name.toChunk).flatten)
+
+          getRemainingAliasResult <- ZStream(GetAliasRequest(functionName, alias1)) >>> getAlias
+          getDeletedAliasResult <- (ZStream(GetAliasRequest(functionName, alias2)) >>> getAlias)
+                                     .catchSome[AwsLambdaConnector, AwsError, Chunk[GetAliasResponse]] {
+                                       case GenericAwsError(reason)
+                                           if reason.getClass.getSimpleName == "ResourceNotFoundException" =>
+                                         ZIO.succeed(Chunk.empty[GetAliasResponse])
+                                     }
+        } yield assertTrue(
+          createdAliases.map(_.name.toChunk).flatten.sortBy(identity) == listedAliases.sortBy(identity)
+        ) && assertTrue(
+          remainingAliases.contains(alias1)
+        ) && assertTrue(getDeletedAliasResult.isEmpty) && assertTrue(
+          getRemainingAliasResult.map(_.name.toChunk).flatten.contains(alias1)
+        )
+
+      }
+    )
 
   lazy val invokeLambdaSpec =
     suite("invoke")(
       test("succeeds") {
-
         for {
           zipFile     <- ZStream.fromFileURI(this.getClass.getResource("/handler.js.zip").toURI).runCollect
           functionName = "myCustomFunction"
@@ -47,6 +105,63 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                         .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                         .runCollect
         } yield assert(payloads.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
+
+      }
+    )
+
+  lazy val listFunctionsSpec =
+    suite("listFunctions")(
+      test("succeeds") {
+        for {
+          zipFile      <- ZStream.fromFileURI(this.getClass.getResource("/handler.js.zip").toURI).runCollect
+          functionName1 = FunctionName(UUID.randomUUID().toString)
+          functionName2 = FunctionName(UUID.randomUUID().toString)
+          _ <- ZStream(
+                 CreateFunctionRequest(
+                   functionName = FunctionName(functionName1),
+                   runtime = Some(zio.aws.lambda.model.Runtime.`nodejs14.x`),
+                   role = RoleArn("cool-stacklifter"),
+                   handler = Some(Handler("handler.handler")),
+                   code = FunctionCode(zipFile = Some(Blob(zipFile)))
+                 ),
+                 CreateFunctionRequest(
+                   functionName = FunctionName(functionName2),
+                   runtime = Some(zio.aws.lambda.model.Runtime.`nodejs14.x`),
+                   role = RoleArn("cool-stacklifter"),
+                   handler = Some(Handler("handler.handler")),
+                   code = FunctionCode(zipFile = Some(Blob(zipFile)))
+                 )
+               ) >>> createFunction
+          functions <- listFunctions(ListFunctionsRequest()).runCollect
+          functionNames = functions
+                            .map(_.functionName.map(_.toString).toChunk)
+                            .flatten
+                            .toList
+
+          _                      <- ZStream(DeleteFunctionRequest(functionName2)) >>> deleteFunction
+          functionsAfterDeletion <- listFunctions(ListFunctionsRequest()).runCollect
+          functionNamesAfterDeletion = functionsAfterDeletion
+                                         .map(_.functionName.map(_.toString).toChunk)
+                                         .flatten
+                                         .toList
+
+          getDeletedFunctionResult <-
+            (ZStream(GetFunctionRequest(NamespacedFunctionName(functionName1.toString))) >>> getFunction)
+              .catchSome[AwsLambdaConnector, AwsError, Chunk[GetFunctionResponse]] {
+                case GenericAwsError(reason) if reason.getClass.getSimpleName == "ResourceNotFoundException" =>
+                  ZIO.succeed(Chunk.empty[GetFunctionResponse])
+              }
+        } yield assertTrue(functionNames.contains(functionName1.toString)) && assertTrue(
+          functionNames.contains(functionName2.toString)
+        ) && assertTrue(functionNamesAfterDeletion.contains(functionName1.toString)) && assertTrue(
+          !functionNamesAfterDeletion.contains(functionName2.toString)
+        ) && assertTrue(
+          getDeletedFunctionResult
+            .map(_.configuration.flatMap(_.functionName).toChunk)
+            .flatten
+            .map(_.toString)
+            .contains(functionName1.toString)
+        )
 
       }
     )
