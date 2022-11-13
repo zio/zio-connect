@@ -46,7 +46,7 @@ object LiveSingleRegionS3ConnectorSpec extends SingleRegionS3ConnectorSpec {
                   _.credentialsProvider(
                     StaticCredentialsProvider
                       .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                  ).region(Region.of(localstack.getRegion))
+                  ).region(Region.US_WEST_2)
                     .endpointOverride(localstack.getEndpointOverride(Service.S3))
                 )
               )

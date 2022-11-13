@@ -77,11 +77,6 @@ object TestMultiRegionS3Connector {
     private def bucketDoesntExistException(name: BucketName): AwsError =
       AwsError.fromThrowable(new RuntimeException(s"Bucket $name doesn't exist"))
 
-    private def getBucket(map: Map[(BucketName, Region), S3Bucket], bucketName: BucketName, region: Region) =
-      ZSTM
-        .fromOption(map.get((bucketName, region)))
-        .mapError(_ => bucketDoesntExistException(bucketName))
-
     def copyObject(m: CopyObject, sourceRegion: => Region, destinationRegion: => Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(for {
         map               <- repo.get
@@ -100,8 +95,8 @@ object TestMultiRegionS3Connector {
     def createBucket(name: BucketName, region: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
-          bucket <- repo.get.map(_.get((name, region)))
-          _ <- if (bucket.isDefined) ZSTM.succeed(())
+          bucketAlreadyExists <- repo.get.map(m => m.keys.map(_._1).contains(name))
+          _ <- if (bucketAlreadyExists) ZSTM.fail(AwsError.fromThrowable(new RuntimeException("Bucket already exists")))
                else repo.getAndUpdate(m => m.updated((name, region), S3Bucket(name, Map.empty)))
         } yield ()
       )
@@ -132,6 +127,11 @@ object TestMultiRegionS3Connector {
           _ <- repo.set(map.updated((bucket.name, region), S3Bucket(bucket.name, bucket.objects - key)))
         } yield ()
       )
+
+    private def getBucket(map: Map[(BucketName, Region), S3Bucket], bucketName: BucketName, region: Region) =
+      ZSTM
+        .fromOption(map.get((bucketName, region)))
+        .mapError(_ => bucketDoesntExistException(bucketName))
 
     def getObject(bucketName: BucketName, key: ObjectKey, region: Region): ZStream[Any, AwsError, Byte] =
       ZStream.unwrap(

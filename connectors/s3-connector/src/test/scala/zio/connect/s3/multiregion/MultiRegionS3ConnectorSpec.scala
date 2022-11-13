@@ -24,17 +24,17 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucket2 = BucketName(UUID.randomUUID().toString)
         val key     = ObjectKey(UUID.randomUUID().toString)
         for {
-          _             <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_1)
+          _             <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_2)
           content1      <- Random.nextBytes(5)
           content2      <- Random.nextBytes(5)
-          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_1)
-          _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_EAST_1)
-          _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject(Region.US_EAST_1)
-          copiedContent <- getObject(bucket2, key, Region.US_EAST_1).runCollect
+          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_2)
+          _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_EAST_2)
+          _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject(Region.US_EAST_2)
+          copiedContent <- getObject(bucket2, key, Region.US_EAST_2).runCollect
         } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
-        val region  = Region.US_EAST_1
+        val region  = Region.US_EAST_2
         val bucket1 = BucketName(UUID.randomUUID().toString)
         val object1 = ObjectKey(UUID.randomUUID().toString)
         val object2 = ObjectKey(UUID.randomUUID().toString)
@@ -65,13 +65,13 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucket2 = BucketName(UUID.randomUUID().toString)
         val key     = ObjectKey(UUID.randomUUID().toString)
         for {
-          _             <- ZStream(bucket1) >>> createBucket(Region.US_EAST_1)
+          _             <- ZStream(bucket1) >>> createBucket(Region.US_EAST_2)
           _             <- ZStream(bucket2) >>> createBucket(Region.US_WEST_2)
           content1      <- Random.nextBytes(5)
           content2      <- Random.nextBytes(5)
-          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_1)
+          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_2)
           _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_WEST_2)
-          _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject(Region.US_EAST_1, Region.US_WEST_2)
+          _             <- ZStream(S3Connector.CopyObject(bucket1, key, bucket2)) >>> copyObject(Region.US_EAST_2, Region.US_WEST_2)
           copiedContent <- getObject(bucket2, key, Region.US_WEST_2).runCollect
         } yield assertTrue(copiedContent == content1)
       }
@@ -79,26 +79,25 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
 
   private lazy val createBucketSuite =
     suite("createBucket")(
-      test("changes nothing if bucket already exists") {
+      test("fails if bucket already exists in any other region") {
         val bucketName = BucketName(UUID.randomUUID().toString)
+        val region1    = Region.US_EAST_2
+        val region2    = Region.US_WEST_2
         for {
-          _       <- ZStream(bucketName) >>> createBucket(Region.US_EAST_1)
-          content <- Random.nextBytes(5)
-          _ <-
-            ZStream
-              .fromChunk(content) >>> putObject(bucketName, ObjectKey(UUID.randomUUID().toString), Region.US_EAST_1)
-          objectsBefore <- listObjects(bucketName, Region.US_EAST_1).runCollect
-          _             <- ZStream(bucketName) >>> createBucket(Region.US_EAST_1)
-          objectsAfter  <- listObjects(bucketName, Region.US_EAST_1).runCollect
-        } yield assertTrue(objectsBefore == objectsAfter)
+          _            <- ZStream(bucketName) >>> createBucket(region1)
+          bucketExists <- ZStream(bucketName) >>> existsBucket(region1)
+          exit         <- (ZStream(bucketName) >>> createBucket(region2)).exit
+          failsWithExpectedError <-
+            exit.as(false).catchSome { case _: AwsError => ZIO.succeed(true) }
+        } yield assertTrue(bucketExists) && assertTrue(failsWithExpectedError)
       },
       test("succeeds") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
-          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_1)
-          _          <- ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_1)
-          wasDeleted <- (ZStream(bucketName) >>> existsBucket(Region.US_EAST_1)).map(!_)
+          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
+          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_2)
+          _          <- ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_2)
+          wasDeleted <- (ZStream(bucketName) >>> existsBucket(Region.US_EAST_2)).map(!_)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
       }
     )
@@ -108,15 +107,15 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
       test("fails if bucket is not empty") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
-          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_1)
+          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
+          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_2)
           _ <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(
                  bucketName,
                  ObjectKey(UUID.randomUUID().toString),
-                 Region.US_EAST_1
+                 Region.US_EAST_2
                )
           wasDeleted <-
-            (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_1)).as(true).catchSome {
+            (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_2)).as(true).catchSome {
               case _: AwsError =>
                 ZIO.succeed(false)
             }
@@ -125,9 +124,9 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
       test("fails if bucket not exists") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_1)
+          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_2)
           deleteFails <-
-            (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_1)).as(false).catchSome {
+            (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_2)).as(false).catchSome {
               case _: AwsError =>
                 ZIO.succeed(true)
             }
@@ -136,9 +135,9 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
       test("succeeds if bucket is empty") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
-          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_1)
-          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_1)).as(true)
+          _          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
+          wasCreated <- ZStream(bucketName) >>> existsBucket(Region.US_EAST_2)
+          wasDeleted <- (ZStream.succeed(bucketName) >>> deleteEmptyBucket(Region.US_EAST_2)).as(true)
         } yield assertTrue(wasCreated) && assertTrue(wasDeleted)
       }
     )
@@ -149,9 +148,9 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucketName = BucketName(UUID.randomUUID().toString)
         val key        = ObjectKey(UUID.randomUUID().toString)
         for {
-          _                          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
-          objectExistsBeforeDeletion <- ZStream(key) >>> existsObject(bucketName, Region.US_EAST_1)
-          _                          <- ZStream(key) >>> deleteObjects(bucketName, Region.US_EAST_1)
+          _                          <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
+          objectExistsBeforeDeletion <- ZStream(key) >>> existsObject(bucketName, Region.US_EAST_2)
+          _                          <- ZStream(key) >>> deleteObjects(bucketName, Region.US_EAST_2)
         } yield assert(objectExistsBeforeDeletion)(equalTo(false))
       },
       test("succeeds") {
@@ -160,19 +159,19 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val key2       = ObjectKey(UUID.randomUUID().toString)
         val key3       = ObjectKey(UUID.randomUUID().toString)
         for {
-          _                           <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
-          _                           <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, key1, Region.US_EAST_1)
-          _                           <- ZStream.fromChunk[Byte](Chunk(1)) >>> putObject(bucketName, key2, Region.US_EAST_1)
-          _                           <- ZStream.fromChunk[Byte](Chunk(2)) >>> putObject(bucketName, key3, Region.US_EAST_1)
-          object1ExistsBeforeDeletion <- ZStream(key1) >>> existsObject(bucketName, Region.US_EAST_1)
-          object2ExistsBeforeDeletion <- ZStream(key2) >>> existsObject(bucketName, Region.US_EAST_1)
-          object3ExistsBeforeDeletion <- ZStream(key3) >>> existsObject(bucketName, Region.US_EAST_1)
+          _                           <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
+          _                           <- ZStream.fromChunk[Byte](Chunk(1, 2, 3)) >>> putObject(bucketName, key1, Region.US_EAST_2)
+          _                           <- ZStream.fromChunk[Byte](Chunk(1)) >>> putObject(bucketName, key2, Region.US_EAST_2)
+          _                           <- ZStream.fromChunk[Byte](Chunk(2)) >>> putObject(bucketName, key3, Region.US_EAST_2)
+          object1ExistsBeforeDeletion <- ZStream(key1) >>> existsObject(bucketName, Region.US_EAST_2)
+          object2ExistsBeforeDeletion <- ZStream(key2) >>> existsObject(bucketName, Region.US_EAST_2)
+          object3ExistsBeforeDeletion <- ZStream(key3) >>> existsObject(bucketName, Region.US_EAST_2)
           objectsExistBeforeDeletion =
             object1ExistsBeforeDeletion && object2ExistsBeforeDeletion && object3ExistsBeforeDeletion
-          _                          <- ZStream(key1, key2, key3) >>> deleteObjects(bucketName, Region.US_EAST_1)
-          object1ExistsAfterDeletion <- ZStream(key1) >>> existsObject(bucketName, Region.US_EAST_1)
-          object2ExistsAfterDeletion <- ZStream(key2) >>> existsObject(bucketName, Region.US_EAST_1)
-          object3ExistsAfterDeletion <- ZStream(key3) >>> existsObject(bucketName, Region.US_EAST_1)
+          _                          <- ZStream(key1, key2, key3) >>> deleteObjects(bucketName, Region.US_EAST_2)
+          object1ExistsAfterDeletion <- ZStream(key1) >>> existsObject(bucketName, Region.US_EAST_2)
+          object2ExistsAfterDeletion <- ZStream(key2) >>> existsObject(bucketName, Region.US_EAST_2)
+          object3ExistsAfterDeletion <- ZStream(key3) >>> existsObject(bucketName, Region.US_EAST_2)
           objectsExistAfterDeletion =
             object1ExistsAfterDeletion || object2ExistsAfterDeletion || object3ExistsAfterDeletion
         } yield assertTrue(objectsExistBeforeDeletion) && assert(objectsExistAfterDeletion)(equalTo(false))
@@ -184,7 +183,7 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
       test("fails when bucket doesn't exist") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          exit <- listObjects(bucketName, Region.US_EAST_1).runCollect.exit
+          exit <- listObjects(bucketName, Region.US_EAST_2).runCollect.exit
           failsWithExpectedError <-
             exit.as(false).catchSome { case _: AwsError => ZIO.succeed(true) }
         } yield assertTrue(failsWithExpectedError)
@@ -194,13 +193,13 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val obj1       = ObjectKey(UUID.randomUUID().toString)
         val obj2       = ObjectKey(UUID.randomUUID().toString)
         for {
-          _                   <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_1)
+          _                   <- ZStream.succeed(bucketName) >>> createBucket(Region.US_EAST_2)
           testData            <- Random.nextBytes(5)
-          _                   <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj1, Region.US_EAST_1)
-          _                   <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj2, Region.US_EAST_1)
-          actual              <- listObjects(bucketName, Region.US_EAST_1).runCollect
-          _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName, Region.US_EAST_1)
-          afterObjectDeletion <- listObjects(bucketName, Region.US_EAST_1).runCollect
+          _                   <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj1, Region.US_EAST_2)
+          _                   <- ZStream.fromChunk(testData) >>> putObject(bucketName, obj2, Region.US_EAST_2)
+          actual              <- listObjects(bucketName, Region.US_EAST_2).runCollect
+          _                   <- ZStream.fromChunk(Chunk(obj1, obj2)) >>> deleteObjects(bucketName, Region.US_EAST_2)
+          afterObjectDeletion <- listObjects(bucketName, Region.US_EAST_2).runCollect
         } yield assertTrue(actual.sortBy(_.toString) == Chunk(obj1, obj2).sortBy(_.toString)) && assertTrue(
           afterObjectDeletion.isEmpty
         )
@@ -214,13 +213,13 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucket2 = BucketName(UUID.randomUUID().toString)
         val key     = ObjectKey(UUID.randomUUID().toString)
         for {
-          _             <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_1)
+          _             <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_2)
           content1      <- Random.nextBytes(5)
           content2      <- Random.nextBytes(5)
-          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_1)
-          _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_EAST_1)
-          _             <- ZStream(S3Connector.MoveObject(bucket1, key, bucket2, key)) >>> moveObject(Region.US_EAST_1)
-          copiedContent <- getObject(bucket2, key, Region.US_EAST_1).runCollect
+          _             <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_2)
+          _             <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_EAST_2)
+          _             <- ZStream(S3Connector.MoveObject(bucket1, key, bucket2, key)) >>> moveObject(Region.US_EAST_2)
+          copiedContent <- getObject(bucket2, key, Region.US_EAST_2).runCollect
         } yield assertTrue(copiedContent == content1)
       },
       test("succeeds") {
@@ -233,20 +232,20 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val key4    = ObjectKey(UUID.randomUUID().toString)
 
         for {
-          _                <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_1)
+          _                <- ZStream(bucket1, bucket2) >>> createBucket(Region.US_EAST_2)
           testDataK1       <- Random.nextBytes(5)
-          _                <- ZStream.fromChunk(testDataK1) >>> putObject(bucket1, key1, Region.US_EAST_1)
+          _                <- ZStream.fromChunk(testDataK1) >>> putObject(bucket1, key1, Region.US_EAST_2)
           testDataK2       <- Random.nextBytes(5)
-          _                <- ZStream.fromChunk(testDataK2) >>> putObject(bucket1, key2, Region.US_EAST_1)
+          _                <- ZStream.fromChunk(testDataK2) >>> putObject(bucket1, key2, Region.US_EAST_2)
           testDataK3       <- Random.nextBytes(5)
-          _                <- ZStream.fromChunk(testDataK3) >>> putObject(bucket1, key3, Region.US_EAST_1)
-          initialB1Objects <- listObjects(bucket1, Region.US_EAST_1).runCollect
-          initialB2Objects <- listObjects(bucket2, Region.US_EAST_1).runCollect
-          _                <- ZStream(S3Connector.CopyObject(bucket1, key1, bucket2)) >>> copyObject(Region.US_EAST_1)
-          _                <- ZStream(S3Connector.MoveObject(bucket1, key2, bucket2, key2)) >>> moveObject(Region.US_EAST_1)
-          _                <- ZStream(S3Connector.MoveObject(bucket1, key3, bucket2, key4)) >>> moveObject(Region.US_EAST_1)
-          b1Objects        <- listObjects(bucket1, Region.US_EAST_1).runCollect
-          b2Objects        <- listObjects(bucket2, Region.US_EAST_1).runCollect
+          _                <- ZStream.fromChunk(testDataK3) >>> putObject(bucket1, key3, Region.US_EAST_2)
+          initialB1Objects <- listObjects(bucket1, Region.US_EAST_2).runCollect
+          initialB2Objects <- listObjects(bucket2, Region.US_EAST_2).runCollect
+          _                <- ZStream(S3Connector.CopyObject(bucket1, key1, bucket2)) >>> copyObject(Region.US_EAST_2)
+          _                <- ZStream(S3Connector.MoveObject(bucket1, key2, bucket2, key2)) >>> moveObject(Region.US_EAST_2)
+          _                <- ZStream(S3Connector.MoveObject(bucket1, key3, bucket2, key4)) >>> moveObject(Region.US_EAST_2)
+          b1Objects        <- listObjects(bucket1, Region.US_EAST_2).runCollect
+          b2Objects        <- listObjects(bucket2, Region.US_EAST_2).runCollect
 
         } yield assertTrue(initialB1Objects.sortBy(_.toString) == Chunk(key1, key2, key3).sortBy(_.toString)) &&
           assertTrue(initialB2Objects.isEmpty) &&
@@ -259,14 +258,14 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucket2 = BucketName(UUID.randomUUID().toString)
         val key     = ObjectKey(UUID.randomUUID().toString)
         for {
-          _        <- ZStream(bucket1) >>> createBucket(Region.US_EAST_1)
+          _        <- ZStream(bucket1) >>> createBucket(Region.US_EAST_2)
           _        <- ZStream(bucket2) >>> createBucket(Region.US_WEST_2)
           content1 <- Random.nextBytes(5)
           content2 <- Random.nextBytes(5)
-          _        <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_1)
+          _        <- ZStream.fromChunk(content1) >>> putObject(bucket1, key, Region.US_EAST_2)
           _        <- ZStream.fromChunk(content2) >>> putObject(bucket2, key, Region.US_WEST_2)
           _ <- ZStream(S3Connector.MoveObject(bucket1, key, bucket2, key)) >>> moveObject(
-                 Region.US_EAST_1,
+                 Region.US_EAST_2,
                  Region.US_WEST_2
                )
           copiedContent <- getObject(bucket2, key, Region.US_WEST_2).runCollect
@@ -280,10 +279,10 @@ trait MultiRegionS3ConnectorSpec extends ZIOSpecDefault {
         val bucketName = BucketName(UUID.randomUUID().toString)
         val objectKey  = ObjectKey(UUID.randomUUID().toString)
         for {
-          _        <- ZStream(bucketName) >>> createBucket(Region.US_EAST_1)
+          _        <- ZStream(bucketName) >>> createBucket(Region.US_EAST_2)
           testData <- Random.nextBytes(5)
-          _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, objectKey, Region.US_EAST_1)
-          actual   <- getObject(bucketName, objectKey, Region.US_EAST_1).runCollect
+          _        <- ZStream.fromChunk(testData) >>> putObject(bucketName, objectKey, Region.US_EAST_2)
+          actual   <- getObject(bucketName, objectKey, Region.US_EAST_2).runCollect
         } yield assertTrue(actual == testData)
       }
     )

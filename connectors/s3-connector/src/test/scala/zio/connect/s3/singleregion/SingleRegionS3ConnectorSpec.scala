@@ -60,18 +60,15 @@ trait SingleRegionS3ConnectorSpec extends ZIOSpecDefault {
 
   private lazy val createBucketSuite =
     suite("createBucket")(
-      test("changes nothing if bucket already exists") {
+      test("fails if bucket already exists") {
         val bucketName = BucketName(UUID.randomUUID().toString)
         for {
-          _       <- ZStream(bucketName) >>> createBucket
-          content <- Random.nextBytes(5)
-          _ <-
-            ZStream
-              .fromChunk(content) >>> putObject(bucketName, ObjectKey(UUID.randomUUID().toString))
-          objectsBefore <- listObjects(bucketName).runCollect
-          _             <- ZStream(bucketName) >>> createBucket
-          objectsAfter  <- listObjects(bucketName).runCollect
-        } yield assertTrue(objectsBefore == objectsAfter)
+          _            <- ZStream(bucketName) >>> createBucket
+          bucketExists <- ZStream(bucketName) >>> existsBucket
+          exit         <- (ZStream(bucketName) >>> createBucket).exit
+          failsWithExpectedError <-
+            exit.as(false).catchSome { case _: AwsError => ZIO.succeed(true) }
+        } yield assertTrue(bucketExists) && assertTrue(failsWithExpectedError)
       },
       test("succeeds") {
         val bucketName = BucketName(UUID.randomUUID().toString)
