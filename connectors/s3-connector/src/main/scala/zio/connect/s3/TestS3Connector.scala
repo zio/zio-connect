@@ -1,5 +1,8 @@
 package zio.connect.s3
 
+import software.amazon.awssdk.regions.Region
+import zio.aws.core.AwsError
+import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
 import zio.connect.s3.S3Connector._
 import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
 import zio.connect.s3.TestS3Connector.TestS3
@@ -9,40 +12,45 @@ import zio.{Chunk, Trace, ZIO, ZLayer}
 
 private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
 
+  override def copyObject(region: => Region)(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, S3Connector.CopyObject, S3Connector.CopyObject, Unit] =
+    ZSink.foreach(copyObject => s3.copyObject(copyObject, region, region))
+
   override def createBucket(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Connector.S3Exception, BucketName, BucketName, Unit] =
+  ): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
     ZSink.foreach(name => s3.createBucket(name, region))
 
   override def deleteEmptyBucket(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Connector.S3Exception, BucketName, BucketName, Unit] =
+  ): ZSink[Any, AwsError, BucketName, BucketName, Unit] =
     ZSink.foreach(bucket => s3.deleteEmptyBucket(bucket, region))
 
   override def deleteObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Connector.S3Exception, ObjectKey, ObjectKey, Unit] =
+  ): ZSink[Any, AwsError, ObjectKey, ObjectKey, Unit] =
     ZSink.foreach(key => s3.deleteObject(bucketName, key, region))
 
   override def getObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
-  ): ZStream[Any, S3Connector.S3Exception, Byte] =
+  ): ZStream[Any, AwsError, Byte] =
     s3.getObject(bucketName, key, region)
 
-  override def listBuckets(region: => Region)(implicit trace: Trace): ZStream[Any, S3Exception, BucketName] =
+  override def listBuckets(region: => Region)(implicit trace: Trace): ZStream[Any, AwsError, BucketName] =
     ZStream.fromIterableZIO(s3.listBuckets)
 
   override def listObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
-  ): ZStream[Any, S3Connector.S3Exception, ObjectKey] =
+  ): ZStream[Any, AwsError, ObjectKey] =
     ZStream.fromIterableZIO(s3.listObjects(bucketName, region))
 
   override def putObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Connector.S3Exception, Byte, Nothing, Unit] =
+  ): ZSink[Any, AwsError, Byte, Nothing, Unit] =
     ZSink.unwrap(for {
       ref <- TRef.makeCommit(false)
-      r = ZSink.foreachChunk[Any, S3Connector.S3Exception, Byte] { bytes =>
+      r = ZSink.foreachChunk[Any, AwsError, Byte] { bytes =>
             s3.putObject(bucketName, key, bytes, ref, region)
           }
     } yield r)
@@ -66,20 +74,19 @@ object TestS3Connector {
   }
 
   private[s3] final case class TestS3(repo: TRef[Map[(BucketName, Region), S3Bucket]]) {
-    private def bucketDoesntExistException(name: BucketName): S3Exception =
-      S3Exception(new RuntimeException(s"Bucket $name doesn't exist"))
+    private def bucketDoesntExistException(name: BucketName): AwsError =
+      AwsError.fromThrowable(new RuntimeException(s"Bucket $name doesn't exist"))
 
-    def copyObject(m: CopyObject, sourceRegion: => Region, destinationRegion: => Region): ZIO[Any, S3Exception, Unit] =
+    private def getBucket(map: Map[(BucketName, Region), S3Bucket], bucketName: BucketName, region: Region) =
+      ZSTM
+        .fromOption(map.get((bucketName, region)))
+        .mapError(_ => bucketDoesntExistException(bucketName))
+
+    def copyObject(m: CopyObject, sourceRegion: => Region, destinationRegion: => Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(for {
-        map <- repo.get
-        sourceBucket <-
-          ZSTM
-            .fromOption(map.get((m.sourceBucketName, sourceRegion)))
-            .mapError(_ => bucketDoesntExistException(m.sourceBucketName))
-        destinationBucket <-
-          ZSTM
-            .fromOption(map.get((m.targetBucketName, destinationRegion)))
-            .mapError(_ => bucketDoesntExistException(m.targetBucketName))
+        map               <- repo.get
+        sourceBucket      <- getBucket(map, m.sourceBucketName, sourceRegion)
+        destinationBucket <- getBucket(map, m.targetBucketName, destinationRegion)
         sourceObject <-
           ZSTM.fromOption(sourceBucket.objects.get(m.objectKey)).mapError(_ => objectDoesntExistException(m.objectKey))
         _ <- repo.update(mp =>
@@ -90,7 +97,7 @@ object TestS3Connector {
              )
       } yield ())
 
-    def createBucket(name: BucketName, region: Region): ZIO[Any, S3Exception, Unit] =
+    def createBucket(name: BucketName, region: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
           bucket <- repo.get.map(_.get((name, region)))
@@ -99,7 +106,7 @@ object TestS3Connector {
         } yield ()
       )
 
-    def deleteEmptyBucket(bucket: BucketName, region: Region): ZIO[Any, S3Exception, Unit] =
+    def deleteEmptyBucket(bucket: BucketName, region: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
           bucketOp <- repo.get.map(_.get((bucket, region)))
@@ -107,14 +114,14 @@ object TestS3Connector {
             bucketOp match {
               case Some(b) =>
                 if (b.objects.isEmpty) repo.getAndUpdate(m => m - ((bucket, region)))
-                else ZSTM.fail(S3Exception(new RuntimeException("Bucket not empty")))
+                else ZSTM.fail(AwsError.fromThrowable(new RuntimeException("Bucket not empty")))
               case None =>
-                ZSTM.fail(S3Exception(new RuntimeException("Bucket does not exist")))
+                ZSTM.fail(AwsError.fromThrowable(new RuntimeException("Bucket does not exist")))
             }
         } yield ()
       )
 
-    def deleteObject(bucket: BucketName, key: ObjectKey, region: Region): ZIO[Any, S3Exception, Unit] =
+    def deleteObject(bucket: BucketName, key: ObjectKey, region: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
           map <- repo.get
@@ -126,7 +133,7 @@ object TestS3Connector {
         } yield ()
       )
 
-    def getObject(bucketName: BucketName, key: ObjectKey, region: Region): ZStream[Any, S3Exception, Byte] =
+    def getObject(bucketName: BucketName, key: ObjectKey, region: Region): ZStream[Any, AwsError, Byte] =
       ZStream.unwrap(
         ZSTM.atomically(
           for {
@@ -138,24 +145,24 @@ object TestS3Connector {
         )
       )
 
-    def listBuckets: ZIO[Any, S3Exception, Chunk[BucketName]] =
+    def listBuckets: ZIO[Any, AwsError, Chunk[BucketName]] =
       ZSTM.atomically(
         repo.get.map(_.keys).map(k => Chunk.fromIterable(k.map(_._1)))
       )
 
-    def listObjects(bucketName: BucketName, region: Region): ZIO[Any, S3Exception, Chunk[ObjectKey]] =
+    def listObjects(bucketName: BucketName, region: Region): ZIO[Any, AwsError, Chunk[ObjectKey]] =
       ZSTM.atomically(
         for {
           map <- repo.get
           bucket <- ZSTM
                       .fromOption(map.get((bucketName, region)))
                       .mapError { _ =>
-                        S3Exception(new RuntimeException("No such bucket!"))
+                        AwsError.fromThrowable(new RuntimeException("No such bucket!"))
                       }
         } yield Chunk.fromIterable(bucket.objects.keys)
       )
 
-    def moveObject(m: MoveObject, sourceRegion: Region, destinationRegion: Region): ZIO[Any, S3Exception, Unit] =
+    def moveObject(m: MoveObject, sourceRegion: Region, destinationRegion: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(for {
         map <- repo.get
         sourceBucket <-
@@ -180,8 +187,8 @@ object TestS3Connector {
              }
       } yield ())
 
-    private def objectDoesntExistException(key: ObjectKey): S3Exception =
-      S3Exception(new RuntimeException(s"Object $key doesn't exist"))
+    private def objectDoesntExistException(key: ObjectKey): AwsError =
+      AwsError.fromThrowable(new RuntimeException(s"Object $key doesn't exist"))
 
     def putObject(
       bucketName: BucketName,
@@ -189,7 +196,7 @@ object TestS3Connector {
       bytes: Chunk[Byte],
       append: TRef[Boolean],
       region: Region
-    ): ZIO[Any, S3Connector.S3Exception, Unit] =
+    ): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
           map       <- repo.get

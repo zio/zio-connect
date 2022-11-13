@@ -1,24 +1,25 @@
 package zio.connect.s3
 
-import zio.connect.s3.S3Connector._
-import zio.prelude.{Newtype, Subtype}
+import software.amazon.awssdk.regions.Region
+import zio.aws.core.AwsError
+import zio.aws.s3.model.primitives._
+import zio.connect.s3.S3Connector.{CopyObject, MoveObject}
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
 
-import scala.language.implicitConversions
 trait S3Connector {
-  final def copyObject(region: => Region)(implicit
+  def copyObject(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit] = copyObject(region, region)
+  ): ZSink[Any, AwsError, CopyObject, CopyObject, Unit]
 
   final def copyObject(
     sourceRegion: => Region,
     destinationRegion: => Region
   )(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit] =
+  ): ZSink[Any, AwsError, CopyObject, CopyObject, Unit] =
     ZSink
-      .foreach[Any, S3Exception, CopyObject] { m =>
+      .foreach[Any, AwsError, CopyObject] { m =>
         getObject(m.sourceBucketName, m.objectKey, sourceRegion) >>> putObject(
           m.targetBucketName,
           m.objectKey,
@@ -28,19 +29,19 @@ trait S3Connector {
 
   def createBucket(
     region: => Region
-  )(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit]
+  )(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit]
 
   def deleteEmptyBucket(
     region: => Region
-  )(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Unit]
+  )(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Unit]
 
   def deleteObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, ObjectKey, ObjectKey, Unit]
+  ): ZSink[Any, AwsError, ObjectKey, ObjectKey, Unit]
 
   final def existsBucket(
     region: => Region
-  )(implicit trace: Trace): ZSink[Any, S3Exception, BucketName, BucketName, Boolean] =
+  )(implicit trace: Trace): ZSink[Any, AwsError, BucketName, BucketName, Boolean] =
     ZSink
       .take[BucketName](1)
       .map(_.headOption)
@@ -56,7 +57,7 @@ trait S3Connector {
   final def existsObject(
     bucket: => BucketName,
     region: => Region
-  )(implicit trace: Trace): ZSink[Any, S3Exception, ObjectKey, ObjectKey, Boolean] =
+  )(implicit trace: Trace): ZSink[Any, AwsError, ObjectKey, ObjectKey, Boolean] =
     ZSink
       .take[ObjectKey](1)
       .map(_.headOption)
@@ -71,24 +72,24 @@ trait S3Connector {
 
   def getObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
-  ): ZStream[Any, S3Exception, Byte]
+  ): ZStream[Any, AwsError, Byte]
 
-  def listBuckets(region: => Region)(implicit trace: Trace): ZStream[Any, S3Exception, BucketName]
+  def listBuckets(region: => Region)(implicit trace: Trace): ZStream[Any, AwsError, BucketName]
 
   def listObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
-  ): ZStream[Any, S3Exception, ObjectKey]
+  ): ZStream[Any, AwsError, ObjectKey]
 
   final def moveObject(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, MoveObject, MoveObject, Unit] =
+  ): ZSink[Any, AwsError, MoveObject, MoveObject, Unit] =
     moveObject(region, region)
 
   final def moveObject(sourceRegion: => Region, destinationRegion: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, MoveObject, MoveObject, Unit] =
+  ): ZSink[Any, AwsError, MoveObject, MoveObject, Unit] =
     ZSink
-      .foreach[Any, S3Exception, S3Connector.MoveObject] { m =>
+      .foreach[Any, AwsError, S3Connector.MoveObject] { m =>
         for {
           _ <- getObject(m.bucketName, m.objectKey, sourceRegion) >>> putObject(
                  m.targetBucketName,
@@ -101,23 +102,11 @@ trait S3Connector {
 
   def putObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, Byte, Nothing, Unit]
+  ): ZSink[Any, AwsError, Byte, Nothing, Unit]
 
 }
 
 object S3Connector {
-
-  object BucketName extends Subtype[String]
-  type BucketName = BucketName.Type
-
-  object ObjectKey extends Subtype[String]
-  type ObjectKey = ObjectKey.Type
-
-  object Region extends Newtype[String]
-
-  type Region = Region.Type
-  implicit def stringToRegion(region: String): Region.Type = Region(region)
-  case class S3Exception(reason: Throwable)
 
   final case class CopyObject(
     sourceBucketName: BucketName,
