@@ -3,7 +3,7 @@ package zio.connect.s3
 import software.amazon.awssdk.regions.Region
 import zio.aws.core.AwsError
 import zio.aws.s3.model.primitives.{BucketName, ObjectKey}
-import zio.connect.s3.S3Connector._
+import zio.connect.s3.S3Connector.{CopyObject, MoveObject}
 import zio.connect.s3.TestS3Connector.S3Node.{S3Bucket, S3Obj}
 import zio.connect.s3.TestS3Connector.TestS3
 import zio.stm.{STM, TRef, ZSTM}
@@ -14,7 +14,7 @@ private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
 
   override def copyObject(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, AwsError, S3Connector.CopyObject, S3Connector.CopyObject, Unit] =
+  ): ZSink[Any, AwsError, CopyObject, CopyObject, Unit] =
     ZSink.foreach(copyObject => s3.copyObject(copyObject, region, region))
 
   override def createBucket(region: => Region)(implicit
