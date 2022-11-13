@@ -95,7 +95,7 @@ object TestMultiRegionS3Connector {
     def createBucket(name: BucketName, region: Region): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically(
         for {
-          bucketAlreadyExists <- repo.get.map(m => m.keys.map(_._1).contains(name))
+          bucketAlreadyExists <- repo.get.map(m => m.keys.map(_._1).toList.contains(name))
           _ <- if (bucketAlreadyExists) ZSTM.fail(AwsError.fromThrowable(new RuntimeException("Bucket already exists")))
                else repo.getAndUpdate(m => m.updated((name, region), S3Bucket(name, Map.empty)))
         } yield ()
