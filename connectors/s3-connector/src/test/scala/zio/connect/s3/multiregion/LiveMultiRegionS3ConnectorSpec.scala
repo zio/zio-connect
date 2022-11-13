@@ -1,24 +1,25 @@
-package zio.connect.s3
+package zio.connect.s3.multiregion
+
 import org.testcontainers.containers.localstack.LocalStackContainer
 import org.testcontainers.containers.localstack.LocalStackContainer.Service
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
-import software.amazon.awssdk.regions.{Region => AWSRegion}
+import software.amazon.awssdk.regions.Region
 import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
-import zio.connect.s3.S3Connector.Region
+import zio.connect.s3.multiRegionS3ConnectorLiveLayer
 import zio.{Scope, ZIO, ZLayer}
 
-object LiveS3ConnectorSpec extends S3ConnectorSpec {
+object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
   override def spec =
-    suite("LiveS3ConnectorSpec")(s3ConnectorSpec)
+    suite("LiveMultiRegionS3ConnectorSpec")(s3ConnectorSpec)
       .provideSomeShared[Scope](
         localStackContainer,
         awsConfig,
         s3,
-        zio.connect.s3.s3ConnectorLiveLayer
+        multiRegionS3ConnectorLiveLayer
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
@@ -45,7 +46,7 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
                          _.credentialsProvider(
                            StaticCredentialsProvider
                              .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                         ).region(AWSRegion.US_WEST_2)
+                         ).region(Region.US_WEST_2)
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )
@@ -56,12 +57,12 @@ object LiveS3ConnectorSpec extends S3ConnectorSpec {
                          _.credentialsProvider(
                            StaticCredentialsProvider
                              .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                         ).region(AWSRegion.of(localstack.getRegion))
+                         ).region(Region.US_EAST_1)
                            .endpointOverride(localstack.getEndpointOverride(Service.S3))
                        )
                      )
 
-    } yield Map(Region("us-east-1") -> s3USEast1, Region("us-west-2") -> s3USWest2)
+    } yield Map(Region.US_EAST_1 -> s3USEast1, Region.US_WEST_2 -> s3USWest2)
     ZLayer
       .fromZIO(res)
   }
