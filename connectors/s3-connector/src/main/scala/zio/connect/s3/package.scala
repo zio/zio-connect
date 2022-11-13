@@ -8,11 +8,11 @@ import zio.connect.s3.singleregion.{SingleRegionLiveS3Connector, SingleRegionS3C
 
 package object s3 {
 
-  val s3ConnectorLiveLayer: ZLayer[S3, Nothing, SingleRegionS3Connector]  = SingleRegionLiveS3Connector.layer
-  val s3ConnectorTestLayer: ZLayer[Any, Nothing, SingleRegionS3Connector] = TestSingleRegionS3Connector.layer
-
   val multiRegionS3ConnectorLiveLayer: ZLayer[Map[Region, S3], Nothing, MultiRegionS3Connector] =
     MultiRegionLiveS3Connector.layer
   val multiRegionS3ConnectorTestLayer: ZLayer[Any, Nothing, MultiRegionS3Connector] = TestMultiRegionS3Connector.layer
+
+  val s3ConnectorLiveLayer: ZLayer[S3, Nothing, SingleRegionS3Connector]  = SingleRegionLiveS3Connector.layer
+  val s3ConnectorTestLayer: ZLayer[Any, Nothing, SingleRegionS3Connector] = TestSingleRegionS3Connector.layer
 
 }
