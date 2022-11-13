@@ -7,9 +7,9 @@ import zio.{Trace, ZIO}
 
 import scala.language.implicitConversions
 trait S3Connector {
-  def copyObject(region: => Region)(implicit
+  final def copyObject(region: => Region)(implicit
     trace: Trace
-  ): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit]
+  ): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit] = copyObject(region, region)
 
   final def copyObject(
     sourceRegion: => Region,

@@ -1,9 +1,8 @@
 package zio.connect.s3
 import zio.aws.core.AwsError
 import zio.aws.s3.S3
-import zio.aws.s3.model.primitives.{BucketName => AwsBucketName, ContentLength, CopySource, ObjectKey => AwsObjectKey}
+import zio.aws.s3.model.primitives.{BucketName => AwsBucketName, ContentLength, ObjectKey => AwsObjectKey}
 import zio.aws.s3.model.{
-  CopyObjectRequest,
   CreateBucketRequest,
   Delete,
   DeleteBucketRequest,
@@ -13,34 +12,14 @@ import zio.aws.s3.model.{
   ObjectIdentifier,
   PutObjectRequest
 }
-import zio.connect.s3.S3Connector.{BucketName, CopyObject, ObjectKey, Region, S3Exception}
+import zio.connect.s3.S3Connector.{BucketName, ObjectKey, Region, S3Exception}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
-
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 final case class LiveS3Connector(s3Map: Map[Region, S3]) extends S3Connector {
   private def getS3(region: Region) = ZIO
     .fromOption(s3Map.get(region))
     .orElseFail(S3Exception(new RuntimeException(s"Connector not found for Region $region")))
-
-  override def copyObject(region: => Region)(implicit
-    trace: Trace
-  ): ZSink[Any, S3Exception, CopyObject, CopyObject, Unit] =
-    ZSink
-      .foreach[Any, S3Exception, CopyObject] { m =>
-        getS3(region).flatMap { s3 =>
-          s3.copyObject(
-            CopyObjectRequest(
-              destinationBucket = AwsBucketName(m.targetBucketName),
-              destinationKey = AwsObjectKey(m.objectKey),
-              copySource =
-                CopySource(URLEncoder.encode(s"${m.sourceBucketName}/${m.objectKey}", StandardCharsets.UTF_8.toString))
-            )
-          ).mapError(a => S3Exception(a.toThrowable))
-        }
-      }
 
   override def createBucket(
     region: => Region

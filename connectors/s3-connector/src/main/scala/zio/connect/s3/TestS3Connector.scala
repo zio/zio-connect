@@ -8,10 +8,6 @@ import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
 private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
-  override def copyObject(region: => Region)(implicit
-    trace: Trace
-  ): ZSink[Any, S3Connector.S3Exception, S3Connector.CopyObject, S3Connector.CopyObject, Unit] =
-    ZSink.foreach(copyObject => s3.copyObject(copyObject, region, region))
 
   override def createBucket(region: => Region)(implicit
     trace: Trace
@@ -21,12 +17,12 @@ private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
   override def deleteEmptyBucket(region: => Region)(implicit
     trace: Trace
   ): ZSink[Any, S3Connector.S3Exception, BucketName, BucketName, Unit] =
-    ZSink.foreach(bucket => s3.deleteEmptyBucket(bucket))
+    ZSink.foreach(bucket => s3.deleteEmptyBucket(bucket, region))
 
   override def deleteObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
   ): ZSink[Any, S3Connector.S3Exception, ObjectKey, ObjectKey, Unit] =
-    ZSink.foreach(key => s3.deleteObject(bucketName, key))
+    ZSink.foreach(key => s3.deleteObject(bucketName, key, region))
 
   override def getObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
@@ -39,7 +35,7 @@ private[s3] final case class TestS3Connector(s3: TestS3) extends S3Connector {
   override def listObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
   ): ZStream[Any, S3Connector.S3Exception, ObjectKey] =
-    ZStream.fromIterableZIO(s3.listObjects(bucketName))
+    ZStream.fromIterableZIO(s3.listObjects(bucketName, region))
 
   override def putObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
@@ -94,7 +90,7 @@ object TestS3Connector {
              )
       } yield ())
 
-    def createBucket(name: BucketName, region: => Region): ZIO[Any, S3Exception, Unit] =
+    def createBucket(name: BucketName, region: Region): ZIO[Any, S3Exception, Unit] =
       ZSTM.atomically(
         for {
           bucket <- repo.get.map(_.get((name, region)))
@@ -103,14 +99,14 @@ object TestS3Connector {
         } yield ()
       )
 
-    def deleteEmptyBucket(bucket: BucketName): ZIO[Any, S3Exception, Unit] =
+    def deleteEmptyBucket(bucket: BucketName, region: Region): ZIO[Any, S3Exception, Unit] =
       ZSTM.atomically(
         for {
-          bucketOp <- repo.get.map(_.get((bucket, usEast1Region)))
+          bucketOp <- repo.get.map(_.get((bucket, region)))
           _ <-
             bucketOp match {
               case Some(b) =>
-                if (b.objects.isEmpty) repo.getAndUpdate(m => m - ((bucket, usEast1Region)))
+                if (b.objects.isEmpty) repo.getAndUpdate(m => m - ((bucket, region)))
                 else ZSTM.fail(S3Exception(new RuntimeException("Bucket not empty")))
               case None =>
                 ZSTM.fail(S3Exception(new RuntimeException("Bucket does not exist")))
@@ -118,19 +114,19 @@ object TestS3Connector {
         } yield ()
       )
 
-    def deleteObject(bucket: BucketName, key: ObjectKey): ZIO[Any, S3Exception, Unit] =
+    def deleteObject(bucket: BucketName, key: ObjectKey, region: Region): ZIO[Any, S3Exception, Unit] =
       ZSTM.atomically(
         for {
           map <- repo.get
           bucket <-
             ZSTM
-              .fromOption(map.get((bucket, usEast1Region)))
+              .fromOption(map.get((bucket, region)))
               .mapError(_ => bucketDoesntExistException(bucket))
-          _ <- repo.set(map.updated((bucket.name, usEast1Region), S3Bucket(bucket.name, bucket.objects - key)))
+          _ <- repo.set(map.updated((bucket.name, region), S3Bucket(bucket.name, bucket.objects - key)))
         } yield ()
       )
 
-    def getObject(bucketName: BucketName, key: ObjectKey, region: => Region): ZStream[Any, S3Exception, Byte] =
+    def getObject(bucketName: BucketName, key: ObjectKey, region: Region): ZStream[Any, S3Exception, Byte] =
       ZStream.unwrap(
         ZSTM.atomically(
           for {
@@ -147,19 +143,19 @@ object TestS3Connector {
         repo.get.map(_.keys).map(k => Chunk.fromIterable(k.map(_._1)))
       )
 
-    def listObjects(bucketName: BucketName): ZIO[Any, S3Exception, Chunk[ObjectKey]] =
+    def listObjects(bucketName: BucketName, region: Region): ZIO[Any, S3Exception, Chunk[ObjectKey]] =
       ZSTM.atomically(
         for {
           map <- repo.get
           bucket <- ZSTM
-                      .fromOption(map.get((bucketName, usEast1Region)))
+                      .fromOption(map.get((bucketName, region)))
                       .mapError { _ =>
                         S3Exception(new RuntimeException("No such bucket!"))
                       }
         } yield Chunk.fromIterable(bucket.objects.keys)
       )
 
-    def moveObject(m: MoveObject, sourceRegion: => Region, destinationRegion: => Region): ZIO[Any, S3Exception, Unit] =
+    def moveObject(m: MoveObject, sourceRegion: Region, destinationRegion: Region): ZIO[Any, S3Exception, Unit] =
       ZSTM.atomically(for {
         map <- repo.get
         sourceBucket <-
@@ -192,7 +188,7 @@ object TestS3Connector {
       key: ObjectKey,
       bytes: Chunk[Byte],
       append: TRef[Boolean],
-      region: => Region
+      region: Region
     ): ZIO[Any, S3Connector.S3Exception, Unit] =
       ZSTM.atomically(
         for {

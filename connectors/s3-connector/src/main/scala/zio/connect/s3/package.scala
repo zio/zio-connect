@@ -6,10 +6,8 @@ import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZLayer}
 
 package object s3 {
-  val usEast1Region = "us-east-1"
-  val usWest2Region = "us-west-2"
 
-  def copyObject(region: => Region = usEast1Region)(implicit
+  def copyObject(region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, CopyObject, CopyObject, Unit] =
     ZSink.serviceWithSink(_.copyObject(region))
@@ -19,22 +17,22 @@ package object s3 {
   ): ZSink[S3Connector, S3Exception, CopyObject, CopyObject, Unit] =
     ZSink.serviceWithSink(_.copyObject(sourceRegion, destinationRegion))
 
-  def createBucket(region: => Region = usEast1Region)(implicit
+  def createBucket(region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, BucketName, BucketName, Unit] =
     ZSink.serviceWithSink(_.createBucket(region))
 
-  def deleteEmptyBucket(region: => Region = usEast1Region)(implicit
+  def deleteEmptyBucket(region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, BucketName, BucketName, Unit] =
     ZSink.serviceWithSink(_.deleteEmptyBucket(region))
 
-  def deleteObjects(bucketName: BucketName, region: => Region)(implicit
+  def deleteObjects(bucketName: => BucketName, region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, ObjectKey, ObjectKey, Unit] =
     ZSink.serviceWithSink(_.deleteObjects(bucketName, region))
 
-  def existsBucket(region: => Region = usEast1Region)(implicit
+  def existsBucket(region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, BucketName, BucketName, Boolean] =
     ZSink.serviceWithSink(_.existsBucket(region))
@@ -44,12 +42,12 @@ package object s3 {
   ): ZSink[S3Connector, S3Exception, ObjectKey, ObjectKey, Boolean] =
     ZSink.serviceWithSink(_.existsObject(bucketName, region))
 
-  def getObject(bucketName: => BucketName, key: ObjectKey, region: => Region)(implicit
+  def getObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
   ): ZStream[S3Connector, S3Exception, Byte] =
     ZStream.serviceWithStream(_.getObject(bucketName, key, region))
 
-  def listBuckets(region: => Region = usEast1Region)(implicit
+  def listBuckets(region: => Region)(implicit
     trace: Trace
   ): ZStream[S3Connector, S3Exception, BucketName] =
     ZStream.serviceWithStream(_.listBuckets(region))
@@ -59,7 +57,7 @@ package object s3 {
   ): ZStream[S3Connector, S3Exception, ObjectKey] =
     ZStream.serviceWithStream(_.listObjects(bucketName, region))
 
-  def moveObject(region: => Region = usEast1Region)(implicit
+  def moveObject(region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, S3Connector.MoveObject, S3Connector.MoveObject, Unit] =
     ZSink.serviceWithSink(_.moveObject(region))
@@ -72,7 +70,7 @@ package object s3 {
   val s3ConnectorLiveLayer: ZLayer[Map[Region, S3], Nothing, LiveS3Connector] = LiveS3Connector.layer
   val s3ConnectorTestLayer: ZLayer[Any, Nothing, TestS3Connector]             = TestS3Connector.layer
 
-  def putObject(bucketName: => BucketName, key: ObjectKey, region: => Region = usEast1Region)(implicit
+  def putObject(bucketName: => BucketName, key: => ObjectKey, region: => Region)(implicit
     trace: Trace
   ): ZSink[S3Connector, S3Exception, Byte, Nothing, Unit] =
     ZSink.serviceWithSink(_.putObject(bucketName, key, region))
