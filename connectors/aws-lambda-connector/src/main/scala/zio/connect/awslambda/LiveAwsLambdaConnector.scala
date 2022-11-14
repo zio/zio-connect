@@ -97,6 +97,14 @@ case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
   override def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse] =
     ZStream.fromZIO(lambda.listTags(m).map(_.asEditable))
 
+  override def tagResource(implicit trace: Trace): ZSink[Any, AwsError, TagResourceRequest, TagResourceRequest, Unit] =
+    ZSink.foreach(m => lambda.tagResource(m))
+
+  override def untagResource(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, UntagResourceRequest, UntagResourceRequest, Unit] =
+    ZSink.foreach(m => lambda.untagResource(m))
+
 }
 
 object LiveAwsLambdaConnector {

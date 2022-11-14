@@ -74,4 +74,13 @@ package object awslambda {
   def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[AwsLambdaConnector, AwsError, ListTagsResponse] =
     ZStream.serviceWithStream(_.listTags(m))
 
+  def tagResource(implicit
+    trace: Trace
+  ): ZSink[AwsLambdaConnector, AwsError, TagResourceRequest, TagResourceRequest, Unit] =
+    ZSink.serviceWithSink(_.tagResource)
+
+  def untagResource(implicit
+    trace: Trace
+  ): ZSink[AwsLambdaConnector, AwsError, UntagResourceRequest, UntagResourceRequest, Unit] =
+    ZSink.serviceWithSink(_.untagResource)
 }

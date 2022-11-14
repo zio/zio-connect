@@ -57,4 +57,10 @@ trait AwsLambdaConnector {
 
   def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse]
 
+  def tagResource(implicit trace: Trace): ZSink[Any, AwsError, TagResourceRequest, TagResourceRequest, Unit]
+
+  def untagResource(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, UntagResourceRequest, UntagResourceRequest, Unit]
+
 }

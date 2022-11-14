@@ -12,7 +12,7 @@ import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec
+  val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
   lazy val createAliasSpec =
     suite("createAlias")(
@@ -165,5 +165,48 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
       }
     )
+
+  lazy val tagResourceSpec = {
+    suite("tagResource")(
+      test("succeeds") {
+        for {
+          zipFile      <- ZStream.fromFileURI(this.getClass.getResource("/handler.js.zip").toURI).runCollect
+          functionName1 = FunctionName(UUID.randomUUID().toString)
+          functions <- ZStream(
+                         CreateFunctionRequest(
+                           functionName = FunctionName(functionName1),
+                           runtime = Some(zio.aws.lambda.model.Runtime.`nodejs14.x`),
+                           role = RoleArn("cool-stacklifter"),
+                           handler = Some(Handler("handler.handler")),
+                           code = FunctionCode(zipFile = Some(Blob(zipFile)))
+                         )
+                       ) >>> createFunction
+          functionArn <-
+            ZIO
+              .fromOption(functions.find(a => a.functionName.contains(functionName1)).flatMap(_.functionArn.toOption))
+              .orElseFail(new RuntimeException("Function was not found"))
+          getTagsAsList = (a: Chunk[ListTagsResponse]) =>
+                            a.map(_.tags.toChunk).flatten.map(a => a.toList.toChunk).flatten.sortBy(_._1)
+          initialTags <- listTags(ListTagsRequest(FunctionArn(functionArn))).runCollect.map(getTagsAsList)
+
+          tag1 = TagKey("tag1") -> TagValue("value1")
+          tag2 = TagKey("tag2") -> TagValue("value2")
+          _ <- ZStream(
+                 TagResourceRequest(
+                   FunctionArn(functionArn),
+                   Map(tag1, tag2)
+                 )
+               ) >>> tagResource
+          tagsAfterCreation <- listTags(ListTagsRequest(FunctionArn(functionArn))).runCollect.map(getTagsAsList)
+          _                 <- ZStream(UntagResourceRequest(FunctionArn(functionArn), Chunk(tag2._1))) >>> untagResource
+          tagsAfterRemoval  <- listTags(ListTagsRequest(FunctionArn(functionArn))).runCollect.map(getTagsAsList)
+
+        } yield assertTrue(initialTags.isEmpty) && assertTrue(tagsAfterCreation == Chunk(tag1, tag2)) && assertTrue(
+          tagsAfterRemoval == Chunk(tag1)
+        )
+      }
+    )
+
+  }
 
 }
