@@ -5,7 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage     := Some(url("https://zio.dev")),
+    homepage     := Some(url("https://zio.dev/zio-connect")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -31,11 +31,11 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
-    docs,
     fileConnector,
     s3Connector
   )
   .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(WebsitePlugin)
 
 lazy val awsLambdaConnector = project
   .in(file("connectors/aws-lambda-connector"))
@@ -114,32 +114,13 @@ lazy val s3Connector = project
     Test / fork := true
   )
 
-lazy val docs = project
-  .in(file("zio-connect-docs"))
-  .settings(
-    publish / skip := true,
-    moduleName     := "zio-connect-docs",
-    scalacOptions -= "-Yno-imports",
-    scalacOptions -= "-Xfatal-warnings",
-    libraryDependencies ++= Seq(
-      zio
-    ),
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
-    ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
-    cleanFiles += (ScalaUnidoc / unidoc / target).value,
-    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
-    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
-  )
-  .dependsOn(fileConnector, s3Connector)
-  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
-
 lazy val examples = project
   .in(file("examples"))
   .settings(
     publishArtifact := false,
     moduleName      := "zio-connect-examples"
   )
-  .aggregate(fileConnectorExamples)
+  .aggregate(fileConnectorExamples, s3ConnectorExamples)
 
 lazy val fileConnectorExamples = project
   .in(file("examples/file-connector-examples"))
@@ -148,3 +129,11 @@ lazy val fileConnectorExamples = project
     scalacOptions -= "-Xfatal-warnings"
   )
   .dependsOn(LocalProject("fileConnector"))
+
+lazy val s3ConnectorExamples = project
+  .in(file("examples/s3-connector-examples"))
+  .settings(
+    publish / skip := true,
+    scalacOptions -= "-Xfatal-warnings"
+  )
+  .dependsOn(LocalProject("s3Connector"))
