@@ -18,7 +18,7 @@ import java.util.UUID
 
 trait CouchbaseConnectorSpec extends ZIOSpecDefault {
 
-  val couchbaseConnectorSpec =
+  val couchbaseConnectorSpec: Spec[CouchbaseConnector, CouchbaseException] =
     existsSuite + getSuite + insertSuite + removeSuite + replaceSuite + upsertSuite
 
   private lazy val bucketName     = BucketName("CouchbaseConnectorBucket")

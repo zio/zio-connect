@@ -15,7 +15,7 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
         zio.connect.couchbase.couchbaseConnectorLiveLayer
       )
 
-  lazy val couchbaseContainer: ZLayer[Any, Throwable, CouchbaseContainer] =
+  private lazy val couchbaseContainer: ZLayer[Any, Throwable, CouchbaseContainer] =
     ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
         val dockerImageName = DockerImageName
@@ -28,7 +28,7 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
       }.retryN(4))(container => ZIO.attempt(container.stop()).orDie)
     )
 
-  lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] =
+  private lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] =
     ZLayer
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
