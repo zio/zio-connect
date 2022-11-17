@@ -32,6 +32,7 @@ lazy val root = project
   )
   .aggregate(
     awsLambdaConnector,
+    couchbaseConnector,
     fileConnector,
     s3Connector
   )
@@ -47,6 +48,33 @@ lazy val awsLambdaConnector = project
       AWSLambdaDependencies.localstack,
       AWSLambdaDependencies.`zio-aws-lambda`,
       AWSLambdaDependencies.`zio-aws-netty`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
+lazy val couchbaseConnector = project
+  .in(file("connectors/couchbase-connector"))
+  .settings(stdSettings("zio-connect-couchbase"))
+  .settings(
+    libraryDependencies ++= Seq(
+      CouchbaseDependencies.couchbase,
+      CouchbaseDependencies.couchbaseContainer,
+      CouchbaseDependencies.`zio-prelude`,
       zio,
       `zio-streams`,
       `zio-test`,
