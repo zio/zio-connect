@@ -100,11 +100,16 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                                createInvokeRequest(payload2),
                                createInvokeRequest(payload3)
                              ) >>> zio.connect.awslambda.invoke
+          functionConcurrency <-
+            ZStream(GetFunctionConcurrencyRequest(FunctionName(functionName))) >>> getFunctionConcurrency
+          _ = println(functionConcurrency)
           invokeResponsesPayloads <- ZStream
                                        .fromIterable(invokeResponses.flatMap(_.payload.toList).flatMap(b => b.toList))
                                        .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                                        .runCollect
-        } yield assert(invokeResponsesPayloads.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
+        } yield assert(invokeResponsesPayloads.sorted)(
+          equalTo(Chunk(payload1, payload2, payload3).sorted)
+        ) && assertTrue(functionConcurrency.size == 1)
       }
     )
 

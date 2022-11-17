@@ -46,7 +46,7 @@ package object awslambda {
     AwsError,
     GetFunctionConcurrencyRequest,
     GetFunctionConcurrencyRequest,
-    GetFunctionConcurrencyResponse
+    Chunk[GetFunctionConcurrencyResponse]
   ] = ZSink.serviceWithSink(_.getFunctionConcurrency)
 
   def invoke(implicit

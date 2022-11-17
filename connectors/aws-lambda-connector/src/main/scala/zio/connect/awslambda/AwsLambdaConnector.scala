@@ -32,7 +32,7 @@ trait AwsLambdaConnector {
     AwsError,
     GetFunctionConcurrencyRequest,
     GetFunctionConcurrencyRequest,
-    GetFunctionConcurrencyResponse
+    Chunk[GetFunctionConcurrencyResponse]
   ]
 
   def invoke(implicit trace: Trace): ZSink[Any, AwsError, InvokeRequest, InvokeRequest, Chunk[InvokeResponse]]

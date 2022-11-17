@@ -55,12 +55,12 @@ case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
     AwsError,
     GetFunctionConcurrencyRequest,
     GetFunctionConcurrencyRequest,
-    GetFunctionConcurrencyResponse
+    Chunk[GetFunctionConcurrencyResponse]
   ] =
     ZSink
-      .take[GetFunctionConcurrencyRequest](1)
-      .map(_.head)
-      .mapZIO(a => lambda.getFunctionConcurrency(a).map(_.asEditable))
+      .foldLeftZIO[Any, AwsError, GetFunctionConcurrencyRequest, Chunk[GetFunctionConcurrencyResponse]](
+        Chunk.empty[GetFunctionConcurrencyResponse]
+      )((s, m) => lambda.getFunctionConcurrency(m).map(_.asEditable).map(a => s :+ a))
 
   override def invoke(implicit
     trace: Trace
