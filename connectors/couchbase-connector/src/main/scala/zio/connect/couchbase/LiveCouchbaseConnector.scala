@@ -32,23 +32,21 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
   override def get(queryObject: => QueryObject)(implicit trace: Trace): ZStream[Any, CouchbaseException, Byte] =
     ZStream
       .fromIterableZIO(
-        ZIO
-          .attempt {
-            val result = couchbase
-              .bucket(queryObject.bucketName)
-              .scope(queryObject.scopeName)
-              .collection(queryObject.collectionName)
-              .get(queryObject.documentKey, GetOptions.getOptions.transcoder(RawBinaryTranscoder.INSTANCE))
+        ZIO.attempt {
+          val result = couchbase
+            .bucket(queryObject.bucketName)
+            .scope(queryObject.scopeName)
+            .collection(queryObject.collectionName)
+            .get(queryObject.documentKey, GetOptions.getOptions.transcoder(RawBinaryTranscoder.INSTANCE))
 
-
-            Chunk.fromArray(result.contentAsBytes())
-          }
+          Chunk.fromArray(result.contentAsBytes())
+        }
       )
       .mapError(CouchbaseException)
 
   override def insert(implicit
-                      trace: Trace
-                     ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
         ZIO
@@ -80,8 +78,8 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
       .mapError(CouchbaseException)
 
   override def replace(implicit
-                       trace: Trace
-                      ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
         ZIO.attempt(
@@ -99,8 +97,8 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
       .mapError(CouchbaseException)
 
   override def upsert(implicit
-                      trace: Trace
-                     ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
+    trace: Trace
+  ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
         ZIO.attempt {

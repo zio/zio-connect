@@ -33,12 +33,12 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
         cluster <- ZIO.attempt(
-          Cluster.connect(
-            container.getConnectionString,
-            container.getUsername,
-            container.getPassword
-          )
-        )
+                     Cluster.connect(
+                       container.getConnectionString,
+                       container.getUsername,
+                       container.getPassword
+                     )
+                   )
       } yield cluster)
 
 }

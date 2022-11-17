@@ -1,6 +1,5 @@
 package zio.connect.couchbase
 
-import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.connect.couchbase.CouchbaseConnector.{
   BucketName,
   CollectionName,
@@ -19,6 +18,7 @@ import zio.connect.couchbase.TestCouchbaseConnector.CouchbaseNode.{
 import zio.connect.couchbase.TestCouchbaseConnector.TestCouchbase
 import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZSink, ZStream}
+import zio.{Chunk, Trace, ZIO, ZLayer}
 
 private[couchbase] final case class TestCouchbaseConnector(couchbase: TestCouchbase) extends CouchbaseConnector {
   override def exists(implicit trace: Trace): ZSink[Any, CouchbaseException, QueryObject, QueryObject, Boolean] =
