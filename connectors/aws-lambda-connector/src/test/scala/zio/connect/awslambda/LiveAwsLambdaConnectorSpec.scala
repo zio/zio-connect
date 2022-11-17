@@ -8,17 +8,35 @@ import software.amazon.awssdk.regions.Region
 import zio.aws.core.config.AwsConfig
 import zio.aws.lambda.Lambda
 import zio.aws.netty.NettyHttpClient
+import zio.http.Client
 import zio.{Scope, ZIO, ZLayer}
 
 object LiveAwsLambdaConnectorSpec extends AwsLambdaConnectorSpec {
-  override def spec =
-    suite("LiveAwsLambdaConnectorSpec")(awsLambdaConnectorSpec)
-      .provideSomeShared[Scope](
-        localStackContainer,
-        awsConfig,
-        lambda,
-        zio.connect.awslambda.awsLambdaConnectorLiveLayer
-      )
+
+  override def spec = releasesSharedAfterFirstTest
+  val releasesSharedAfterFirstTest = suite("LiveAwsLambdaConnectorSpec")(awsLambdaConnectorSpec)
+    .provideSomeShared[Scope](
+      awsConfig,
+      zio.connect.awslambda.awsLambdaConnectorLiveLayer,
+      zioHttpClient,
+      lambda,
+      localStackContainer
+    )
+
+  val releasesAsExpected = suite("LiveAwsLambdaConnectorSpec")(awsLambdaConnectorSpec)
+    .provideSomeShared[Scope with LocalStackContainer with Lambda with AwsConfig](
+      zio.connect.awslambda.awsLambdaConnectorLiveLayer,
+      zioHttpClient
+    )
+    .provideSomeLayerShared[Scope with AwsConfig with LocalStackContainer](
+      lambda
+    )
+    .provideSomeLayerShared[Scope with AwsConfig](
+      localStackContainer
+    )
+    .provideSomeLayerShared[Scope](
+      awsConfig
+    )
 
   lazy val httpClient                                   = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig] = httpClient >>> AwsConfig.default
@@ -26,12 +44,13 @@ object LiveAwsLambdaConnectorSpec extends AwsLambdaConnectorSpec {
   lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
     ZLayer.fromZIO(
       ZIO.acquireRelease(ZIO.attempt {
+        println("Starting localstack!")
         val localstackImage = DockerImageName.parse("localstack/localstack:0.13.0")
         val localstack = new LocalStackContainer(localstackImage)
           .withServices(Service.LAMBDA)
         localstack.start()
         localstack
-      })(ls => ZIO.attempt(ls.stop()).orDie)
+      })(ls => ZIO.succeed(println("stopping localstack")) *> ZIO.attempt(ls.stop()).orDie)
     )
 
   lazy val lambda: ZLayer[AwsConfig with LocalStackContainer, Throwable, Lambda] =
@@ -49,5 +68,7 @@ object LiveAwsLambdaConnectorSpec extends AwsLambdaConnectorSpec {
              )
       } yield s)
       .flatMap(_.get)
+
+  lazy val zioHttpClient: ZLayer[Scope, Throwable, Client] = zio.http.Client.default
 
 }

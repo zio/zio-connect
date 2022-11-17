@@ -4,15 +4,16 @@ import zio.aws.core.{AwsError, GenericAwsError}
 import zio.{Chunk, ZIO}
 import zio.aws.lambda.model._
 import zio.aws.lambda.model.primitives._
+import zio.http.Body
 import zio.stream.{ZPipeline, ZStream}
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
+  lazy val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
   lazy val createAliasSpec =
     suite("createAlias")(
@@ -36,7 +37,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
             ZIO
               .fromOption(
                 createFunctionResponse
-                  .find(_.functionName.map(_.toString).contains(functionName.toString))
+                  .find(_.functionName.contains(functionName))
                   .flatMap(_.version.toOption)
               )
               .orElseFail(new RuntimeException("No functionVersion in response"))
@@ -90,21 +91,39 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
           payload1 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           payload2 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           payload3 = s"""{"value":"${UUID.randomUUID().toString}"}"""
+          payload4 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           createInvokeRequest = (payload: String) =>
                                   InvokeRequest(
                                     functionName = NamespacedFunctionName(functionName),
                                     payload = Some(Blob(Chunk.fromIterable(payload.getBytes)))
                                   )
-          response <- ZStream(
-                        createInvokeRequest(payload1),
-                        createInvokeRequest(payload2),
-                        createInvokeRequest(payload3)
-                      ) >>> zio.connect.awslambda.invoke
-          payloads <- ZStream
-                        .fromIterable(response.flatMap(_.payload.toList).flatMap(b => b.toList))
-                        .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
-                        .runCollect
-        } yield assert(payloads.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
+//          resp <- ZStream(
+//                    CreateFunctionUrlConfigRequest(
+//                      functionName = FunctionName(functionName),
+//                      authType = FunctionUrlAuthType.NONE
+//                    )
+//                  ) >>> createFunctionUrlConfig
+          resp = Chunk.empty[CreateFunctionUrlConfigResponse]
+          requestInvokeResponses <-
+            ZIO
+              .foreach(resp.headOption.toList)(resp =>
+                zio.http.Client
+                  .request(url = resp.functionUrl, content = Body.fromString(payload4))
+                  .flatMap(r => r.body.asStream.via(ZPipeline.utf8Decode >>> ZPipeline.splitLines).runCollect)
+              )
+              .map(l => Chunk.fromIterable(l).flatten)
+          invokeResponses <- ZStream(
+                               createInvokeRequest(payload1),
+                               createInvokeRequest(payload2),
+                               createInvokeRequest(payload3)
+                             ) >>> zio.connect.awslambda.invoke
+          invokeResponsesPayloads <- ZStream
+                                       .fromIterable(invokeResponses.flatMap(_.payload.toList).flatMap(b => b.toList))
+                                       .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+                                       .runCollect
+          allResults = requestInvokeResponses ++ invokeResponsesPayloads
+        } yield assert(allResults.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
+//        } yield assert(allResults.sorted)(equalTo(Chunk(payload1, payload2, payload3, payload4).sorted))
 
       }
     )
@@ -134,19 +153,19 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                ) >>> createFunction
           functions <- listFunctions(ListFunctionsRequest()).runCollect
           functionNames = functions
-                            .map(_.functionName.map(_.toString).toChunk)
+                            .map(_.functionName.toChunk)
                             .flatten
                             .toList
 
           _                      <- ZStream(DeleteFunctionRequest(functionName2)) >>> deleteFunction
           functionsAfterDeletion <- listFunctions(ListFunctionsRequest()).runCollect
           functionNamesAfterDeletion = functionsAfterDeletion
-                                         .map(_.functionName.map(_.toString).toChunk)
+                                         .map(_.functionName.toChunk)
                                          .flatten
                                          .toList
 
           getDeletedFunctionResult <-
-            (ZStream(GetFunctionRequest(NamespacedFunctionName(functionName1.toString))) >>> getFunction)
+            (ZStream(GetFunctionRequest(NamespacedFunctionName(functionName1))) >>> getFunction)
               .catchSome[AwsLambdaConnector, AwsError, Chunk[GetFunctionResponse]] {
                 case GenericAwsError(reason) if reason.getClass.getSimpleName == "ResourceNotFoundException" =>
                   ZIO.succeed(Chunk.empty[GetFunctionResponse])
@@ -159,7 +178,6 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
           getDeletedFunctionResult
             .map(_.configuration.flatMap(_.functionName).toChunk)
             .flatten
-            .map(_.toString)
             .contains(functionName1.toString)
         )
 
