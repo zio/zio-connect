@@ -3,20 +3,20 @@ package zio.connect.couchbase
 import com.couchbase.client.scala.Cluster
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import org.testcontainers.utility.DockerImageName
-import zio.{Scope, ZIO, ZLayer}
+import zio.{ZIO, ZLayer}
 
 object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
 
   override def spec =
     suite("LiveCouchbaseConnectorSpec")(couchbaseConnectorSpec)
-      .provideSomeShared[Scope](
+      .provideShared(
         couchbaseContainer,
         cluster,
         zio.connect.couchbase.couchbaseConnectorLiveLayer
       )
 
-  lazy val couchbaseContainer: ZLayer[Scope, Throwable, CouchbaseContainer] =
-    ZLayer.fromZIO(
+  lazy val couchbaseContainer: ZLayer[Any, Throwable, CouchbaseContainer] =
+    ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
         val dockerImageName = DockerImageName
           .parse("couchbase:enterprise")
@@ -33,12 +33,12 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
         cluster <- ZIO.fromTry(
-                     Cluster.connect(
-                       container.getConnectionString,
-                       container.getUsername,
-                       container.getPassword
-                     )
-                   )
+          Cluster.connect(
+            container.getConnectionString,
+            container.getUsername,
+            container.getPassword
+          )
+        )
       } yield cluster)
 
 }
