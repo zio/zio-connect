@@ -35,7 +35,7 @@ object CouchbaseConnector {
   object ScopeName extends Subtype[String]
   type ScopeName = ScopeName.Type
 
-  case class CouchbaseException(reason: Throwable)
+  final case class CouchbaseException(reason: Throwable)
 
   final case class ContentQueryObject(
     bucketName: BucketName,
