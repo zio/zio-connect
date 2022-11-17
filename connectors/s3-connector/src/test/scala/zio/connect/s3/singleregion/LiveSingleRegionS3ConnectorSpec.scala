@@ -15,11 +15,9 @@ import zio.{Scope, ZIO, ZLayer}
 object LiveSingleRegionS3ConnectorSpec extends SingleRegionS3ConnectorSpec {
   override def spec =
     suite("LiveSingleRegionS3ConnectorSpec")(s3ConnectorSpec)
-      .provideSomeShared[Scope](
-        localStackContainer,
-        awsConfig,
-        s3,
-        s3ConnectorLiveLayer
+      .provideSomeShared[Scope with S3](s3ConnectorLiveLayer)
+      .provideSomeLayerShared[Scope](
+        (awsConfig and localStackContainer) >>> s3
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
