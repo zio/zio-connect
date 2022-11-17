@@ -12,7 +12,7 @@ final case class LiveKinesisDataStreamsConnector[T](producer: Producer[T]) exten
     producer.sinkChunked
       .mapError(e => KinesisDataStreamsException.apply(e))
       .contramap[Chunk[ProducerRecord[T]]](chunk =>
-        chunk.map(record => nl.vroste.zio.kinesis.client.ProducerRecord[T](record.partitionKey.toString, record.data))
+        chunk.map(record => nl.vroste.zio.kinesis.client.ProducerRecord[T](record.partitionKey, record.data))
       )
 }
 

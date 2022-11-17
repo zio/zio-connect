@@ -20,7 +20,7 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
         localStackContainer,
         awsConfig,
         producer,
-        zio.connect.kinesisdatastreams.LiveKinesisDataStreamsConnector.layer[String]
+        kinesisDataStreamsConnectorLiveLayer[String]
       )
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
