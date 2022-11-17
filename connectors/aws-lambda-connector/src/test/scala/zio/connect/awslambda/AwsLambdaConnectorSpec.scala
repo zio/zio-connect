@@ -1,20 +1,21 @@
 package zio.connect.awslambda
 
 import zio.aws.core.{AwsError, GenericAwsError}
-import zio.{Chunk, ZIO}
 import zio.aws.lambda.model._
 import zio.aws.lambda.model.primitives._
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test._
+import zio.{Chunk, ZIO}
 
 import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  lazy val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
+  lazy val awsLambdaConnectorSpec: Spec[Any, Throwable] =
+    createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
-  lazy val createAliasSpec =
+  lazy val createAliasSpec: Spec[Any, Throwable] =
     suite("createAlias")(
       test("succeeds") {
         val alias1 = Alias("alias1")
@@ -72,7 +73,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val invokeLambdaSpec =
+  lazy val invokeLambdaSpec: Spec[Any, Throwable] =
     suite("invoke")(
       test("succeeds") {
         for {
@@ -112,7 +113,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val listFunctionsSpec =
+  lazy val listFunctionsSpec: Spec[Any, Throwable] =
     suite("listFunctions")(
       test("succeeds") {
         for {
@@ -168,7 +169,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val tagResourceSpec = {
+  lazy val tagResourceSpec: Spec[Any, Throwable] = {
     suite("tagResource")(
       test("succeeds") {
         for {
