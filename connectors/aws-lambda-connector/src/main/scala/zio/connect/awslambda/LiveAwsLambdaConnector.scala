@@ -80,7 +80,7 @@ case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
   ): ZStream[Any, AwsError, FunctionConfiguration] =
     lambda.listFunctions(m).map(_.asEditable)
 
-  override def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse] =
+  override def listTags(m: => ListTagsRequest)(implicit trace: Trace): ZStream[Any, AwsError, ListTagsResponse] =
     ZStream.fromZIO(lambda.listTags(m).map(_.asEditable))
 
   override def tagResource(implicit trace: Trace): ZSink[Any, AwsError, TagResourceRequest, TagResourceRequest, Unit] =

@@ -64,7 +64,7 @@ package object awslambda {
   ): ZStream[AwsLambdaConnector, AwsError, FunctionConfiguration] =
     ZStream.serviceWithStream(_.listFunctions(m))
 
-  def listTags(m: ListTagsRequest)(implicit trace: Trace): ZStream[AwsLambdaConnector, AwsError, ListTagsResponse] =
+  def listTags(m: => ListTagsRequest)(implicit trace: Trace): ZStream[AwsLambdaConnector, AwsError, ListTagsResponse] =
     ZStream.serviceWithStream(_.listTags(m))
 
   def tagResource(implicit
