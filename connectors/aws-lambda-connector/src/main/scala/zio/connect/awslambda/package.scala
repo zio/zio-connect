@@ -19,13 +19,6 @@ package object awslambda {
   ): ZSink[AwsLambdaConnector, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]] =
     ZSink.serviceWithSink(_.createFunction)
 
-  def createFunctionUrlConfig(implicit
-    trace: Trace
-  ): ZSink[AwsLambdaConnector, AwsError, CreateFunctionUrlConfigRequest, CreateFunctionUrlConfigRequest, Chunk[
-    CreateFunctionUrlConfigResponse
-  ]] =
-    ZSink.serviceWithSink(_.createFunctionUrlConfig)
-
   def deleteAlias(implicit
     trace: Trace
   ): ZSink[AwsLambdaConnector, AwsError, DeleteAliasRequest, DeleteAliasRequest, Unit] =

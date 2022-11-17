@@ -15,16 +15,6 @@ trait AwsLambdaConnector {
     trace: Trace
   ): ZSink[Any, AwsError, CreateFunctionRequest, CreateFunctionRequest, Chunk[CreateFunctionResponse]]
 
-  def createFunctionUrlConfig(implicit
-    trace: Trace
-  ): ZSink[
-    Any,
-    AwsError,
-    CreateFunctionUrlConfigRequest,
-    CreateFunctionUrlConfigRequest,
-    Chunk[CreateFunctionUrlConfigResponse]
-  ]
-
   def deleteAlias(implicit trace: Trace): ZSink[Any, AwsError, DeleteAliasRequest, DeleteAliasRequest, Unit]
 
   def deleteFunction(implicit trace: Trace): ZSink[Any, AwsError, DeleteFunctionRequest, DeleteFunctionRequest, Unit]

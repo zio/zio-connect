@@ -24,20 +24,6 @@ case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
         Chunk.empty[CreateFunctionResponse]
       )((s, m) => lambda.createFunction(m).map(_.asEditable).map(a => s :+ a))
 
-  override def createFunctionUrlConfig(implicit
-    trace: Trace
-  ): ZSink[
-    Any,
-    AwsError,
-    CreateFunctionUrlConfigRequest,
-    CreateFunctionUrlConfigRequest,
-    Chunk[CreateFunctionUrlConfigResponse]
-  ] =
-    ZSink
-      .foldLeftZIO[Any, AwsError, CreateFunctionUrlConfigRequest, Chunk[CreateFunctionUrlConfigResponse]](
-        Chunk.empty[CreateFunctionUrlConfigResponse]
-      )((s, m) => lambda.createFunctionUrlConfig(m).map(_.asEditable).map(a => s :+ a))
-
   override def deleteAlias(implicit trace: Trace): ZSink[Any, AwsError, DeleteAliasRequest, DeleteAliasRequest, Unit] =
     ZSink.foreach[Any, AwsError, DeleteAliasRequest](m => lambda.deleteAlias(m))
 

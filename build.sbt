@@ -46,8 +46,6 @@ lazy val awsLambdaConnector = project
       AWSLambdaDependencies.localstack,
       AWSLambdaDependencies.`zio-aws-lambda`,
       AWSLambdaDependencies.`zio-aws-netty`,
-      AWSLambdaDependencies.`zio-http`,
-      AWSLambdaDependencies.`zio-http-logging`,
       zio,
       `zio-streams`,
       `zio-test`,
@@ -55,14 +53,6 @@ lazy val awsLambdaConnector = project
     )
   )
   .settings(
-////    resolvers += Resolver.sonatypeOssRepos("public"),
-//    resolvers ++= Resolver.sonatypeOssRepos("public"),
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
-////      Seq(
-//////      Resolver.sonatypeRepo("public"),
-////      Resolver.sonatypeOssRepos("snapshots"),
-//////      Resolver.bintrayRepo("scalaz", "releases")
-////    ),
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)

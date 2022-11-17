@@ -4,7 +4,6 @@ import zio.aws.core.{AwsError, GenericAwsError}
 import zio.{Chunk, ZIO}
 import zio.aws.lambda.model._
 import zio.aws.lambda.model.primitives._
-import zio.http.Body
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test._
@@ -91,27 +90,11 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
           payload1 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           payload2 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           payload3 = s"""{"value":"${UUID.randomUUID().toString}"}"""
-          payload4 = s"""{"value":"${UUID.randomUUID().toString}"}"""
           createInvokeRequest = (payload: String) =>
                                   InvokeRequest(
                                     functionName = NamespacedFunctionName(functionName),
                                     payload = Some(Blob(Chunk.fromIterable(payload.getBytes)))
                                   )
-//          resp <- ZStream(
-//                    CreateFunctionUrlConfigRequest(
-//                      functionName = FunctionName(functionName),
-//                      authType = FunctionUrlAuthType.NONE
-//                    )
-//                  ) >>> createFunctionUrlConfig
-          resp = Chunk.empty[CreateFunctionUrlConfigResponse]
-          requestInvokeResponses <-
-            ZIO
-              .foreach(resp.headOption.toList)(resp =>
-                zio.http.Client
-                  .request(url = resp.functionUrl, content = Body.fromString(payload4))
-                  .flatMap(r => r.body.asStream.via(ZPipeline.utf8Decode >>> ZPipeline.splitLines).runCollect)
-              )
-              .map(l => Chunk.fromIterable(l).flatten)
           invokeResponses <- ZStream(
                                createInvokeRequest(payload1),
                                createInvokeRequest(payload2),
@@ -121,10 +104,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                                        .fromIterable(invokeResponses.flatMap(_.payload.toList).flatMap(b => b.toList))
                                        .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
                                        .runCollect
-          allResults = requestInvokeResponses ++ invokeResponsesPayloads
-        } yield assert(allResults.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
-//        } yield assert(allResults.sorted)(equalTo(Chunk(payload1, payload2, payload3, payload4).sorted))
-
+        } yield assert(invokeResponsesPayloads.sorted)(equalTo(Chunk(payload1, payload2, payload3).sorted))
       }
     )
 
