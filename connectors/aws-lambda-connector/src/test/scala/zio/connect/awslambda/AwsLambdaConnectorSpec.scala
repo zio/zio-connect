@@ -12,7 +12,7 @@ import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  val awsLambdaConnectorSpec: Spec[AwsLambdaConnector, Object] =
+  val awsLambdaConnectorSpec: Spec[AwsLambdaConnector, Any] =
     createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
   private lazy val createAliasSpec =
