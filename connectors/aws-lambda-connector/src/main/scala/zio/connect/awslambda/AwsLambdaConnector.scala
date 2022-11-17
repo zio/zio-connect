@@ -1,9 +1,9 @@
 package zio.connect.awslambda
 
-import zio.{Chunk, Trace}
 import zio.aws.core.AwsError
 import zio.aws.lambda.model._
 import zio.stream._
+import zio.{Chunk, Trace}
 
 trait AwsLambdaConnector {
 

@@ -8,30 +8,24 @@ import software.amazon.awssdk.regions.Region
 import zio.aws.core.config.AwsConfig
 import zio.aws.lambda.Lambda
 import zio.aws.netty.NettyHttpClient
-import zio.{Scope, ZIO, ZLayer}
+import zio.{ZIO, ZLayer}
 
 object LiveAwsLambdaConnectorSpec extends AwsLambdaConnectorSpec {
 
   override def spec =
     suite("LiveAwsLambdaConnectorSpec")(awsLambdaConnectorSpec)
-      .provideSomeShared[Scope with LocalStackContainer with Lambda with AwsConfig](
-        zio.connect.awslambda.awsLambdaConnectorLiveLayer
-      )
-      .provideSomeLayerShared[Scope with AwsConfig with LocalStackContainer](
-        lambda
-      )
-      .provideSomeLayerShared[Scope with AwsConfig](
-        localStackContainer
-      )
-      .provideSomeLayerShared[Scope](
+      .provideShared(
+        zio.connect.awslambda.awsLambdaConnectorLiveLayer,
+        lambda,
+        localStackContainer,
         awsConfig
       )
 
   lazy val httpClient                                   = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig] = httpClient >>> AwsConfig.default
 
-  lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
-    ZLayer.fromZIO(
+  lazy val localStackContainer: ZLayer[Any, Throwable, LocalStackContainer] =
+    ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
         val localstackImage = DockerImageName.parse("localstack/localstack:0.13.0")
         val localstack = new LocalStackContainer(localstackImage)

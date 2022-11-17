@@ -4,7 +4,7 @@ object TestKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
 
   override def spec =
     suite("TestKinesisDataStreamsConnectorSpec")(kinesisDataStreamsConnectorSpec).provide(
-      TestKinesisDataStreamsConnector.layer[String]
+      kinesisDataStreamsConnectorTestLayer[String]
     )
 
 }

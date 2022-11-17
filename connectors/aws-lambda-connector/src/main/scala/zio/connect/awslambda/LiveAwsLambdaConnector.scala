@@ -1,10 +1,10 @@
 package zio.connect.awslambda
 
-import zio.{Chunk, Trace, ZIO, ZLayer}
 import zio.aws.core.AwsError
 import zio.aws.lambda.Lambda
-import zio.stream._
 import zio.aws.lambda.model._
+import zio.stream._
+import zio.{Chunk, Trace, ZIO, ZLayer}
 
 case class LiveAwsLambdaConnector(lambda: Lambda) extends AwsLambdaConnector {
 

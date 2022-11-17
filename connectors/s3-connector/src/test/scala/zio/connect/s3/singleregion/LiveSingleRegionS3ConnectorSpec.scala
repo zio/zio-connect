@@ -10,21 +10,18 @@ import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.s3.S3
 import zio.connect.s3.s3ConnectorLiveLayer
-import zio.{Scope, ZIO, ZLayer}
+import zio.{ZIO, ZLayer}
 
 object LiveSingleRegionS3ConnectorSpec extends SingleRegionS3ConnectorSpec {
   override def spec =
     suite("LiveSingleRegionS3ConnectorSpec")(s3ConnectorSpec)
-      .provideSomeShared[Scope with S3](s3ConnectorLiveLayer)
-      .provideSomeLayerShared[Scope](
-        (awsConfig and localStackContainer) >>> s3
-      )
+      .provideShared(s3ConnectorLiveLayer, awsConfig, localStackContainer, s3)
 
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig]   = httpClient >>> AwsConfig.default
 
-  lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
-    ZLayer.fromZIO(
+  lazy val localStackContainer: ZLayer[Any, Throwable, LocalStackContainer] =
+    ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
         val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")
         val localstack = new LocalStackContainer(localstackImage)

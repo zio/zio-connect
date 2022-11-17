@@ -1,20 +1,21 @@
 package zio.connect.awslambda
 
 import zio.aws.core.{AwsError, GenericAwsError}
-import zio.{Chunk, ZIO}
 import zio.aws.lambda.model._
 import zio.aws.lambda.model.primitives._
 import zio.stream.{ZPipeline, ZStream}
 import zio.test.Assertion._
 import zio.test._
+import zio.{Chunk, ZIO}
 
 import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  lazy val awsLambdaConnectorSpec = createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
+  val awsLambdaConnectorSpec: Spec[AwsLambdaConnector, Any] =
+    createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
-  lazy val createAliasSpec =
+  private lazy val createAliasSpec =
     suite("createAlias")(
       test("succeeds") {
         val alias1 = Alias("alias1")
@@ -62,7 +63,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                                          ZIO.succeed(Chunk.empty[GetAliasResponse])
                                      }
         } yield assertTrue(
-          createdAliases.map(_.name.toChunk).flatten.sortBy(identity) == listedAliases.sortBy(identity)
+          createdAliases.map(_.name.toChunk).flatten.sortBy(_.toString) == listedAliases.sortBy(_.toString)
         ) && assertTrue(
           remainingAliases.contains(alias1)
         ) && assertTrue(getDeletedAliasResult.isEmpty) && assertTrue(
@@ -72,7 +73,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val invokeLambdaSpec =
+  private lazy val invokeLambdaSpec =
     suite("invoke")(
       test("succeeds") {
         for {
@@ -112,7 +113,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val listFunctionsSpec =
+  private lazy val listFunctionsSpec =
     suite("listFunctions")(
       test("succeeds") {
         for {
@@ -168,7 +169,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val tagResourceSpec = {
+  private lazy val tagResourceSpec = {
     suite("tagResource")(
       test("succeeds") {
         for {
@@ -187,8 +188,9 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
             ZIO
               .fromOption(functions.find(a => a.functionName.contains(functionName1)).flatMap(_.functionArn.toOption))
               .orElseFail(new RuntimeException("Function was not found"))
-          getTagsAsList = (a: Chunk[ListTagsResponse]) =>
-                            a.map(_.tags.toChunk).flatten.map(a => a.toList.toChunk).flatten.sortBy(_._1)
+          getTagsAsList =
+            (a: Chunk[ListTagsResponse]) =>
+              a.map(_.tags.toChunk).flatten.map(a => Chunk.fromIterable(a.toList)).flatten.sortBy(_._1.toString)
           initialTags <- listTags(ListTagsRequest(FunctionArn(functionArn))).runCollect.map(getTagsAsList)
 
           tag1 = TagKey("tag1") -> TagValue("value1")
