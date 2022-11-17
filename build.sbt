@@ -31,6 +31,7 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
+    awsLambdaConnector,
     fileConnector,
     s3Connector
   )
