@@ -31,6 +31,7 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
+    awsLambdaConnector,
     couchbaseConnector,
     fileConnector,
     s3Connector
@@ -38,6 +39,34 @@ lazy val root = project
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(WebsitePlugin)
 
+lazy val awsLambdaConnector = project
+  .in(file("connectors/aws-lambda-connector"))
+  .settings(stdSettings("zio-connect-aws-lambda"))
+  .settings(
+    libraryDependencies ++= Seq(
+      AWSLambdaDependencies.`aws-java-sdk-core`,
+      AWSLambdaDependencies.localstack,
+      AWSLambdaDependencies.`zio-aws-lambda`,
+      AWSLambdaDependencies.`zio-aws-netty`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+  
 lazy val couchbaseConnector = project
   .in(file("connectors/couchbase-connector"))
   .settings(stdSettings("zio-connect-couchbase"))
@@ -46,7 +75,6 @@ lazy val couchbaseConnector = project
       CouchbaseDependencies.couchbase,
       CouchbaseDependencies.couchbaseContainer,
       zio,
-      `zio-prelude`,
       `zio-streams`,
       `zio-test`,
       `zio-test-sbt`
@@ -85,6 +113,33 @@ lazy val fileConnector = project
     }
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+
+lazy val kinesisDataStreamsConnector = project
+  .in(file("connectors/kinesis-data-streams-connector"))
+  .settings(stdSettings("zio-connect-kinesis-data-streams"))
+  .settings(
+    libraryDependencies ++= Seq(
+      KinesisDataStreamsDependencies.`aws-java-sdk-core`,
+      KinesisDataStreamsDependencies.localstack,
+      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val s3Connector = project
   .in(file("connectors/s3-connector"))
