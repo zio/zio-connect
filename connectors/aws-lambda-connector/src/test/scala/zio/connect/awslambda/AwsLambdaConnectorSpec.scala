@@ -12,10 +12,10 @@ import java.util.UUID
 
 trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
 
-  lazy val awsLambdaConnectorSpec: Spec[Any, Throwable] =
+  lazy val awsLambdaConnectorSpec =
     createAliasSpec + invokeLambdaSpec + listFunctionsSpec + tagResourceSpec
 
-  lazy val createAliasSpec: Spec[Any, Throwable] =
+  lazy val createAliasSpec =
     suite("createAlias")(
       test("succeeds") {
         val alias1 = Alias("alias1")
@@ -73,7 +73,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val invokeLambdaSpec: Spec[Any, Throwable] =
+  lazy val invokeLambdaSpec =
     suite("invoke")(
       test("succeeds") {
         for {
@@ -113,7 +113,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val listFunctionsSpec: Spec[Any, Throwable] =
+  lazy val listFunctionsSpec =
     suite("listFunctions")(
       test("succeeds") {
         for {
@@ -169,7 +169,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
       }
     )
 
-  lazy val tagResourceSpec: Spec[Any, Throwable] = {
+  lazy val tagResourceSpec = {
     suite("tagResource")(
       test("succeeds") {
         for {

@@ -16,7 +16,7 @@ import zio.{Scope, ZIO, ZLayer}
 object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSpec {
   override def spec =
     suite("LiveKinesisDataStreamsConnectorSpec")(kinesisDataStreamsConnectorSpec)
-      .provideSomeShared[Scope](
+      .provideShared(
         localStackContainer,
         awsConfig,
         producer,
@@ -26,8 +26,8 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig]   = httpClient >>> AwsConfig.default
 
-  lazy val localStackContainer: ZLayer[Scope, Throwable, LocalStackContainer] =
-    ZLayer.fromZIO(
+  lazy val localStackContainer: ZLayer[Any, Throwable, LocalStackContainer] =
+    ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
         val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")
         val localstack = new LocalStackContainer(localstackImage)
@@ -37,13 +37,13 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
       })(ls => ZIO.attempt(ls.stop()).orDie)
     )
 
-  lazy val producer: ZLayer[AwsConfig with LocalStackContainer with Scope, Throwable, Producer[String]] =
+  lazy val producer: ZLayer[AwsConfig with LocalStackContainer, Throwable, Producer[String]] =
     ZLayer
-      .fromZIO(for {
+      .scoped(for {
         localstack <- ZIO.service[LocalStackContainer]
         p <- Producer
                .make("TestStream", Serde.asciiString)
-               .provideSome[Scope](
+               .provide(
                  Kinesis.customized(
                    _.credentialsProvider(
                      StaticCredentialsProvider
