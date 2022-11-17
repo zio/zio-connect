@@ -63,7 +63,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                                          ZIO.succeed(Chunk.empty[GetAliasResponse])
                                      }
         } yield assertTrue(
-          createdAliases.map(_.name.toChunk).flatten.sortBy(identity) == listedAliases.sortBy(identity)
+          createdAliases.map(_.name.toChunk).flatten.sortBy(_.toString) == listedAliases.sortBy(_.toString)
         ) && assertTrue(
           remainingAliases.contains(alias1)
         ) && assertTrue(getDeletedAliasResult.isEmpty) && assertTrue(
@@ -189,7 +189,7 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
               .fromOption(functions.find(a => a.functionName.contains(functionName1)).flatMap(_.functionArn.toOption))
               .orElseFail(new RuntimeException("Function was not found"))
           getTagsAsList = (a: Chunk[ListTagsResponse]) =>
-                            a.map(_.tags.toChunk).flatten.map(a => a.toList.toChunk).flatten.sortBy(_._1)
+                            a.map(_.tags.toChunk).flatten.map(a => Chunk.fromIterable(a.toList)).flatten.sortBy(_._1.toString)
           initialTags <- listTags(ListTagsRequest(FunctionArn(functionArn))).runCollect.map(getTagsAsList)
 
           tag1 = TagKey("tag1") -> TagValue("value1")
