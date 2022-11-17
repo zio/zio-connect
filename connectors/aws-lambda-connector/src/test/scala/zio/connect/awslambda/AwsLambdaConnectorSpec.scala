@@ -102,7 +102,6 @@ trait AwsLambdaConnectorSpec extends ZIOSpecDefault {
                              ) >>> zio.connect.awslambda.invoke
           functionConcurrency <-
             ZStream(GetFunctionConcurrencyRequest(FunctionName(functionName))) >>> getFunctionConcurrency
-          _ = println(functionConcurrency)
           invokeResponsesPayloads <- ZStream
                                        .fromIterable(invokeResponses.flatMap(_.payload.toList).flatMap(b => b.toList))
                                        .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
