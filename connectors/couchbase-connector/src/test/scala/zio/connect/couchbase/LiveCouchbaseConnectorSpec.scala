@@ -25,7 +25,7 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
           .withBucket(new BucketDefinition("CouchbaseConnectorBucket"))
         container.start()
         container
-      })(container => ZIO.attempt(container.stop()).orDie)
+      }.retryN(4))(container => ZIO.attempt(container.stop()).orDie)
     )
 
   lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] =
@@ -33,12 +33,12 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
         cluster <- ZIO.attempt(
-                     Cluster.connect(
-                       container.getConnectionString,
-                       container.getUsername,
-                       container.getPassword
-                     )
-                   )
+          Cluster.connect(
+            container.getConnectionString,
+            container.getUsername,
+            container.getPassword
+          )
+        )
       } yield cluster)
 
 }
