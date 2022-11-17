@@ -1,6 +1,6 @@
 package zio.connect.couchbase
 
-import com.couchbase.client.scala.Cluster
+import com.couchbase.client.java.Cluster
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import org.testcontainers.utility.DockerImageName
 import zio.{ZIO, ZLayer}
@@ -32,7 +32,7 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
     ZLayer
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
-        cluster <- ZIO.fromTry(
+        cluster <- ZIO.attempt(
           Cluster.connect(
             container.getConnectionString,
             container.getUsername,
