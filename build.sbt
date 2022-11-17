@@ -5,7 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage := Some(url("https://zio.dev/zio-connect")),
+    homepage     := Some(url("https://zio.dev/zio-connect")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -58,7 +58,7 @@ lazy val awsLambdaConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -85,7 +85,7 @@ lazy val couchbaseConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -109,7 +109,7 @@ lazy val fileConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -133,7 +133,7 @@ lazy val kinesisDataStreamsConnector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -161,7 +161,7 @@ lazy val s3Connector = project
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _ => Seq.empty
+        case _                       => Seq.empty
       }
     }
   )
@@ -174,7 +174,7 @@ lazy val examples = project
   .in(file("examples"))
   .settings(
     publishArtifact := false,
-    moduleName := "zio-connect-examples"
+    moduleName      := "zio-connect-examples"
   )
   .aggregate(fileConnectorExamples, s3ConnectorExamples)
 
