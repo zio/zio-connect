@@ -15,9 +15,9 @@ private[kinesisdatastreams] final case class TestKinesisDataStreamsConnector[T](
   kinesisDataStream: TestKinesisDataStream[T]
 ) extends KinesisDataStreamsConnector[T] {
 
-  override def sinkChunked(implicit
+  override def sink(implicit
     trace: Trace
-  ): ZSink[Any, KinesisDataStreamsException, Chunk[ProducerRecord[T]], Nothing, Unit] =
+  ): ZSink[Any, KinesisDataStreamsException, ProducerRecord[T], Nothing, Unit] =
     ZSink.foreach(records => kinesisDataStream.write(records))
 
 }
@@ -34,20 +34,16 @@ object TestKinesisDataStreamsConnector {
   private[kinesisdatastreams] final case class TestKinesisDataStream[T](
     repo: TRef[Map[PartitionKey, Chunk[ProducerRecord[T]]]]
   ) {
-    def write(records: Chunk[ProducerRecord[T]])(implicit
+    def write(record: ProducerRecord[T])(implicit
       trace: Trace
     ): ZIO[Any, Nothing, Unit] =
       ZSTM.atomically {
-        for {
-          _ <- ZSTM.foreach(records) { record =>
-                 repo.update(r =>
-                   r.updated(
-                     record.partitionKey,
-                     r.getOrElse(record.partitionKey, Chunk.empty[ProducerRecord[T]]).appended(record)
-                   )
-                 )
-               }
-        } yield ()
+        repo.update(r =>
+          r.updated(
+            record.partitionKey,
+            r.getOrElse(record.partitionKey, Chunk.empty[ProducerRecord[T]]).appended(record)
+          )
+        )
       }
   }
 

@@ -11,7 +11,7 @@ import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.netty.NettyHttpClient
 import zio.aws.kinesis.Kinesis
-import zio.{Scope, ZIO, ZLayer}
+import zio.{ZIO, ZLayer}
 
 object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSpec {
   override def spec =
@@ -19,6 +19,7 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
       .provideShared(
         localStackContainer,
         awsConfig,
+        kinesis,
         producer,
         kinesisDataStreamsConnectorLiveLayer[String]
       )
@@ -29,7 +30,7 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
   lazy val localStackContainer: ZLayer[Any, Throwable, LocalStackContainer] =
     ZLayer.scoped(
       ZIO.acquireRelease(ZIO.attempt {
-        val localstackImage = DockerImageName.parse("localstack/localstack:0.11.3")
+        val localstackImage = DockerImageName.parse("localstack/localstack:0.13.0")
         val localstack = new LocalStackContainer(localstackImage)
           .withServices(Service.KINESIS)
         localstack.start()
@@ -37,21 +38,22 @@ object LiveKinesisDataStreamsConnectorSpec extends KinesisDataStreamsConnectorSp
       })(ls => ZIO.attempt(ls.stop()).orDie)
     )
 
-  lazy val producer: ZLayer[AwsConfig with LocalStackContainer, Throwable, Producer[String]] =
+  lazy val producer: ZLayer[Kinesis, Throwable, Producer[String]] =
+    ZLayer.scoped(Producer.make("TestStream", Serde.asciiString))
+
+  lazy val kinesis: ZLayer[AwsConfig with LocalStackContainer, Throwable, Kinesis] =
     ZLayer
-      .scoped(for {
+      .fromZIO(for {
         localstack <- ZIO.service[LocalStackContainer]
-        p <- Producer
-               .make("TestStream", Serde.asciiString)
-               .provide(
-                 Kinesis.customized(
-                   _.credentialsProvider(
-                     StaticCredentialsProvider
-                       .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
-                   ).region(Region.of(localstack.getRegion))
-                     .endpointOverride(localstack.getEndpointOverride(Service.KINESIS))
-                 ),
-                 awsConfig
+        k <- ZIO.succeed(
+               Kinesis.customized(
+                 _.credentialsProvider(
+                   StaticCredentialsProvider
+                     .create(AwsBasicCredentials.create(localstack.getAccessKey, localstack.getSecretKey))
+                 ).region(Region.of(localstack.getRegion))
+                   .endpointOverride(localstack.getEndpointOverride(Service.KINESIS))
                )
-      } yield p)
+             )
+      } yield k)
+      .flatMap(_.get)
 }
