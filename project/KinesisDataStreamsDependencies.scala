@@ -7,5 +7,5 @@ object KinesisDataStreamsDependencies {
 
   lazy val localstack = "org.testcontainers" % "localstack" % "1.17.5" % "test"
 
-  lazy val `zio-aws-kinesis` = "nl.vroste" %% "zio-kinesis" % "0.30.0"
+  lazy val `zio-aws-kinesis` = "nl.vroste" %% "zio-kinesis" % "0.30.1"
 }

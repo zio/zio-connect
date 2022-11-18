@@ -4,20 +4,24 @@ import izumi.reflect.Tag
 import nl.vroste.zio.kinesis.client.Producer
 import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, ProducerRecord}
 import zio.stream.ZSink
-import zio.{Chunk, Trace, ZLayer}
+import zio.{Trace, ZLayer}
 
 package object kinesisdatastreams {
 
-  def sinkChunked[T](implicit
+  def sink[T](implicit
     trace: Trace,
     tag: Tag[T]
-  ): ZSink[KinesisDataStreamsConnector[T], KinesisDataStreamsException, Chunk[ProducerRecord[T]], Nothing, Unit] =
-    ZSink.serviceWithSink(_.sinkChunked)
+  ): ZSink[KinesisDataStreamsConnector[T], KinesisDataStreamsException, ProducerRecord[T], Nothing, Unit] =
+    ZSink.serviceWithSink(_.sink)
 
-  def kinesisDataStreamsConnectorLiveLayer[T]: ZLayer[Producer[T], Nothing, LiveKinesisDataStreamsConnector[T]] =
+  def kinesisDataStreamsConnectorLiveLayer[T](implicit
+    tag: Tag[T]
+  ): ZLayer[Producer[T], Nothing, LiveKinesisDataStreamsConnector[T]] =
     LiveKinesisDataStreamsConnector.layer[T]
 
-  def kinesisDataStreamsConnectorTestLayer[T]: ZLayer[Any, Nothing, TestKinesisDataStreamsConnector[T]] =
+  def kinesisDataStreamsConnectorTestLayer[T](implicit
+    tag: Tag[T]
+  ): ZLayer[Any, Nothing, TestKinesisDataStreamsConnector[T]] =
     TestKinesisDataStreamsConnector.layer[T]
 
 }

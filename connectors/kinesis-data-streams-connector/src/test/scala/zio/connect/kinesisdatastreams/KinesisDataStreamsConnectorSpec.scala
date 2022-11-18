@@ -1,13 +1,8 @@
 package zio.connect.kinesisdatastreams
 
-import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{
-  KinesisDataStreamsException,
-  PartitionKey,
-  ProducerRecord
-}
+import zio.connect.kinesisdatastreams.KinesisDataStreamsConnector.{KinesisDataStreamsException, PartitionKey, ProducerRecord}
 import zio.stream.ZStream
 import zio.test._
-import zio.Chunk
 
 trait KinesisDataStreamsConnectorSpec extends ZIOSpecDefault {
 
@@ -19,9 +14,8 @@ trait KinesisDataStreamsConnectorSpec extends ZIOSpecDefault {
         val record1 = ProducerRecord(PartitionKey("1"), "Data1")
         val record2 = ProducerRecord(PartitionKey("1"), "Data2")
         val record3 = ProducerRecord(PartitionKey("2"), "Data2")
-        val input   = Chunk(record1, record2, record3)
         for {
-          _ <- ZStream(input) >>> sinkChunked[String]
+          _ <- ZStream(record1, record2, record3) >>> sink[String]
         } yield assertCompletes
       }
     )
