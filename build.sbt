@@ -5,7 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage     := Some(url("https://zio.dev")),
+    homepage     := Some(url("https://zio.dev/zio-connect")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -31,12 +31,69 @@ lazy val root = project
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
-    docs,
+    awsLambdaConnector,
+    couchbaseConnector,
     fileConnector,
     fs2Connector,
     s3Connector
   )
   .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(WebsitePlugin)
+
+lazy val awsLambdaConnector = project
+  .in(file("connectors/aws-lambda-connector"))
+  .settings(stdSettings("zio-connect-aws-lambda"))
+  .settings(
+    libraryDependencies ++= Seq(
+      AWSLambdaDependencies.`aws-java-sdk-core`,
+      AWSLambdaDependencies.localstack,
+      AWSLambdaDependencies.`zio-aws-lambda`,
+      AWSLambdaDependencies.`zio-aws-netty`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
+lazy val couchbaseConnector = project
+  .in(file("connectors/couchbase-connector"))
+  .settings(stdSettings("zio-connect-couchbase"))
+  .settings(
+    libraryDependencies ++= Seq(
+      CouchbaseDependencies.couchbase,
+      CouchbaseDependencies.couchbaseContainer,
+      CouchbaseDependencies.`zio-prelude`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
@@ -58,6 +115,33 @@ lazy val fileConnector = project
     }
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+
+lazy val kinesisDataStreamsConnector = project
+  .in(file("connectors/kinesis-data-streams-connector"))
+  .settings(stdSettings("zio-connect-kinesis-data-streams"))
+  .settings(
+    libraryDependencies ++= Seq(
+      KinesisDataStreamsDependencies.`aws-java-sdk-core`,
+      KinesisDataStreamsDependencies.localstack,
+      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
 
 lazy val s3Connector = project
   .in(file("connectors/s3-connector"))
@@ -113,32 +197,13 @@ lazy val fs2Connector = project
     Test / fork := true
   )
 
-lazy val docs = project
-  .in(file("zio-connect-docs"))
-  .settings(
-    publish / skip := true,
-    moduleName     := "zio-connect-docs",
-    scalacOptions -= "-Yno-imports",
-    scalacOptions -= "-Xfatal-warnings",
-    libraryDependencies ++= Seq(
-      zio
-    ),
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(fileConnector, s3Connector),
-    ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
-    cleanFiles += (ScalaUnidoc / unidoc / target).value,
-    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
-    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value
-  )
-  .dependsOn(fileConnector, s3Connector)
-  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
-
 lazy val examples = project
   .in(file("examples"))
   .settings(
     publishArtifact := false,
     moduleName      := "zio-connect-examples"
   )
-  .aggregate(fileConnectorExamples)
+  .aggregate(fileConnectorExamples, s3ConnectorExamples)
 
 lazy val fileConnectorExamples = project
   .in(file("examples/file-connector-examples"))
@@ -147,3 +212,11 @@ lazy val fileConnectorExamples = project
     scalacOptions -= "-Xfatal-warnings"
   )
   .dependsOn(LocalProject("fileConnector"))
+
+lazy val s3ConnectorExamples = project
+  .in(file("examples/s3-connector-examples"))
+  .settings(
+    publish / skip := true,
+    scalacOptions -= "-Xfatal-warnings"
+  )
+  .dependsOn(LocalProject("s3Connector"))
