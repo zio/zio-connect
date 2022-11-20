@@ -28,7 +28,7 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
         assertEqual(fromStream(fs2StreamFromChunk(chunk)), ZStream.fromChunk(chunk))
       }),
       test("error propagation") {
-        val result = fromStream(FS2Stream(Stream.raiseError[Task](exception))).runDrain.exit
+        val result = fromStream(Stream.raiseError[Task](exception)).runDrain.exit
         assertZIO(result)(fails(equalTo(FS2Exception(exception))))
       },
       test("releases all resources by the time the failover stream has started") {
@@ -39,7 +39,7 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
                      Stream(2).onFinalize(fins.update(2 +: _)) >>
                      Stream(3).onFinalize(fins.update(3 +: _)) >>
                      Stream.raiseError[Task](exception)
-          result <- fromStream(FS2Stream(stream), queueSize).drain
+          result <- fromStream(stream, queueSize).drain
                       .catchAllCause(_ => ZStream.fromZIO(fins.get))
                       .runCollect
         } yield assert(result.flatten)(equalTo(Chunk(1, 2, 3)))
@@ -72,7 +72,7 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
         for {
           queueSize <- nextIntBetween(2, 128)
           result <- assertEqual(
-                      fromStream(FS2Stream(fs2StreamFromChunk(chunk).stream.covary[Task]), queueSize),
+                      fromStream(fs2StreamFromChunk(chunk).covary[Task], queueSize),
                       ZStream.fromChunk(chunk)
                     )
         } yield result
@@ -81,8 +81,8 @@ trait FS2ConnectorSpec extends ZIOSpecDefault {
 
   private val exception: Throwable = new Exception("Failed")
 
-  private def fs2StreamFromChunk[F[_], A](chunk: Chunk[A]): FS2Stream[A] =
-    FS2Stream(fs2.Stream.chunk[Task, A](fs2.Chunk.indexedSeq(chunk)))
+  private def fs2StreamFromChunk[A](chunk: Chunk[A]): FS2Stream[A] =
+    fs2.Stream.chunk[Task, A](fs2.Chunk.indexedSeq(chunk))
 
   private def assertEqual[R, E, A](actual: ZStream[R, E, A], expected: ZStream[R, E, A]): ZIO[R, E, TestResult] =
     for {
