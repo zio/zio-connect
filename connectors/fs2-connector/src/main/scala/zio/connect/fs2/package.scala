@@ -7,11 +7,13 @@ import zio.stream.ZStream
 package object fs2 {
 
   def fromStream[A](
-    original: FS2Stream[A],
-    queueSize: Int = 16
+    original: => FS2Stream[A],
+    queueSize: => Int = 16
   )(implicit
     trace: Trace
   ): ZStream[FS2Connector, FS2Exception, A] =
     ZStream.serviceWithStream[FS2Connector](_.fromStream(original, queueSize))
+
+  val fs2ConnectorLiveLayer = LiveFS2Connector.layer
 
 }
