@@ -10,7 +10,7 @@ case class LiveCassandraConnector(session: CqlSession) extends CassandraConnecto
 
   override def createKeyspace(implicit
     trace: Trace
-  ): ZSink[Any, CassandraException, CreateKeySpaceObject, Boolean, Unit] = ZSink
+  ): ZSink[Any, CassandraException, CreateKeySpaceObject, Nothing, Unit] = ZSink
     .foreach[Any, CassandraException, CreateKeySpaceObject] { keyspace =>
       ZIO
         .attempt(
@@ -49,6 +49,7 @@ case class LiveCassandraConnector(session: CqlSession) extends CassandraConnecto
             ZIO
               .fail(CassandraException(s"Create keyspace $keyspace statement was not applied", new RuntimeException))
               .when(!result)
+              .orElse(ZIO.succeed(result))
           )
       }
 }

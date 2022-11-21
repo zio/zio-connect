@@ -11,7 +11,7 @@ case class TestCassandraConnector(session: TestCqlSession) extends CassandraConn
 
   override def createKeyspace(implicit
     trace: Trace
-  ): ZSink[Any, CassandraException, CreateKeySpaceObject, Boolean, Unit] = ZSink
+  ): ZSink[Any, CassandraException, CreateKeySpaceObject, Nothing, Unit] = ZSink
     .foreach[Any, CassandraException, CreateKeySpaceObject] { keyspace =>
       ZIO
         .attempt(
@@ -55,7 +55,7 @@ object TestCassandraConnector {
 
   private[cassandra] final case class TestCqlSession(repo: TRef[Map[String, CassandraKeyspace]]) {
 
-    def createKeyspace(keyspace: CreateKeySpaceObject) = ZSTM.atomically(
+    def createKeyspace(keyspace: CreateKeySpaceObject): ZIO[Any, RuntimeException, Unit] = ZSTM.atomically(
       for {
         map <- repo.get
         _ <- ZSTM
@@ -63,19 +63,21 @@ object TestCassandraConnector {
                .when(map.contains(keyspace.keyspace))
                .mapError(_ => new RuntimeException)
         _ <-
-          repo.update(mp => mp.updated(keyspace.keyspace, CassandraKeyspace(keyspace.keyspace, Seq[CassandraTable]())))
-      } yield true
+          repo.getAndUpdate(mp =>
+            mp.updated(keyspace.keyspace, CassandraKeyspace(keyspace.keyspace, Seq[CassandraTable]()))
+          )
+      } yield ()
     )
 
-    def deleteKeyspace(keyspace: String) = ZSTM.atomically(
+    def deleteKeyspace(keyspace: String): ZIO[Any, RuntimeException, Unit] = ZSTM.atomically(
       for {
         map <- repo.get
         _ <- ZSTM
                .fail(())
                .when(!map.contains(keyspace))
                .mapError(_ => new RuntimeException)
-        _ <- repo.update(mp => mp.removed(keyspace))
-      } yield true
+        _ <- repo.getAndUpdate(m => m - keyspace)
+      } yield ()
     )
   }
 

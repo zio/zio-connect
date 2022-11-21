@@ -15,12 +15,6 @@ inThisBuild(
         "John De Goes",
         "john@degoes.net",
         url("http://degoes.net")
-      ),
-      Developer(
-        "sgeorgakis",
-        "Stefanos Georgakis",
-        "s_georgakis@hotmail.com",
-        url("https://github.com/sgeorgakis")
       )
     )
   )

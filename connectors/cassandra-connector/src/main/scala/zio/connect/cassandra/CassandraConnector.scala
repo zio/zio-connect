@@ -6,9 +6,9 @@ import zio.stream.ZSink
 
 trait CassandraConnector {
 
-  def createKeyspace(implicit trace: Trace): ZSink[Any, CassandraException, CreateKeySpaceObject, Boolean, Unit]
+  def createKeyspace(implicit trace: Trace): ZSink[Any, CassandraException, CreateKeySpaceObject, Nothing, Unit]
 
-  def deleteKeyspace(implicit trace: Trace): ZSink[Any, CassandraException, String, Boolean, Unit]
+  def deleteKeyspace(implicit trace: Trace): ZSink[Any, CassandraException, String, Nothing, Unit]
 
 }
 
