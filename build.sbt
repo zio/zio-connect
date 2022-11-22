@@ -32,7 +32,6 @@ lazy val root = project
   )
   .aggregate(
     awsLambdaConnector,
-    couchbaseConnector,
     fileConnector,
     fs2Connector,
     s3Connector
