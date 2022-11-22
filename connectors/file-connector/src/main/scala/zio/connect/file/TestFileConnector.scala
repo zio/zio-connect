@@ -9,7 +9,7 @@ import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.{DirectoryNotEmptyException, Files, Path, Paths}
 import java.util.UUID
 
-private[file] case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
+private[file] final case class TestFileConnector(fs: TestFileSystem) extends FileConnector {
 
   override def deletePath(implicit trace: Trace): ZSink[Any, IOException, Path, Nothing, Unit] =
     ZSink.foreach(path => fs.delete(path))
