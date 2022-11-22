@@ -41,9 +41,9 @@ object Example1 extends ZIOAppDefault {
   val queryObject = QueryObject(bucket, scope, collection, newKey)
 
   /**
-   * As a demonstration of the api this example first checks that the document does not exist, then inserts a documents
-   * unless it is found, checks to see that in fact the document was inserted, retrieves the document, and then removes
-   * the document and verifies the id is no longer present.
+   * As a demonstration of the api this example first checks that the document does not exist, inserts the document
+   * unless it was found, checks to see that in fact the document has been inserted, retrieves it, subsequently removes
+   * the document and finally, checks again to see if the id/key is no longer present.
    */
   val program: ZIO[CouchbaseConnector, Throwable, String] =
     for {
