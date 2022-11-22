@@ -2,8 +2,7 @@ package zio.connect.kafka
 
 import org.apache.kafka.clients.producer.ProducerRecord
 import zio._
-import zio.connect.kafka.KafkaConnector.{NewTopic, TopicListing}
-import zio.kafka.admin.AdminClient.{NewTopic => AdminNewTopic}
+import zio.kafka.admin.AdminClient.{NewTopic, TopicListing}
 import zio.kafka.admin._
 import zio.kafka.consumer._
 import zio.kafka.producer._
@@ -16,7 +15,7 @@ case class LiveKafkaConnector(adminClient: AdminClient, consumer: Consumer, prod
     ZSink
       .foreach[Any, Throwable, NewTopic] { newTopic =>
         adminClient.createTopic(
-          AdminNewTopic(
+          NewTopic(
             name = newTopic.name,
             numPartitions = newTopic.numPartitions,
             replicationFactor = newTopic.replicationFactor,
@@ -26,33 +25,37 @@ case class LiveKafkaConnector(adminClient: AdminClient, consumer: Consumer, prod
       }
 
   def listTopics(implicit trace: Trace): ZStream[Any, Throwable, TopicListing] =
-    ZStream
-      .fromIterableZIO {
-        adminClient.listTopics().map(_.map { case (_, topicListing) =>
-          TopicListing(topicListing.name, topicListing.topicId, topicListing.isInternal)
-        })
-      }
+    ZStream.fromIterableZIO {
+      adminClient.listTopics().map(_.values)
+    }
 
-  def read(topic: => String)(implicit trace: Trace): ZStream[Any, Throwable, CommittableRecord[String, String]] =
+  def read[K, V](topic: => String)(implicit
+    keyDeserializer: Deserializer[Any, K],
+    valueDeserializer: Deserializer[Any, V],
+    trace: Trace
+  ): ZStream[Any, Throwable, CommittableRecord[K, V]] =
     consumer
       .subscribeAnd(Subscription.Topics(Set(topic)))
-      .plainStream(Serde.string, Serde.string)
-  override def write(implicit trace: Trace): ZSink[Any, Throwable, ProducerRecord[String, String], ProducerRecord[String, String], Unit] =
-    ZSink.foreachChunk[Any, Throwable, ProducerRecord[String, String]] { records =>
-      producer.produceChunk(records, Serde.string, Serde.string)
+      .plainStream(keyDeserializer, valueDeserializer)
+
+  override def publishRecord[K, V](implicit
+    keySerde: Serializer[Any, K],
+    valueSerde: Serializer[Any, V],
+    trace: Trace
+  ): ZSink[Any, Throwable, ProducerRecord[K, V], ProducerRecord[K, V], Unit] =
+    ZSink.foreachChunk[Any, Throwable, ProducerRecord[K, V]] { records =>
+      producer.produceChunk(records, keySerde, valueSerde)
     }
 }
-
 
 object LiveKafkaConnector {
   val layer: ZLayer[AdminClient with Consumer with Producer, Nothing, KafkaConnector] =
     ZLayer {
       for {
         adminClient <- ZIO.service[AdminClient]
-        consumer <- ZIO.service[Consumer]
-        producer <- ZIO.service[Producer]
+        consumer    <- ZIO.service[Consumer]
+        producer    <- ZIO.service[Producer]
       } yield LiveKafkaConnector(adminClient, consumer, producer)
     }
-
 
 }
