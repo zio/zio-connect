@@ -10,14 +10,14 @@ Setup
 libraryDependencies += "dev.zio" %% "zio-connect-couchbase" % "@VERSION@"
 ```
 
-How to use it ?
+How to use it?
 -----
 
 All available CouchbaseConnector combinators and operations are available in the package object `zio.connect.couchbase`, you only
-need to import `zio.connect.couchbase._`
+need to import `zio.connect.couchbase._` to get started.
 
 The couchbase connector presumes you already have a couchbase cluster to connect to, and uses the official java client under the hood.
-You can provide a cluster connection in the usual way and wrap it in a ZIO Layer, typically something like this:
+You can provide a cluster connection in the usual way and wrap it in a `ZLayer`, typically something like this:
 
 ```scala
 import com.couchbase.client.java.Cluster
@@ -32,8 +32,8 @@ val cluster = ZLayer.scoped(
 ```
 
 The connector provides a number of operations that can be used to interact with the cluster, most of the operations require
-a `QueryObject` or `ContentQueryObject` which are case classes. The couchbase primitives where are used: `BucketName`, `CollectionName`,
-`ScopeName` and `DocumentId` are all zio-prelude newtypes of `String`
+a `QueryObject` or `ContentQueryObject` which are case classes. The couchbase primitives that are used: `BucketName`, `CollectionName`,
+`ScopeName` and `DocumentId` are all defined as zio-prelude newtypes of `String`
 
 ```scala
 import zio.connect.couchbase.CouchbaseConnector._
@@ -46,7 +46,7 @@ val newKey     = DocumentKey("zio-connect-doc")
 val queryObject = QueryObject(bucket, scope, collection, newKey)
 ```
 
-Now let's do something, and by do, we mean let's describe an action, like checking to see a document exists by key/id:
+Now let's do something, and by do, we mean let's describe an action, like checking to see that a document exists by key/id:
 
 ```scala 
 val checkExists: ZIO[CouchbaseConnector, CouchbaseException, Boolean] = ZStream(queryObject) >>> exists
@@ -89,7 +89,7 @@ def run = getAction.provide(couchbaseConnectorLiveLayer, cluster)
 Test / Stub
 -----------
 A stub implementation of CouchbaseConnector is provided for testing purposes via the `couchbaseConnectorTestLayer`. It uses
-internally an `TRef[Map[couchbase.CouchbaseConnector.BucketName.Type, CouchbaseBucket]]` instead of talking to Couchbase. 
+internally a `TRef[Map[couchbase.CouchbaseConnector.BucketName.Type, CouchbaseBucket]]` instead of talking to Couchbase. 
 You can create the test harness as follows:
 
 ```scala
