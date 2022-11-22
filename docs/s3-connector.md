@@ -82,7 +82,7 @@ val program5: ZIO[S3Connector, Object, String] =
   } yield content
 ```
 
-Finally, let's look at how to run one of these program:
+Finally, let's look at how to run one of these programs:
 
 ```scala
 def run = program1.provide(zioAwsConfig, S3.live, s3ConnectorLiveLayer)
@@ -94,7 +94,7 @@ which is the live implementation of the `S3Connector` interface.
 Test / Stub
 -----------
 A stub implementation of S3Connector is provided for testing purposes via the `TestS3Connector.layer`. It uses
-internally an `TRef[Map[BucketName, S3Bucket]]` instead of talking to S3. You can use create the test harness as follows:
+internally an `TRef[Map[BucketName, S3Bucket]]` instead of talking to S3. You can create the test harness as follows:
 
 ```scala
 import zio.connect.s3._
