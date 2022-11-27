@@ -27,10 +27,12 @@ object Example2 extends ZIOAppDefault {
   implicit val decoder = DeriveJsonDecoder.gen[GameSim]
 
   val cluster = ZLayer.scoped(
-    ZIO.attempt(
-      Cluster
-        .connect("127.0.0.1", "admin", "admin22") // TODO: security first!
-    )
+    ZIO.acquireRelease(
+      ZIO.attempt(
+        Cluster
+          .connect("127.0.0.1", "admin", "admin22")
+      )
+    )(c => ZIO.attempt(c.disconnect()).orDie)
   )
 
   // Couchbase primitives are modeled as zio prelude newtypes
@@ -46,26 +48,23 @@ object Example2 extends ZIOAppDefault {
    * with the help of zio-json. We then upsert the document back into the cluster. Retrieve it again and verify the hitpoints
    * has been incremented
    */
-  val program: ZIO[CouchbaseConnector, Throwable, String] =
+  val program: ZIO[CouchbaseConnector, CouchbaseException, String] =
     for {
-      doc <- get(queryObject)
-               .mapError(_.reason)
-               .run(ZPipeline.utf8Decode >>> ZSink.mkString)
-      gameSim <- ZIO.fromEither(doc.fromJson[GameSim]).mapError(new RuntimeException(_))
+      doc     <- (get(queryObject) >>> ZPipeline.utf8Decode >>> ZSink.mkString).refineToOrDie[CouchbaseException]
+      gameSim <- docFromJson(doc)
       update   = gameSim.copy(hitpoints = gameSim.hitpoints + 1)
-      _ <- ZStream(ContentQueryObject(bucket, scope, collection, key, Chunk.fromArray(update.toJson.getBytes)))
-             .run(upsert)
-             .mapError(_.reason)
-      updated <- get(queryObject)
-                   .mapError(_.reason)
-                   .run(ZPipeline.utf8Decode >>> ZSink.mkString)
-                   .map(_.fromJson[GameSim].left.map(new RuntimeException(_)))
-                   .absolve
+      _ <-
+        ZStream(ContentQueryObject(bucket, scope, collection, key, Chunk.fromArray(update.toJson.getBytes))) >>> upsert
+      updated <- (get(queryObject) >>> ZPipeline.utf8Decode >>> ZSink.mkString)
+                   .refineToOrDie[CouchbaseException]
+                   .flatMap(json => docFromJson(json))
     } yield s"Updated hit points (${updated.hitpoints}) - Original hit points (${gameSim.hitpoints}) == 1 should be ${updated.hitpoints == gameSim.hitpoints + 1}"
 
-  override def run: ZIO[Any with ZIOAppArgs with Scope, Any, Any] =
+  override def run: ZIO[ZIOAppArgs with Scope, Throwable, String] =
     program
       .tap(Console.printLine(_))
       .provide(couchbaseConnectorLiveLayer, cluster)
-      .orDie
+
+  private def docFromJson[A](json: String)(implicit decoder: JsonDecoder[A]): ZIO[Any, Nothing, A] =
+    ZIO.fromEither(json.fromJson[A]).mapError(new RuntimeException(_)).orDie
 }
