@@ -1,10 +1,10 @@
 const sidebars = {
-  sidebar: [
-    'index',
-    'file-connector',
-    's3-connector',
-    'couchbase-connector',
-  ]
+	sidebar: [
+		'index',
+		'couchbase-connector',
+		'file-connector',
+		's3-connector',
+	]
 };
 
 module.exports = sidebars;

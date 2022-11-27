@@ -23,11 +23,13 @@ You can provide a cluster connection in the usual way and wrap it in a `ZLayer`,
 import com.couchbase.client.java.Cluster
 import zio._
 
-val cluster = ZLayer.scoped(
-    ZIO.attempt(
-      Cluster
-        .connect("127.0.0.1", "admin", "admin22") // very secure!!
-    )
+  val cluster = ZLayer.scoped(
+    ZIO.acquireRelease(
+      ZIO.attempt(
+        Cluster
+          .connect("127.0.0.1", "admin", "admin22")
+      )
+    )(c => ZIO.attempt(c.disconnect()).orDie)
   )
 ```
 
