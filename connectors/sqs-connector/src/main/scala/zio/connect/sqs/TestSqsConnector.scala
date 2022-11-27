@@ -46,7 +46,7 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[TestQueueMessage]) ext
           Chunk(
             batch.entries.map(batchEntry =>
               SendMessageBatchEntry(
-                batchEntry.id,
+                MessageId("testId"),
                 batchEntry.body,
                 batchEntry.delaySeconds
               )
@@ -58,8 +58,8 @@ private[sqs] final case class TestSqsConnector(sqs: Queue[TestQueueMessage]) ext
 
   override def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage] =
     ZStream
-      .fromQueue(sqs)
-      .filterZIO(_.ack.get)
+      .fromZIO(sqs.take)
+      .filterZIO(_.ack.get.map(!_))
       .mapZIO(testMsg => sqs.offer(testMsg).as(testMsg))
       .map(testMsg =>
         ReceiveMessage(

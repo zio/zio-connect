@@ -18,4 +18,7 @@ package object sqs {
     trace: Trace
   ): ZStream[SqsConnector, SqsException, ReceiveMessage] =
     ZStream.serviceWithStream(_.receiveMessages)
+
+  val sqsConnectorLiveLayer = LiveSqsConnector.layer
+  val sqsConnectorTestLayer = TestSqsConnector.layer
 }

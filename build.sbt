@@ -94,6 +94,7 @@ lazy val sqsConnector = project
     libraryDependencies ++= Seq(
       SqsDependencies.`aws-java-sdk-core`,
       SqsDependencies.`zio-prelude`,
+      SqsDependencies.localstack,
       zio,
       `zio-streams`,
       `zio-test`,
