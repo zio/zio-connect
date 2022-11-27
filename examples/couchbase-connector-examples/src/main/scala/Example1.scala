@@ -66,7 +66,6 @@ object Example1 extends ZIOAppDefault {
 
   override def run: ZIO[ZIOAppArgs with Scope, Throwable, String] =
     program
-      .mapError(a => a.reason)
       .tap(Console.printLine(_))
       .provide(couchbaseConnectorLiveLayer, cluster)
 
