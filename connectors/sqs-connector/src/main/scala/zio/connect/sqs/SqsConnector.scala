@@ -6,9 +6,9 @@ import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO}
 
 trait SqsConnector {
+  def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage]
   def sendMessage(implicit trace: Trace): ZSink[Any, SqsException, SendMessage, SendMessage, Unit]
   def sendMessageBatch(implicit trace: Trace): ZSink[Any, SqsException, SendMessageBatch, SendMessageBatch, Unit]
-  def receiveMessages(implicit trace: Trace): ZStream[Any, SqsException, ReceiveMessage]
 }
 
 object SqsConnector {
