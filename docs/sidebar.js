@@ -2,7 +2,8 @@ const sidebars = {
   sidebar: [
     'index',
     'file-connector',
-    's3-connector'
+    's3-connector',
+    'couchbase-connector',
   ]
 };
 
