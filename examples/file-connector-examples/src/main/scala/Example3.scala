@@ -4,7 +4,7 @@ import zio.stream._
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 object Example3 extends ZIOAppDefault {
 
@@ -17,7 +17,7 @@ object Example3 extends ZIOAppDefault {
              (ZStream(file) >>> existsFile).debug(s"Does file exist?") // should be true
            }
       _    <- ZStream.fromZIO(contentStream >>> writeFile(file))
-      file2 = Path.of(dir2.toString, file.getName)
+      file2 = Paths.get(dir2.toString, file.getName)
       mover = moveFile(_ => file2.toFile)
       _ <- ZStream.fromZIO(ZStream.succeed(file) >>> mover) // moves the file
       _ <- ZStream.fromZIO {
