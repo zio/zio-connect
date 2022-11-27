@@ -14,8 +14,7 @@ Connectors
 
 The following connectors are available. These are submodules and are imported individually:
 
-`zio-connect-couchbase` - Couchbase connector uses the [Couchbase Java Client][couchbase-java-client] under the hood.
-See [couchbase-connector-examples][couchbase-connector-examples]
+`zio-connect-couchbase` - Couchbase connector. See [couchbase-connector-examples][couchbase-connector-examples]
 
 `zio-connect-file` - Filesystem connector. See [file-connector-examples][file-connector-examples]
 
