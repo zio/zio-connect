@@ -1,7 +1,7 @@
-----
+---
 id: couchbase-connector
 title: "Couchbase Connector"
-----
+---
 
 Setup
 -----
