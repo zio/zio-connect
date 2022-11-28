@@ -252,8 +252,7 @@ lazy val fs2Connector = project
     Test / fork := true
   )
 
-
-/***
+/**
  * Examples Submodules
  */
 
