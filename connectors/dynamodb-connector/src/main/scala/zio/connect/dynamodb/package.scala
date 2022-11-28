@@ -2,8 +2,8 @@ package zio.connect
 
 import zio.aws.core.AwsError
 import zio.aws.dynamodb.DynamoDb
-import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.aws.dynamodb.model._
+import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.{RLayer, Trace, ULayer}
 

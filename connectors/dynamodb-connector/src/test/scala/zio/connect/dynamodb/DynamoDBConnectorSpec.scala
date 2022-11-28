@@ -17,7 +17,7 @@ import zio.test._
 
 trait DynamoDBConnectorSpec extends ZIOSpecDefault {
 
-  protected val dynamoDBConnectorSpec = tableSuite + itemSuite
+  protected val dynamoDBConnectorSpec: Spec[DynamoDBConnector, AwsError] = tableSuite + itemSuite
 
   private def createTableRequest(tableName: TableName) =
     CreateTableRequest(
@@ -61,7 +61,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
           exists <- ZStream(spec2) >>> tableExists
           exit   <- (ZStream(createTableRequest(spec2)) >>> createTable).exit
           failsWithExpectedError <-
-            exit.as(false).catchSome { case GenericAwsError(reason: ResourceInUseException) => ZIO.succeed(true) }
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceInUseException) => ZIO.succeed(true) }
         } yield assertTrue(exists) && assertTrue(failsWithExpectedError)
       }
     ) +
@@ -99,7 +99,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
           for {
             exit <- describeTable(spec5).runHead.exit
             failsExpectedly <-
-              exit.as(false).catchSome { case GenericAwsError(_reason: ResourceNotFoundException) => ZIO.succeed(true) }
+              exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
           } yield assertTrue(failsExpectedly)
         }
       )
@@ -133,7 +133,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         for {
           exit <- (ZStream(putItemRequest(spec7, item)) >>> putItem).exit
           failsExpectedly <-
-            exit.as(false).catchSome { case GenericAwsError(_reason: ResourceNotFoundException) => ZIO.succeed(true) }
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
       }
     ) + suite("getItem")(
@@ -152,7 +152,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
           maybeItem0 <-
             ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
           attributeValue = maybeItem0.item.toOption.flatMap(_.values.toList.map(_.s.toOption).headOption).flatten
-        } yield assertTrue(maybeItem0.item.isDefined) && assertTrue(attributeValue.get == StringAttributeValue("key1"))
+        } yield assertTrue(maybeItem0.item.isDefined) && assertTrue(attributeValue.get.contentEquals("key1"))
       },
       test("fails to get item if table doesn't exist") {
         val spec9 = TableName("spec9")
@@ -162,7 +162,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         for {
           exit <- getItem(getItemRequest(spec9, item1)).runHead.exit
           failsExpectedly <-
-            exit.as(false).catchSome { case GenericAwsError(_reason: ResourceNotFoundException) => ZIO.succeed(true) }
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
       },
       test("returns none if item doesn't exist") {

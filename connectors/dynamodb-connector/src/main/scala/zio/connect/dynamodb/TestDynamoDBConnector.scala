@@ -9,6 +9,8 @@ import zio.stm.{STM, TRef, ZSTM}
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.{Chunk, Trace, ULayer, ZIO, ZLayer}
 
+import scala.collection.compat._
+
 private[dynamodb] final case class TestDynamoDBConnector(db: TestDynamoDb) extends DynamoDBConnector {
   override def batchGetItem(request: => BatchGetItemRequest)(implicit
     trace: Trace
@@ -63,7 +65,7 @@ object TestDynamoDBConnector {
       ZSTM.atomically {
         val requestedTables = request.requestItems.keys.toList
         for {
-          allTablesExist <- store.get.map(store0 => requestedTables.forall(store0.keys.contains))
+          allTablesExist <- store.get.map(store0 => requestedTables.forall(store0.keys.toList.contains))
           items <- if (allTablesExist) {
                      ZSTM
                        .foreach(request.requestItems.toList) { case (table, requests) =>
@@ -84,7 +86,7 @@ object TestDynamoDBConnector {
       ZSTM.atomically {
         val requestedTables = request.requestItems.keys.toList
         for {
-          allTablesExist <- store.get.map(store0 => requestedTables.forall(store0.keys.contains))
+          allTablesExist <- store.get.map(store0 => requestedTables.forall(store0.keys.toList.contains))
           res <- if (allTablesExist)
                    ZSTM
                      .foreach(request.requestItems.toList) { case (table, requests) =>
@@ -159,7 +161,7 @@ object TestDynamoDBConnector {
         for {
           tableExists <- request.exclusiveStartTableName.toOption.fold(ZSTM.succeed(true))(checkTableExists)
           tables <- if (tableExists) store.get.map(_.keys.toList)
-                    else resourceNotFound(s"${request.exclusiveStartTableName.toOption.mkString} not found")
+                    else resourceNotFound(s"${request.exclusiveStartTableName.toOption.getOrElse("")} not found")
         } yield tables
       }
 
@@ -226,7 +228,7 @@ object TestDynamoDBConnector {
 
   implicit class TestDBOps(private val underlying: DB) extends AnyVal {
     def addItem(key: TableName, item: Map[AttributeName, AttributeValue]): DB =
-      underlying.updatedWith(key)(_.map(_.fold(Some(Chunk(item)))(items => Some(items.appended(item)))))
+      underlying.updatedWith(key)(_.map(_.fold(Some(Chunk(item)))(items => Some(items :+ item))))
     def addTable(key: TableName): DB = underlying + (key -> None)
 
     def fetchItem(

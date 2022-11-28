@@ -2,10 +2,12 @@ package zio.connect.dynamodb
 
 import zio.aws.core.AwsError
 import zio.aws.dynamodb.DynamoDb
-import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.aws.dynamodb.model._
+import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.stream.{ZPipeline, ZSink, ZStream}
 import zio.{Trace, ZIO, ZLayer}
+
+import scala.collection.compat._
 
 case class LiveDynamoDBConnector(db: DynamoDb) extends DynamoDBConnector {
   override def batchGetItem(request: => BatchGetItemRequest)(implicit
