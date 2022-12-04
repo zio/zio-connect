@@ -4,7 +4,7 @@ import zio.aws.core.AwsError
 import zio.aws.dynamodb.DynamoDb
 import zio.aws.dynamodb.model._
 import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
-import zio.stream.{ZPipeline, ZSink, ZStream}
+import zio.stream.{ZSink, ZStream}
 import zio.{RLayer, Trace, ULayer}
 
 package object dynamodb {
@@ -14,10 +14,10 @@ package object dynamodb {
   ): ZStream[DynamoDBConnector, AwsError, BatchGetItemResponse] =
     ZStream.serviceWithStream[DynamoDBConnector](_.batchGetItem(request))
 
-  def batchWriteItem(implicit
+  def batchWriteItem(request: => BatchWriteItemRequest)(implicit
     trace: Trace
-  ): ZPipeline[DynamoDBConnector, AwsError, BatchWriteItemRequest, BatchWriteItemResponse] =
-    ZPipeline.serviceWithPipeline[DynamoDBConnector](_.batchWriteItem)
+  ): ZStream[DynamoDBConnector, AwsError, BatchWriteItemResponse] =
+    ZStream.serviceWithStream[DynamoDBConnector](_.batchWriteItem(request))
 
   def createTable(implicit
     trace: Trace

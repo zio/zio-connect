@@ -1,21 +1,119 @@
 package zio.connect.dynamodb
+
 import org.testcontainers.containers.localstack.LocalStackContainer
 import org.testcontainers.containers.localstack.LocalStackContainer.Service
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException
+import zio.aws.core.GenericAwsError
 import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.dynamodb.DynamoDb
+import zio.aws.dynamodb.model.primitives.{
+  AttributeName,
+  ExpressionAttributeValueVariable,
+  KeyExpression,
+  StringAttributeValue,
+  TableName
+}
+import zio.aws.dynamodb.model.{AttributeValue, QueryRequest, ScanRequest, TableClass, UpdateTableRequest}
 import zio.aws.netty.NettyHttpClient
+import zio.stream.ZStream
+import zio.test.assertTrue
 import zio.{ZIO, ZLayer}
 
 object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig]   = httpClient >>> AwsConfig.default
 
+  val liveOnlySpec =
+    suite("updateTable")(
+      test("successfully updates table") {
+        val tableName = TableName("updateTableSpec1")
+        val updateTableRequest =
+          UpdateTableRequest(tableName = tableName, tableClass = TableClass.STANDARD_INFREQUENT_ACCESS)
+
+        for {
+          _ <- ZStream(createTableRequest(tableName)) >>> createTable
+          _ <- ZStream(updateTableRequest) >>> updateTable
+          tableClass <- describeTable(tableName).runHead
+                          .map(
+                            _.flatMap(_.tableClassSummary.toOption)
+                              .flatMap(_.tableClass.toOption)
+                          )
+        } yield assertTrue(tableClass.get == TableClass.STANDARD_INFREQUENT_ACCESS)
+      }
+    ) + suite("query")(
+      test("successfully queries dynamo db") {
+        val tableName     = TableName("query1")
+        val item1         = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2         = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val keyExpression = KeyExpression("id = :id")
+        val expressionAttributeValues = Map(
+          ExpressionAttributeValueVariable(":id") -> AttributeValue(s = StringAttributeValue("key1"))
+        )
+        val queryRequest = QueryRequest(
+          tableName,
+          keyConditionExpression = keyExpression,
+          expressionAttributeValues = expressionAttributeValues
+        )
+
+        for {
+          _ <- ZStream(createTableRequest(tableName)) >>> createTable
+          _ <- ZStream(
+                 putItemRequest(tableName, item1),
+                 putItemRequest(tableName, item2)
+               ) >>> putItem
+          response <- query(queryRequest).runCollect
+          items     = response.toList
+        } yield assertTrue(items.flatMap(getKeyByAttributeName(AttributeName("id"))) == List("key1"))
+      },
+      test("fails if table does not exist") {
+        val tableName     = TableName("query2")
+        val keyExpression = KeyExpression("id = :id")
+        val expressionAttributeValues = Map(
+          ExpressionAttributeValueVariable(":id") -> AttributeValue(s = StringAttributeValue("key1"))
+        )
+        val queryRequest = QueryRequest(
+          tableName,
+          keyConditionExpression = keyExpression,
+          expressionAttributeValues = expressionAttributeValues
+        )
+
+        for {
+          exit <- query(queryRequest).runCollect.exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      }
+    ) + suite("scan")(
+      test("successfully scans dynamo db") {
+        val tableName   = TableName("scan1")
+        val item1       = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2       = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val scanRequest = ScanRequest(tableName)
+
+        for {
+          _        <- ZStream(createTableRequest(tableName)) >>> createTable
+          _        <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName, item2)) >>> putItem
+          response <- scan(scanRequest).runCollect
+          items     = response.map(getKeyByAttributeName(AttributeName("id")))
+        } yield assertTrue(items.length == 2)
+      },
+      test("fails if table doesn't exist") {
+        val tableName   = TableName("scan2")
+        val scanRequest = ScanRequest(tableName)
+        for {
+          exit <- scan(scanRequest).runCollect.exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      }
+    )
+
   override def spec =
-    suite("LiveDynamoDBConnectorSpec")(dynamoDBConnectorSpec)
+    suite("LiveDynamoDBConnectorSpec")(dynamoDBConnectorSpec + liveOnlySpec)
       .provideShared(awsConfig, localStackContainer, dynamoDb, dynamoDBConnectorLiveLayer)
 
   lazy val localStackContainer: ZLayer[Any, Throwable, LocalStackContainer] =

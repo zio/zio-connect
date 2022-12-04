@@ -4,7 +4,7 @@ import zio.aws.core.AwsError
 import zio.aws.dynamodb.DynamoDb
 import zio.aws.dynamodb.model._
 import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
-import zio.stream.{ZPipeline, ZSink, ZStream}
+import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZIO, ZLayer}
 
 import scala.collection.compat._
@@ -15,10 +15,10 @@ case class LiveDynamoDBConnector(db: DynamoDb) extends DynamoDBConnector {
   ): ZStream[Any, AwsError, BatchGetItemResponse] =
     ZStream.fromZIO(db.batchGetItem(request).map(_.asEditable))
 
-  override def batchWriteItem(implicit
+  override def batchWriteItem(request: => BatchWriteItemRequest)(implicit
     trace: Trace
-  ): ZPipeline[Any, AwsError, BatchWriteItemRequest, BatchWriteItemResponse] =
-    ZPipeline.mapZIO(db.batchWriteItem).map(_.asEditable)
+  ): ZStream[Any, AwsError, BatchWriteItemResponse] =
+    ZStream.fromZIO(db.batchWriteItem(request)).map(_.asEditable)
 
   override def createTable(implicit trace: Trace): ZSink[Any, AwsError, CreateTableRequest, Nothing, Unit] =
     ZSink.foreach[Any, AwsError, CreateTableRequest](db.createTable)

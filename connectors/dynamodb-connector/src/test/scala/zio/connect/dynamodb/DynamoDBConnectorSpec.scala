@@ -4,62 +4,60 @@ import software.amazon.awssdk.services.dynamodb.model.{ResourceInUseException, R
 import zio.ZIO
 import zio.aws.core.{AwsError, GenericAwsError}
 import zio.aws.dynamodb.model._
-import zio.aws.dynamodb.model.primitives.{
-  AttributeName,
-  KeySchemaAttributeName,
-  NumberAttributeValue,
-  PositiveLongObject,
-  StringAttributeValue,
-  TableName
-}
+import zio.aws.dynamodb.model.primitives._
 import zio.stream.ZStream
+import zio.test.TestAspect.ignore
 import zio.test._
 
 trait DynamoDBConnectorSpec extends ZIOSpecDefault {
 
-  protected val dynamoDBConnectorSpec: Spec[DynamoDBConnector, AwsError] = tableSuite + itemSuite
+  protected val dynamoDBConnectorSpec: Spec[DynamoDBConnector, AwsError] = tableSuite + itemSuite + batchItemSuite
 
-  private def createTableRequest(tableName: TableName) =
+  protected def createTableRequest(tableName: TableName): CreateTableRequest =
     CreateTableRequest(
       tableName = tableName,
       attributeDefinitions = List(
         AttributeDefinition(
-          KeySchemaAttributeName("key"),
+          KeySchemaAttributeName("id"),
           ScalarAttributeType.S
         )
       ),
       keySchema = List(
-        KeySchemaElement(KeySchemaAttributeName("key"), KeyType.HASH)
+        KeySchemaElement(KeySchemaAttributeName("id"), KeyType.HASH)
       ),
       provisionedThroughput = Some(
         ProvisionedThroughput(
           readCapacityUnits = PositiveLongObject(16L),
           writeCapacityUnits = PositiveLongObject(16L)
         )
-      )
+      ),
+      tableClass = TableClass.STANDARD
     )
 
-  private def putItemRequest(tableName: TableName, item: Map[AttributeName, AttributeValue]) =
+  protected def putItemRequest(tableName: TableName, item: Map[AttributeName, AttributeValue]): PutItemRequest =
     PutItemRequest(tableName = tableName, item = item)
 
-  private def getItemRequest(tableName: TableName, key: Map[AttributeName, AttributeValue]) =
+  protected def getItemRequest(tableName: TableName, key: Map[AttributeName, AttributeValue]): GetItemRequest =
     GetItemRequest(tableName = tableName, key = key)
+
+  protected def getKeyByAttributeName(key: AttributeName)(item: Map[AttributeName, AttributeValue]): Option[String] =
+    item.get(key).flatMap(_.s.toOption)
 
   private lazy val tableSuite: Spec[DynamoDBConnector, AwsError] =
     suite("createTable")(
       test("successfully creates table") {
-        val spec1 = TableName("spec1")
+        val tableName = TableName("createTable1")
         for {
-          _      <- ZStream(createTableRequest(spec1)) >>> createTable
-          exists <- ZStream(spec1) >>> tableExists
+          _      <- ZStream(createTableRequest(tableName)) >>> createTable
+          exists <- ZStream(tableName) >>> tableExists
         } yield assertTrue(exists)
       },
       test("fails if table already exists") {
-        val spec2 = TableName("spec2")
+        val tableName = TableName("createTable2")
         for {
-          _      <- ZStream(createTableRequest(spec2)) >>> createTable
-          exists <- ZStream(spec2) >>> tableExists
-          exit   <- (ZStream(createTableRequest(spec2)) >>> createTable).exit
+          _      <- ZStream(createTableRequest(tableName)) >>> createTable
+          exists <- ZStream(tableName) >>> tableExists
+          exit   <- (ZStream(createTableRequest(tableName)) >>> createTable).exit
           failsWithExpectedError <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceInUseException) => ZIO.succeed(true) }
         } yield assertTrue(exists) && assertTrue(failsWithExpectedError)
@@ -67,58 +65,58 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
     ) +
       suite("tableExists")(
         test("correctly reports that table exists") {
-          val spec3 = TableName("spec3")
+          val tableName = TableName("tableExists1")
           for {
-            _      <- ZStream(createTableRequest(spec3)) >>> createTable
-            exists <- ZStream(spec3) >>> tableExists
+            _      <- ZStream(createTableRequest(tableName)) >>> createTable
+            exists <- ZStream(tableName) >>> tableExists
           } yield assertTrue(exists)
         },
         test("correctly reports table doesn't exist") {
-          val table = TableName("notthere")
+          val tableName = TableName("tableExists2")
           for {
-            exists <- ZStream(table) >>> tableExists
+            exists <- ZStream(tableName) >>> tableExists
           } yield assertTrue(!exists)
         }
       ) +
       suite("describeTable")(
         test("describes a table that exists") {
-          val spec4 = TableName("spec4")
+          val tableName = TableName("describeTable1")
           for {
-            _              <- ZStream(createTableRequest(spec4)) >>> createTable
-            maybeDescribed <- describeTable(spec4).runHead
-            tableName <- ZIO
-                           .fromOption(maybeDescribed)
-                           .mapBoth(
-                             _ => AwsError.fromThrowable(new RuntimeException(s"table ${spec4} not found")),
-                             _.tableName.toOption
-                           )
-          } yield assertTrue(tableName.get == spec4)
+            _              <- ZStream(createTableRequest(tableName)) >>> createTable
+            maybeDescribed <- describeTable(tableName).runHead
+            res <- ZIO
+                     .fromOption(maybeDescribed)
+                     .mapBoth(
+                       _ => AwsError.fromThrowable(new RuntimeException(s"table ${tableName} not found")),
+                       _.tableName.toOption
+                     )
+          } yield assertTrue(res.get == tableName)
         },
         test("fails when table does not exist") {
-          val spec5 = TableName("spec5")
+          val tableName = TableName("describeTable2")
           for {
-            exit <- describeTable(spec5).runHead.exit
+            exit <- describeTable(tableName).runHead.exit
             failsExpectedly <-
               exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
           } yield assertTrue(failsExpectedly)
         }
       )
 
-  private lazy val itemSuite: Spec[DynamoDBConnector, AwsError] =
+  private lazy val itemSuite: Spec[DynamoDBConnector, AwsError] = {
     suite("putItem")(
       test("successfully puts item") {
-        val spec6 = TableName("spec6")
-        val item: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key")     -> AttributeValue(s = StringAttributeValue("key1")),
+        val tableName = TableName("putItem1")
+        val item = Map(
+          AttributeName("id")      -> AttributeValue(s = StringAttributeValue("key1")),
           AttributeName("column1") -> AttributeValue(n = NumberAttributeValue("10"))
         )
         for {
-          _ <- ZStream(createTableRequest(spec6)) >>> createTable
-          _ <- ZStream(putItemRequest(spec6, item)) >>> putItem
+          _ <- ZStream(createTableRequest(tableName)) >>> createTable
+          _ <- ZStream(putItemRequest(tableName, item)) >>> putItem
           maybeItem <- getItem(
                          getItemRequest(
-                           spec6,
-                           Map(AttributeName("key") -> AttributeValue(s = StringAttributeValue("key1")))
+                           tableName,
+                           Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
                          )
                        ).runHead
           maybeItem0 <-
@@ -126,57 +124,229 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         } yield assertTrue(maybeItem0.item.isDefined)
       },
       test("fails if table does not exist") {
-        val spec7 = TableName("spec7")
-        val item: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key") -> AttributeValue(s = StringAttributeValue("key1"))
-        )
+        val tableName = TableName("putItem2")
+        val item      = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
         for {
-          exit <- (ZStream(putItemRequest(spec7, item)) >>> putItem).exit
+          exit <- (ZStream(putItemRequest(tableName, item)) >>> putItem).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
       }
     ) + suite("getItem")(
       test("successfully gets an item") {
-        val spec8 = TableName("spec8")
-        val item1: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key") -> AttributeValue(s = StringAttributeValue("key1"))
-        )
-        val item2: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key") -> AttributeValue(s = StringAttributeValue("key2"))
-        )
+        val tableName = TableName("getItem1")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+
         for {
-          _         <- ZStream(createTableRequest(spec8)) >>> createTable
-          _         <- ZStream(putItemRequest(spec8, item1), putItemRequest(spec8, item2)) >>> putItem
-          maybeItem <- getItem(getItemRequest(spec8, item1)).runHead
+          _         <- ZStream(createTableRequest(tableName)) >>> createTable
+          _         <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName, item2)) >>> putItem
+          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
           maybeItem0 <-
             ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
           attributeValue = maybeItem0.item.toOption.flatMap(_.values.toList.map(_.s.toOption).headOption).flatten
         } yield assertTrue(maybeItem0.item.isDefined) && assertTrue(attributeValue.get.contentEquals("key1"))
       },
       test("fails to get item if table doesn't exist") {
-        val spec9 = TableName("spec9")
-        val item1: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key") -> AttributeValue(s = StringAttributeValue("key1"))
-        )
+        val tableName = TableName("getItem2")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+
         for {
-          exit <- getItem(getItemRequest(spec9, item1)).runHead.exit
+          exit <- getItem(getItemRequest(tableName, item1)).runHead.exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
       },
       test("returns none if item doesn't exist") {
-        val spec10 = TableName("spec10")
-        val item1: Map[AttributeName, AttributeValue] = Map(
-          AttributeName("key") -> AttributeValue(s = StringAttributeValue("key1"))
-        )
+        val tableName = TableName("getItem3")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+
         for {
-          _         <- ZStream(createTableRequest(spec10)) >>> createTable
-          maybeItem <- getItem(getItemRequest(spec10, item1)).runHead
+          _         <- ZStream(createTableRequest(tableName)) >>> createTable
+          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
           maybeItem0 <-
             ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
         } yield assertTrue(maybeItem0.item.toOption.get == Map.empty[AttributeName, AttributeValue])
       }
-    )
+    ) + suite("deleteItem")(
+      test("successfully deletes an item") {
+        val tableName = TableName("deleteItem1")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
 
+        for {
+          _          <- ZStream(createTableRequest(tableName)) >>> createTable
+          _          <- ZStream(putItemRequest(tableName, item1)) >>> putItem
+          maybeItem  <- getItem(getItemRequest(tableName, item1)).runHead
+          itemWasPut  = maybeItem.flatMap(_.item.toOption).isDefined
+          _          <- ZStream(DeleteItemRequest(tableName, item1)) >>> deleteItem
+          maybeItem0 <- getItem(getItemRequest(tableName, item1)).runHead
+          itemMissing = maybeItem0.flatMap(_.item.toOption)
+        } yield assertTrue(itemWasPut && itemMissing.get == Map.empty[AttributeName, AttributeValue])
+      },
+      test("fails if the table doesn't exist") {
+        val item1 = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+
+        for {
+          exit <- (ZStream(DeleteItemRequest(TableName("tableNotThere"), item1)) >>> deleteItem).exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      },
+      test("is okay if item doesn't exist initially") {
+        val tableName = TableName("deleteItem2")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+
+        for {
+          _ <- ZStream(createTableRequest(tableName)) >>> createTable
+          _ <- ZStream(putItemRequest(tableName, item2)) >>> putItem // putting in a different item
+          exit                 <- (ZStream(DeleteItemRequest(tableName, item1)) >>> deleteItem).exit
+          doesntFailExpectedly <- exit.as(true).catchAll(_ => ZIO.succeed(false))
+        } yield assertTrue(doesntFailExpectedly)
+      }
+    ) + suite("updateItem")(
+      test("successfully updates item") {
+        val tableName = TableName("updateItem1")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val updateItemRequest = UpdateItemRequest(
+          tableName,
+          item1,
+          Map(
+            AttributeName("authorized") -> AttributeValueUpdate(
+              AttributeValue(bool = BooleanAttributeValue(true)),
+              AttributeAction.PUT
+            )
+          )
+        )
+        for {
+          _         <- ZStream(createTableRequest(tableName)) >>> createTable
+          _         <- ZStream(putItemRequest(tableName, item1)) >>> putItem
+          _         <- ZStream(updateItemRequest) >>> updateItem
+          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
+          authorized = maybeItem
+                         .flatMap(_.item.toOption)
+                         .flatMap(_.get(AttributeName("authorized")))
+                         .flatMap(_.bool.toOption)
+        } yield assertTrue(authorized.get)
+      },
+      test("fails if the table doesn't exist") {
+        val item1 = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val updateItemRequest = UpdateItemRequest(
+          TableName("updateItem2"),
+          item1,
+          Map(
+            AttributeName("authorized") -> AttributeValueUpdate(
+              AttributeValue(bool = BooleanAttributeValue(true)),
+              AttributeAction.PUT
+            )
+          )
+        )
+        for {
+          exit <- (ZStream(updateItemRequest) >>> updateItem).exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      }
+    ) + suite("listTables")(
+      test("successfully lists tables") {
+        for {
+          response <- listTables(ListTablesRequest(limit = ListTablesInputLimit(3))).runCollect
+          tables    = response.toList
+        } yield assertTrue(tables.length == 3)
+      } @@ ignore // localstack testcontainer seems to be ignoring limit
+    )
+  }
+
+  private lazy val batchItemSuite =
+    suite("batchGetItem")(
+      test("successfully gets batched items") {
+        val tableName          = TableName("batchGet1")
+        val tableName2         = TableName("batchGet2")
+        val item1              = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2              = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val keysAndAttributes  = KeysAndAttributes(List(item1))
+        val keysAndAttributes2 = KeysAndAttributes(List(item2))
+
+        val batchGetItemRequest =
+          BatchGetItemRequest(Map(tableName -> keysAndAttributes, tableName2 -> keysAndAttributes2))
+
+        for {
+          _        <- ZStream(createTableRequest(tableName), createTableRequest(tableName2)) >>> createTable
+          _        <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName2, item2)) >>> putItem
+          response <- batchGetItem(batchGetItemRequest).runCollect
+          items     = response.toList.flatMap(_.responses.toOption).flatMap(_.values.flatten)
+          keys      = items.flatMap(getKeyByAttributeName(AttributeName("id"))).sorted
+        } yield assertTrue(keys == List("key1", "key2"))
+      },
+      test("fails if table doesn't exist") {
+        val tableName           = TableName("batchGet3")
+        val item1               = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2               = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val keysAndAttributes   = KeysAndAttributes(List(item1, item2))
+        val batchGetItemRequest = BatchGetItemRequest(Map(tableName -> keysAndAttributes))
+
+        for {
+          exit <- batchGetItem(batchGetItemRequest).runCollect.exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      },
+      test("still succeeds if some items are not available") {
+        val tableName = TableName("batchGet4")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+
+        val keysAndAttributes = KeysAndAttributes(List(item1, item2))
+        val batchGetItemRequest = BatchGetItemRequest(
+          Map(tableName -> keysAndAttributes)
+        )
+        for {
+          _        <- ZStream(createTableRequest(tableName)) >>> createTable
+          _        <- ZStream(putItemRequest(tableName, item1)) >>> putItem
+          response <- batchGetItem(batchGetItemRequest).runCollect
+          items     = response.toList.flatMap(_.responses.toOption).flatMap(_.values.flatten)
+          keys      = items.flatMap(getKeyByAttributeName(AttributeName("id"))).sorted
+        } yield assertTrue(keys == List("key1"))
+      }
+    ) + suite("batchWriteItem")(
+      test("successfully executes batch write request") {
+        val tableName = TableName("batchWriteItem1")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val writeRequests = List(
+          WriteRequest(putRequest = PutRequest(item1)),
+          WriteRequest(putRequest = PutRequest(item2))
+        )
+        val batchWriteItemRequest = BatchWriteItemRequest(
+          Map(tableName -> writeRequests)
+        )
+
+        for {
+          _        <- ZStream(createTableRequest(tableName)) >>> createTable
+          response <- batchWriteItem(batchWriteItemRequest).runCollect
+          items     = response.flatMap(_.unprocessedItems.toChunk)
+          maybeItems <-
+            (getItem(getItemRequest(tableName, item1)) ++ getItem(getItemRequest(tableName, item2))).runCollect
+          keys = maybeItems.flatMap(_.item.toOption).flatMap(getKeyByAttributeName(AttributeName("id"))).toList.sorted
+        } yield assertTrue(items.head == Map.empty[TableName, Iterable[WriteRequest]] && keys == List("key1", "key2"))
+      },
+      test("fails if some tables do not exist") {
+        val tableName = TableName("batchWriteItem2")
+        val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
+        val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
+        val writeRequests = List(
+          WriteRequest(putRequest = PutRequest(item1)),
+          WriteRequest(putRequest = PutRequest(item2))
+        )
+        val batchWriteItemRequest = BatchWriteItemRequest(
+          Map(tableName -> writeRequests)
+        )
+
+        for {
+          exit <- batchWriteItem(batchWriteItemRequest).runCollect.exit
+          failsExpectedly <-
+            exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+        } yield assertTrue(failsExpectedly)
+      }
+    )
 }

@@ -6,7 +6,7 @@ import zio.aws.dynamodb.model._
 import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.connect.dynamodb.TestDynamoDBConnector._
 import zio.stm.{STM, TRef, ZSTM}
-import zio.stream.{ZPipeline, ZSink, ZStream}
+import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ULayer, ZIO, ZLayer}
 
 import scala.collection.compat._
@@ -17,10 +17,10 @@ private[dynamodb] final case class TestDynamoDBConnector(db: TestDynamoDb) exten
   ): ZStream[Any, AwsError, BatchGetItemResponse] =
     ZStream.fromZIO(db.batchGetItem(request))
 
-  override def batchWriteItem(implicit
+  override def batchWriteItem(request: => BatchWriteItemRequest)(implicit
     trace: Trace
-  ): ZPipeline[Any, AwsError, BatchWriteItemRequest, BatchWriteItemResponse] =
-    ZPipeline.mapZIO(db.batchWriteItem).flattenIterables
+  ): ZStream[Any, AwsError, BatchWriteItemResponse] =
+    ZStream.fromZIO(db.batchWriteItem(request)).flattenIterables
 
   override def createTable(implicit trace: Trace): ZSink[Any, AwsError, CreateTableRequest, Nothing, Unit] =
     ZSink.foreach(db.createTable)
@@ -93,10 +93,17 @@ object TestDynamoDBConnector {
                        ZSTM.foreach(requests.toList) { req =>
                          (req.putRequest.toOption, req.deleteRequest.toOption) match {
                            case (Some(put), _) =>
-                             store.update(_.addItem(table, put.item)) *> ZSTM.succeed(BatchWriteItemResponse())
+                             store.update(_.addItem(table, put.item)) *> ZSTM.succeed(
+                               BatchWriteItemResponse(unprocessedItems = Map.empty[TableName, Iterable[WriteRequest]])
+                             )
                            case (_, Some(del)) =>
-                             store.update(_.removeItem(table, del.key)) *> ZSTM.succeed(BatchWriteItemResponse())
-                           case _ => store.get *> ZSTM.succeed(BatchWriteItemResponse())
+                             store.update(_.removeItem(table, del.key)) *> ZSTM.succeed(
+                               BatchWriteItemResponse(unprocessedItems = Map.empty[TableName, Iterable[WriteRequest]])
+                             )
+                           case _ =>
+                             store.get *> ZSTM.succeed(
+                               BatchWriteItemResponse(unprocessedItems = Map.empty[TableName, Iterable[WriteRequest]])
+                             )
                          }
                        }
                      }
@@ -162,7 +169,9 @@ object TestDynamoDBConnector {
           tableExists <- request.exclusiveStartTableName.toOption.fold(ZSTM.succeed(true))(checkTableExists)
           tables <- if (tableExists) store.get.map(_.keys.toList)
                     else resourceNotFound(s"${request.exclusiveStartTableName.toOption.getOrElse("")} not found")
-        } yield tables
+          enforceLimit <-
+            ZSTM.fromOption(request.limit.toOption).map(limit => tables.take(limit)).orElse(ZSTM.succeed(tables))
+        } yield enforceLimit
       }
 
     def putItem(request: PutItemRequest): ZIO[Any, AwsError, Unit] =
@@ -189,12 +198,13 @@ object TestDynamoDBConnector {
       ZSTM.atomically {
         for {
           tableExists <- checkTableExists(request.tableName)
-          // same goes for the scan api
+          // same goes for the scan api, regarding the
           items <- if (tableExists) store.get.map(_.fetchItems(request.tableName, request.exclusiveStartKey.toList))
                    else resourceNotFound(s"${request.tableName} not found")
         } yield items.getOrElse(List.empty)
       }
 
+    // Trivially succeeds if table exists
     def updateTable(request: UpdateTableRequest): ZIO[Any, AwsError, Unit] =
       ZSTM.atomically {
         for {
@@ -255,11 +265,19 @@ object TestDynamoDBConnector {
         .flatMap(_.map(_.filter(item => key.forall(item.toList.contains)).nonEmpty))
         .getOrElse(false)
 
-    def removeItem(key: TableName, item: Map[AttributeName, AttributeValue]): DB =
-      underlying.updatedWith(key)(_.map(_.map(items => items.filterNot(_ == item))))
+    def removeItem(key: TableName, item: Map[AttributeName, AttributeValue]): DB = {
+      val updated: Option[DB] = for {
+        maybeTable <- underlying.get(key)
+        maybeItems <- maybeTable
+        filtered    = maybeItems.filterNot(_ == item)
+      } yield underlying.updated(key, Option(filtered))
+
+      updated.getOrElse(underlying)
+    }
 
     def removeTable(key: TableName): DB = underlying - key
 
+    // Does not support destructive updates
     def replaceItem(
       table: TableName,
       key: Map[AttributeName, AttributeValue],
