@@ -275,6 +275,17 @@ lazy val couchbaseConnectorExamples = project
   )
   .dependsOn(LocalProject("couchbaseConnector"))
 
+lazy val dynamodbConnectorExamples = project
+  .in(file("examples/dynamodb-connector-examples"))
+  .settings(
+    publish / skip := true,
+    scalacOptions -= "-Xfatal-warnings",
+    libraryDependencies := Seq(
+      "dev.zio" %% "zio-aws-netty" % DynamoDBDependencies.zioAwsVersion
+    )
+  )
+  .dependsOn(LocalProject("dynamodbConnector"))
+
 lazy val fileConnectorExamples = project
   .in(file("examples/file-connector-examples"))
   .settings(

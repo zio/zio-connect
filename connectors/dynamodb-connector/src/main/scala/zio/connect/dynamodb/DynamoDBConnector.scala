@@ -7,7 +7,7 @@ import zio.aws.dynamodb.model._
 import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.stream.{ZSink, ZStream}
 
-private[dynamodb] trait DynamoDBConnector {
+trait DynamoDBConnector {
 
   def batchGetItem(request: => BatchGetItemRequest)(implicit
     trace: Trace
