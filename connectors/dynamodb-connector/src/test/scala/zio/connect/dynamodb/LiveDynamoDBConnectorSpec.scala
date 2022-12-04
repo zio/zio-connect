@@ -66,8 +66,8 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
                  putItemRequest(tableName, item2)
                ) >>> putItem
           response <- query(queryRequest).runCollect
-          items     = response.toList
-        } yield assertTrue(items.flatMap(getKeyByAttributeName(AttributeName("id"))) == List("key1"))
+          items     = response.toList.flatMap(getKeyByAttributeName(AttributeName("id")))
+        } yield assertTrue(items == List("key1"))
       },
       test("fails if table does not exist") {
         val tableName     = TableName("query2")
