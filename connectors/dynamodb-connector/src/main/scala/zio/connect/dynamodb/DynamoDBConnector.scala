@@ -9,13 +9,13 @@ import zio.stream.{ZSink, ZStream}
 
 trait DynamoDBConnector {
 
-  def batchGetItem(request: => BatchGetItemRequest)(implicit
+  def batchGetItem(implicit
     trace: Trace
-  ): ZStream[Any, AwsError, BatchGetItemResponse]
+  ): ZSink[Any, AwsError, BatchGetItemRequest, BatchGetItemRequest, Chunk[BatchGetItemResponse]]
 
-  def batchWriteItem(request: => BatchWriteItemRequest)(implicit
+  def batchWriteItem(implicit
     trace: Trace
-  ): ZStream[Any, AwsError, BatchWriteItemResponse]
+  ): ZSink[Any, AwsError, BatchWriteItemRequest, BatchWriteItemRequest, Chunk[BatchWriteItemResponse]]
 
   def createTable(implicit trace: Trace): ZSink[Any, AwsError, CreateTableRequest, Nothing, Unit]
 
@@ -23,17 +23,23 @@ trait DynamoDBConnector {
 
   def deleteTable(implicit trace: Trace): ZSink[Any, AwsError, DeleteTableRequest, Nothing, Unit]
 
-  def describeTable(name: => TableName)(implicit trace: Trace): ZStream[Any, AwsError, TableDescription]
+  def describeTable(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, DescribeTableRequest, DescribeTableRequest, Chunk[DescribeTableResponse]]
 
-  def listTables(request: => ListTablesRequest): ZStream[Any, AwsError, TableName]
+  def listTables(request: => ListTablesRequest)(implicit trace: Trace): ZStream[Any, AwsError, TableName]
 
-  def getItem(request: => GetItemRequest)(implicit trace: Trace): ZStream[Any, AwsError, GetItemResponse]
+  def getItem(implicit trace: Trace): ZSink[Any, AwsError, GetItemRequest, GetItemRequest, Chunk[GetItemResponse]]
 
   def putItem(implicit trace: Trace): ZSink[Any, AwsError, PutItemRequest, Nothing, Unit]
 
-  def query(request: => QueryRequest): ZStream[Any, AwsError, Map[AttributeName, AttributeValue]]
+  def query(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, QueryRequest, QueryRequest, Chunk[Map[AttributeName, AttributeValue]]]
 
-  def scan(request: => ScanRequest): ZStream[Any, AwsError, Map[AttributeName, AttributeValue]]
+  def scan(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, ScanRequest, ScanRequest, Chunk[Map[AttributeName, AttributeValue]]]
 
   def tableExists(implicit trace: Trace): ZSink[Any, AwsError, TableName, TableName, Boolean] =
     ZSink
@@ -41,8 +47,9 @@ trait DynamoDBConnector {
       .map(_.headOption)
       .mapZIO {
         case Some(name) =>
-          describeTable(name).runLast.as(true).catchSome { case GenericAwsError(_: ResourceNotFoundException) =>
-            ZIO.succeed(false)
+          (ZStream(DescribeTableRequest(name)) >>> describeTable).as(true).catchSome {
+            case GenericAwsError(_: ResourceNotFoundException) =>
+              ZIO.succeed(false)
           }
         case None => ZIO.succeed(false)
       }

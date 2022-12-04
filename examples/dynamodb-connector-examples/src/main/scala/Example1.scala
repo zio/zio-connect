@@ -52,7 +52,7 @@ object Example1 extends ZIOAppDefault {
              case GenericAwsError(_: ResourceNotFoundException) => true
              case _                                             => false
            }
-      response <- getItem(GetItemRequest(table, key)).runHead
+      response <- ZStream(GetItemRequest(table, key)) >>> getItem
       item      = response.flatMap(_.item.toOption)
       _        <- ZIO.logInfo(item.mkString)
       tables   <- listTables(ListTablesRequest(limit = ListTablesInputLimit(3))).runCollect

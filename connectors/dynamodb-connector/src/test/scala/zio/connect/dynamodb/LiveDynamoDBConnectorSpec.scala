@@ -10,15 +10,10 @@ import zio.aws.core.GenericAwsError
 import zio.aws.core.config.AwsConfig
 import zio.aws.core.httpclient.HttpClient
 import zio.aws.dynamodb.DynamoDb
-import zio.aws.dynamodb.model.primitives.{
-  AttributeName,
-  ExpressionAttributeValueVariable,
-  KeyExpression,
-  StringAttributeValue,
-  TableName
-}
-import zio.aws.dynamodb.model.{AttributeValue, QueryRequest, ScanRequest, TableClass, UpdateTableRequest}
+import zio.aws.dynamodb.model._
+import zio.aws.dynamodb.model.primitives._
 import zio.aws.netty.NettyHttpClient
+import zio.prelude._
 import zio.stream.ZStream
 import zio.test.assertTrue
 import zio.{ZIO, ZLayer}
@@ -37,9 +32,11 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
         for {
           _ <- ZStream(createTableRequest(tableName)) >>> createTable
           _ <- ZStream(updateTableRequest) >>> updateTable
-          tableClass <- describeTable(tableName).runHead
+          tableClass <- (ZStream(DescribeTableRequest(tableName)) >>> describeTable)
                           .map(
-                            _.flatMap(_.tableClassSummary.toOption)
+                            _.headOption
+                              .flatMap(_.table.toOption)
+                              .flatMap(_.tableClassSummary.toOption)
                               .flatMap(_.tableClass.toOption)
                           )
         } yield assertTrue(tableClass.get == TableClass.STANDARD_INFREQUENT_ACCESS)
@@ -65,7 +62,7 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
                  putItemRequest(tableName, item1),
                  putItemRequest(tableName, item2)
                ) >>> putItem
-          response <- query(queryRequest).runCollect
+          response <- ZStream(queryRequest) >>> query
           items     = response.toList.flatMap(getKeyByAttributeName(AttributeName("id")))
         } yield assertTrue(items == List("key1"))
       },
@@ -82,7 +79,7 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
         )
 
         for {
-          exit <- query(queryRequest).runCollect.exit
+          exit <- (ZStream(queryRequest) >>> query).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
@@ -97,7 +94,7 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
         for {
           _        <- ZStream(createTableRequest(tableName)) >>> createTable
           _        <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName, item2)) >>> putItem
-          response <- scan(scanRequest).runCollect
+          response <- ZStream(scanRequest) >>> scan
           items     = response.map(getKeyByAttributeName(AttributeName("id")))
         } yield assertTrue(items.length == 2)
       },
@@ -105,7 +102,7 @@ object LiveDynamoDBConnectorSpec extends DynamoDBConnectorSpec {
         val tableName   = TableName("scan2")
         val scanRequest = ScanRequest(tableName)
         for {
-          exit <- scan(scanRequest).runCollect.exit
+          exit <- (ZStream(scanRequest) >>> scan).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)

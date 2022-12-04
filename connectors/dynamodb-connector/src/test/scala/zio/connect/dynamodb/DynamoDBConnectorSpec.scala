@@ -82,20 +82,20 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         test("describes a table that exists") {
           val tableName = TableName("describeTable1")
           for {
-            _              <- ZStream(createTableRequest(tableName)) >>> createTable
-            maybeDescribed <- describeTable(tableName).runHead
-            res <- ZIO
-                     .fromOption(maybeDescribed)
-                     .mapBoth(
-                       _ => AwsError.fromThrowable(new RuntimeException(s"table ${tableName} not found")),
-                       _.tableName.toOption
-                     )
-          } yield assertTrue(res.get == tableName)
+            _        <- ZStream(createTableRequest(tableName)) >>> createTable
+            response <- ZStream(DescribeTableRequest(tableName)) >>> describeTable
+            maybeDescription <- ZIO
+                                  .fromOption(response.headOption)
+                                  .mapBoth(
+                                    _ => AwsError.fromThrowable(new RuntimeException(s"table ${tableName} not found")),
+                                    _.table.toOption.flatMap(_.tableName.toOption)
+                                  )
+          } yield assertTrue(maybeDescription.get == tableName)
         },
         test("fails when table does not exist") {
           val tableName = TableName("describeTable2")
           for {
-            exit <- describeTable(tableName).runHead.exit
+            exit <- (ZStream(DescribeTableRequest(tableName)) >>> describeTable).exit
             failsExpectedly <-
               exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
           } yield assertTrue(failsExpectedly)
@@ -110,18 +110,15 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
           AttributeName("id")      -> AttributeValue(s = StringAttributeValue("key1")),
           AttributeName("column1") -> AttributeValue(n = NumberAttributeValue("10"))
         )
+        val request =
+          getItemRequest(tableName, Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1"))))
         for {
-          _ <- ZStream(createTableRequest(tableName)) >>> createTable
-          _ <- ZStream(putItemRequest(tableName, item)) >>> putItem
-          maybeItem <- getItem(
-                         getItemRequest(
-                           tableName,
-                           Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
-                         )
-                       ).runHead
-          maybeItem0 <-
-            ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException(s"item not found")))
-        } yield assertTrue(maybeItem0.item.isDefined)
+          _     <- ZStream(createTableRequest(tableName)) >>> createTable
+          _     <- ZStream(putItemRequest(tableName, item)) >>> putItem
+          items <- ZStream(request) >>> getItem
+          maybeItem <-
+            ZIO.fromOption(items.headOption).orElseFail(AwsError.fromThrowable(new RuntimeException(s"item not found")))
+        } yield assertTrue(maybeItem.item.isDefined)
       },
       test("fails if table does not exist") {
         val tableName = TableName("putItem2")
@@ -139,20 +136,20 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         val item2     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key2")))
 
         for {
-          _         <- ZStream(createTableRequest(tableName)) >>> createTable
-          _         <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName, item2)) >>> putItem
-          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
-          maybeItem0 <-
-            ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
-          attributeValue = maybeItem0.item.toOption.flatMap(_.values.toList.map(_.s.toOption).headOption).flatten
-        } yield assertTrue(maybeItem0.item.isDefined) && assertTrue(attributeValue.get.contentEquals("key1"))
+          _     <- ZStream(createTableRequest(tableName)) >>> createTable
+          _     <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName, item2)) >>> putItem
+          items <- ZStream(getItemRequest(tableName, item1)) >>> getItem
+          maybeItem <-
+            ZIO.fromOption(items.headOption).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
+          attributeValue = maybeItem.item.toOption.flatMap(_.values.toList.map(_.s.toOption).headOption).flatten
+        } yield assertTrue(maybeItem.item.isDefined) && assertTrue(attributeValue.get.contentEquals("key1"))
       },
       test("fails to get item if table doesn't exist") {
         val tableName = TableName("getItem2")
         val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
 
         for {
-          exit <- getItem(getItemRequest(tableName, item1)).runHead.exit
+          exit <- (ZStream(getItemRequest(tableName, item1)) >>> getItem).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
@@ -162,11 +159,11 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         val item1     = Map(AttributeName("id") -> AttributeValue(s = StringAttributeValue("key1")))
 
         for {
-          _         <- ZStream(createTableRequest(tableName)) >>> createTable
-          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
-          maybeItem0 <-
-            ZIO.fromOption(maybeItem).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
-        } yield assertTrue(maybeItem0.item.toOption.get == Map.empty[AttributeName, AttributeValue])
+          _     <- ZStream(createTableRequest(tableName)) >>> createTable
+          items <- ZStream(getItemRequest(tableName, item1)) >>> getItem
+          maybeItem <-
+            ZIO.fromOption(items.headOption).orElseFail(AwsError.fromThrowable(new RuntimeException("item not found")))
+        } yield assertTrue(maybeItem.item.toOption.get == Map.empty[AttributeName, AttributeValue])
       }
     ) + suite("deleteItem")(
       test("successfully deletes an item") {
@@ -176,11 +173,11 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         for {
           _          <- ZStream(createTableRequest(tableName)) >>> createTable
           _          <- ZStream(putItemRequest(tableName, item1)) >>> putItem
-          maybeItem  <- getItem(getItemRequest(tableName, item1)).runHead
-          itemWasPut  = maybeItem.flatMap(_.item.toOption).isDefined
+          items      <- ZStream(getItemRequest(tableName, item1)) >>> getItem
+          itemWasPut  = items.headOption.flatMap(_.item.toOption).isDefined
           _          <- ZStream(DeleteItemRequest(tableName, item1)) >>> deleteItem
-          maybeItem0 <- getItem(getItemRequest(tableName, item1)).runHead
-          itemMissing = maybeItem0.flatMap(_.item.toOption)
+          items1     <- ZStream(getItemRequest(tableName, item1)) >>> getItem
+          itemMissing = items1.headOption.flatMap(_.item.toOption)
         } yield assertTrue(itemWasPut && itemMissing.get == Map.empty[AttributeName, AttributeValue])
       },
       test("fails if the table doesn't exist") {
@@ -219,11 +216,11 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
           )
         )
         for {
-          _         <- ZStream(createTableRequest(tableName)) >>> createTable
-          _         <- ZStream(putItemRequest(tableName, item1)) >>> putItem
-          _         <- ZStream(updateItemRequest) >>> updateItem
-          maybeItem <- getItem(getItemRequest(tableName, item1)).runHead
-          authorized = maybeItem
+          _     <- ZStream(createTableRequest(tableName)) >>> createTable
+          _     <- ZStream(putItemRequest(tableName, item1)) >>> putItem
+          _     <- ZStream(updateItemRequest) >>> updateItem
+          items <- ZStream(getItemRequest(tableName, item1)) >>> getItem
+          authorized = items.headOption
                          .flatMap(_.item.toOption)
                          .flatMap(_.get(AttributeName("authorized")))
                          .flatMap(_.bool.toOption)
@@ -273,7 +270,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         for {
           _        <- ZStream(createTableRequest(tableName), createTableRequest(tableName2)) >>> createTable
           _        <- ZStream(putItemRequest(tableName, item1), putItemRequest(tableName2, item2)) >>> putItem
-          response <- batchGetItem(batchGetItemRequest).runCollect
+          response <- ZStream(batchGetItemRequest) >>> batchGetItem
           items     = response.toList.flatMap(_.responses.toOption).flatMap(_.values.flatten)
           keys      = items.flatMap(getKeyByAttributeName(AttributeName("id"))).sorted
         } yield assertTrue(keys == List("key1", "key2"))
@@ -286,7 +283,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         val batchGetItemRequest = BatchGetItemRequest(Map(tableName -> keysAndAttributes))
 
         for {
-          exit <- batchGetItem(batchGetItemRequest).runCollect.exit
+          exit <- (ZStream(batchGetItemRequest) >>> batchGetItem).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)
@@ -303,7 +300,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         for {
           _        <- ZStream(createTableRequest(tableName)) >>> createTable
           _        <- ZStream(putItemRequest(tableName, item1)) >>> putItem
-          response <- batchGetItem(batchGetItemRequest).runCollect
+          response <- (ZStream(batchGetItemRequest) >>> batchGetItem)
           items     = response.toList.flatMap(_.responses.toOption).flatMap(_.values.flatten)
           keys      = items.flatMap(getKeyByAttributeName(AttributeName("id"))).sorted
         } yield assertTrue(keys == List("key1"))
@@ -322,12 +319,11 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         )
 
         for {
-          _        <- ZStream(createTableRequest(tableName)) >>> createTable
-          response <- batchWriteItem(batchWriteItemRequest).runCollect
-          items     = response.flatMap(_.unprocessedItems.toChunk)
-          maybeItems <-
-            (getItem(getItemRequest(tableName, item1)) ++ getItem(getItemRequest(tableName, item2))).runCollect
-          keys = maybeItems.flatMap(_.item.toOption).flatMap(getKeyByAttributeName(AttributeName("id"))).toList.sorted
+          _         <- ZStream(createTableRequest(tableName)) >>> createTable
+          response  <- ZStream(batchWriteItemRequest) >>> batchWriteItem
+          items      = response.flatMap(_.unprocessedItems.toChunk)
+          responses <- ZStream(getItemRequest(tableName, item1), getItemRequest(tableName, item2)) >>> getItem
+          keys       = responses.flatMap(_.item.toOption).flatMap(getKeyByAttributeName(AttributeName("id"))).toList.sorted
         } yield assertTrue(items.head == Map.empty[TableName, Iterable[WriteRequest]] && keys == List("key1", "key2"))
       },
       test("fails if some tables do not exist") {
@@ -343,7 +339,7 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
         )
 
         for {
-          exit <- batchWriteItem(batchWriteItemRequest).runCollect.exit
+          exit <- (ZStream(batchWriteItemRequest) >>> batchWriteItem).exit
           failsExpectedly <-
             exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
         } yield assertTrue(failsExpectedly)

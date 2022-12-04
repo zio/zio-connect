@@ -12,15 +12,20 @@ import zio.{Chunk, Trace, ULayer, ZIO, ZLayer}
 import scala.collection.compat._
 
 private[dynamodb] final case class TestDynamoDBConnector(db: TestDynamoDb) extends DynamoDBConnector {
-  override def batchGetItem(request: => BatchGetItemRequest)(implicit
-    trace: Trace
-  ): ZStream[Any, AwsError, BatchGetItemResponse] =
-    ZStream.fromZIO(db.batchGetItem(request))
 
-  override def batchWriteItem(request: => BatchWriteItemRequest)(implicit
+  override def batchGetItem(implicit
     trace: Trace
-  ): ZStream[Any, AwsError, BatchWriteItemResponse] =
-    ZStream.fromZIO(db.batchWriteItem(request)).flattenIterables
+  ): ZSink[Any, AwsError, BatchGetItemRequest, BatchGetItemRequest, Chunk[BatchGetItemResponse]] =
+    ZSink.foldLeftZIO(Chunk.empty[BatchGetItemResponse]) { case (chunk, request) =>
+      db.batchGetItem(request).map(chunk :+ _)
+    }
+
+  override def batchWriteItem(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, BatchWriteItemRequest, BatchWriteItemRequest, Chunk[BatchWriteItemResponse]] =
+    ZSink.foldLeftZIO(Chunk.empty[BatchWriteItemResponse]) { case (chunk, request) =>
+      db.batchWriteItem(request).map(chunk ++ _)
+    }
 
   override def createTable(implicit trace: Trace): ZSink[Any, AwsError, CreateTableRequest, Nothing, Unit] =
     ZSink.foreach(db.createTable)
@@ -31,23 +36,39 @@ private[dynamodb] final case class TestDynamoDBConnector(db: TestDynamoDb) exten
   override def deleteTable(implicit trace: Trace): ZSink[Any, AwsError, DeleteTableRequest, Nothing, Unit] =
     ZSink.foreach[Any, AwsError, DeleteTableRequest](db.deleteTable)
 
-  override def describeTable(name: => TableName)(implicit trace: Trace): ZStream[Any, AwsError, TableDescription] =
-    ZStream.fromZIO(db.describeTable(DescribeTableRequest(name)))
+  override def describeTable(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, DescribeTableRequest, DescribeTableRequest, Chunk[DescribeTableResponse]] =
+    ZSink.foldLeftZIO(Chunk.empty[DescribeTableResponse]) { case (chunk, request) =>
+      db.describeTable(request).map(chunk :+ _)
+    }
 
-  override def getItem(request: => GetItemRequest)(implicit trace: Trace): ZStream[Any, AwsError, GetItemResponse] =
-    ZStream.fromZIO(db.getItem(request))
+  override def getItem(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, GetItemRequest, GetItemRequest, Chunk[GetItemResponse]] =
+    ZSink.foldLeftZIO(Chunk.empty[GetItemResponse]) { case (chunk, request) =>
+      db.getItem(request).map(chunk :+ _)
+    }
 
-  override def listTables(request: => ListTablesRequest): ZStream[Any, AwsError, TableName] =
+  override def listTables(request: => ListTablesRequest)(implicit trace: Trace): ZStream[Any, AwsError, TableName] =
     ZStream.fromZIO(db.listTables(request)).flattenIterables
 
   override def putItem(implicit trace: Trace): ZSink[Any, AwsError, PutItemRequest, Nothing, Unit] =
     ZSink.foreach[Any, AwsError, PutItemRequest](db.putItem)
 
-  override def query(request: => QueryRequest): ZStream[Any, AwsError, Map[AttributeName, AttributeValue]] =
-    ZStream.fromZIO(db.query(request)).flattenIterables
+  override def query(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, QueryRequest, QueryRequest, Chunk[Map[AttributeName, AttributeValue]]] =
+    ZSink.foldLeftZIO(Chunk.empty[Map[AttributeName, AttributeValue]]) { case (chunk, request) =>
+      db.query(request).map(chunk ++ _)
+    }
 
-  override def scan(request: => ScanRequest): ZStream[Any, AwsError, Map[AttributeName, AttributeValue]] =
-    ZStream.fromZIO(db.scan(request)).flattenIterables
+  override def scan(implicit
+    trace: Trace
+  ): ZSink[Any, AwsError, ScanRequest, ScanRequest, Chunk[Map[AttributeName, AttributeValue]]] =
+    ZSink.foldLeftZIO(Chunk.empty[Map[AttributeName, AttributeValue]]) { case (chunk, request) =>
+      db.scan(request).map(chunk ++ _)
+    }
 
   override def updateItem(implicit trace: Trace): ZSink[Any, AwsError, UpdateItemRequest, Nothing, Unit] =
     ZSink.foreach[Any, AwsError, UpdateItemRequest](db.updateItem)
@@ -82,15 +103,15 @@ object TestDynamoDBConnector {
         } yield items
       }
 
-    def batchWriteItem(request: BatchWriteItemRequest): ZIO[Any, AwsError, List[BatchWriteItemResponse]] =
+    def batchWriteItem(request: BatchWriteItemRequest): ZIO[Any, AwsError, Chunk[BatchWriteItemResponse]] =
       ZSTM.atomically {
-        val requestedTables = request.requestItems.keys.toList
+        val requestedTables = Chunk.fromIterable(request.requestItems.keys)
         for {
           allTablesExist <- store.get.map(store0 => requestedTables.forall(store0.keys.toList.contains))
           res <- if (allTablesExist)
                    ZSTM
-                     .foreach(request.requestItems.toList) { case (table, requests) =>
-                       ZSTM.foreach(requests.toList) { req =>
+                     .foreach(Chunk.fromIterable(request.requestItems)) { case (table, requests) =>
+                       ZSTM.foreach(requests) { req =>
                          (req.putRequest.toOption, req.deleteRequest.toOption) match {
                            case (Some(put), _) =>
                              store.update(_.addItem(table, put.item)) *> ZSTM.succeed(
@@ -144,13 +165,13 @@ object TestDynamoDBConnector {
         } yield ()
       }
 
-    def describeTable(request: DescribeTableRequest): ZIO[Any, AwsError, TableDescription] =
+    def describeTable(request: DescribeTableRequest): ZIO[Any, AwsError, DescribeTableResponse] =
       ZSTM.atomically {
         for {
           tableExists <- checkTableExists(request.tableName)
           response     = TableDescription(tableName = request.tableName)
           table       <- if (tableExists) ZSTM.succeed(response) else resourceNotFound(s"${request.tableName} not found")
-        } yield table
+        } yield DescribeTableResponse(table)
 
       }
 
@@ -183,7 +204,7 @@ object TestDynamoDBConnector {
         } yield ()
       }
 
-    def query(request: QueryRequest): ZIO[Any, AwsError, List[Map[AttributeName, AttributeValue]]] =
+    def query(request: QueryRequest): ZIO[Any, AwsError, Chunk[Map[AttributeName, AttributeValue]]] =
       ZSTM.atomically {
         for {
           tableExists <- checkTableExists(request.tableName)
@@ -191,17 +212,17 @@ object TestDynamoDBConnector {
           filters = request.exclusiveStartKey.toList
           items <- if (tableExists) store.get.map(_.fetchItems(request.tableName, filters))
                    else resourceNotFound(s"${request.tableName} not found")
-        } yield items.getOrElse(List.empty)
+        } yield items.getOrElse(Chunk.empty)
       }
 
-    def scan(request: ScanRequest): ZIO[Any, AwsError, List[Map[AttributeName, AttributeValue]]] =
+    def scan(request: ScanRequest): ZIO[Any, AwsError, Chunk[Map[AttributeName, AttributeValue]]] =
       ZSTM.atomically {
         for {
           tableExists <- checkTableExists(request.tableName)
           // same goes for the scan api, regarding the
           items <- if (tableExists) store.get.map(_.fetchItems(request.tableName, request.exclusiveStartKey.toList))
                    else resourceNotFound(s"${request.tableName} not found")
-        } yield items.getOrElse(List.empty)
+        } yield items.getOrElse(Chunk.empty)
       }
 
     // Trivially succeeds if table exists
@@ -253,11 +274,11 @@ object TestDynamoDBConnector {
     def fetchItems(
       table: TableName,
       filters: List[Map[AttributeName, AttributeValue]]
-    ): Option[List[Map[AttributeName, AttributeValue]]] =
+    ): Option[Chunk[Map[AttributeName, AttributeValue]]] =
       for {
         items     <- underlying.get(table)
         maybeItem <- items.map(_.filter(item => filters.flatMap(_.toList).forall(item.toList.contains)).toList)
-      } yield maybeItem
+      } yield Chunk.fromIterable(maybeItem)
 
     def itemExists(table: TableName, key: Map[AttributeName, AttributeValue]): Boolean =
       underlying
