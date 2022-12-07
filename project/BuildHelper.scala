@@ -112,8 +112,7 @@ object BuildHelper {
         )
       case Some((2, 13)) =>
         Seq(
-          "-Ywarn-unused:params,-implicits",
-          "-Wconf:origin=scala.collection.compat._:s"
+          "-Ywarn-unused:params,-implicits"
         ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
