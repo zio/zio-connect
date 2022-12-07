@@ -262,7 +262,7 @@ lazy val examples = project
     publishArtifact := false,
     moduleName      := "zio-connect-examples"
   )
-  .aggregate(couchbaseConnectorExamples, fileConnectorExamples, s3ConnectorExamples)
+  .aggregate(couchbaseConnectorExamples, dynamodbConnectorExamples, fileConnectorExamples, s3ConnectorExamples)
 
 lazy val couchbaseConnectorExamples = project
   .in(file("examples/couchbase-connector-examples"))
