@@ -5,7 +5,7 @@ import zio.aws.dynamodb.DynamoDb
 import zio.aws.dynamodb.model._
 import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, RLayer, Trace, ULayer}
+import zio.{Chunk, Trace, ZLayer}
 
 package object dynamodb {
 
@@ -67,6 +67,5 @@ package object dynamodb {
   def updateTable(implicit trace: Trace): ZSink[DynamoDBConnector, AwsError, UpdateTableRequest, Nothing, Unit] =
     ZSink.serviceWithSink[DynamoDBConnector](_.updateTable)
 
-  val dynamoDBConnectorLiveLayer: RLayer[DynamoDb, LiveDynamoDBConnector] = LiveDynamoDBConnector.layer
-  val dynamoDBConnectorTestLayer: ULayer[TestDynamoDBConnector]           = TestDynamoDBConnector.layer
+  val dynamoDBConnectorLiveLayer: ZLayer[DynamoDb, Nothing, LiveDynamoDBConnector] = LiveDynamoDBConnector.layer
 }

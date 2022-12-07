@@ -33,10 +33,10 @@ lazy val root = project
   .aggregate(
     awsLambdaConnector,
     couchbaseConnector,
+    dynamodbConnector,
     fileConnector,
     fs2Connector,
-    s3Connector,
-    dynamodbConnector
+    s3Connector
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(WebsitePlugin)

@@ -7,8 +7,6 @@ import zio.aws.dynamodb.model.primitives.{AttributeName, TableName}
 import zio.stream.{ZSink, ZStream}
 import zio.{Chunk, Trace, ZIO, ZLayer}
 
-import scala.collection.compat._
-
 case class LiveDynamoDBConnector(db: DynamoDb) extends DynamoDBConnector {
   override def batchGetItem(implicit
     trace: Trace
