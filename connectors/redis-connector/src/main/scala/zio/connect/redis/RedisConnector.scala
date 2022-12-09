@@ -36,12 +36,14 @@ case class LiveRedisConnector(redis: Redis) extends RedisConnector {
     trace: Trace
   ): ZSink[Any, RedisError, Get[K], Nothing, Chunk[GetResult[K]]] =
     ZSink
-      .foreach(a =>
+      .foldLeftZIO(Chunk.empty[GetResult[K]]) { (s, a: Get[K]) =>
         zio.redis
-          .get(a.key)
-//          .returning[Option[String]]
+          .get[K](a.key)
+          .returning[String]
           .provide(ZLayer.succeed(redis))
-      )
+          .map(as => s ++ Chunk(GetResult(a.key, as)))
+      }
+      .ignoreLeftover
 }
 
 object LiveRedisConnector {
