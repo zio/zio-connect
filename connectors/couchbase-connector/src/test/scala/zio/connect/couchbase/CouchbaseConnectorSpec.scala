@@ -1,14 +1,6 @@
 package zio.connect.couchbase
 
-import zio.connect.couchbase.CouchbaseConnector.{
-  BucketName,
-  CollectionName,
-  ContentQueryObject,
-  CouchbaseException,
-  DocumentKey,
-  QueryObject,
-  ScopeName
-}
+import zio.connect.couchbase.CouchbaseConnector._
 import zio.stream.ZStream
 import zio.test.Assertion.equalTo
 import zio.test._
