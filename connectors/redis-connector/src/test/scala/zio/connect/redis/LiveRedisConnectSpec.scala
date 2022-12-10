@@ -1,8 +1,8 @@
 package zio.connect.redis
 import zio.redis.{RedisConfig, RedisExecutor, RedisLive}
 import zio.schema.codec.{Codec, ProtobufCodec}
-import zio.{Scope, ZLayer}
 import zio.test.{Spec, TestEnvironment}
+import zio.{Scope, ZLayer}
 
 object LiveRedisConnectSpec extends RedisConnectorSpec {
   override def spec: Spec[TestEnvironment with Scope, Any] =

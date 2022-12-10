@@ -1,8 +1,8 @@
 package zio.connect
-import zio.{Chunk, Trace}
 import zio.connect.redis.RedisConnector._
 import zio.redis.RedisError
 import zio.stream.ZSink
+import zio.{Chunk, Trace}
 
 package object redis {
   def append(implicit trace: Trace): ZSink[RedisConnector, Any, Append[String, String], Nothing, Unit] =
