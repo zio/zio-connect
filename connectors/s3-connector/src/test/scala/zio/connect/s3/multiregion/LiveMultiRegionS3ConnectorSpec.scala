@@ -33,7 +33,7 @@ object LiveMultiRegionS3ConnectorSpec extends MultiRegionS3ConnectorSpec {
           .withServices(Service.S3)
         localstack.start()
         localstack
-      })(ls => ZIO.attempt(ls.stop()).orDie)
+      }.retryN(4))(ls => ZIO.attempt(ls.stop()).orDie)
     )
 
   lazy val s3 = {

@@ -1,9 +1,11 @@
 package zio.connect.couchbase
 
-import com.couchbase.client.java.Cluster
+import com.couchbase.client.core.env.TimeoutConfig
+import com.couchbase.client.java.env.ClusterEnvironment
+import com.couchbase.client.java.{Cluster, ClusterOptions}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import org.testcontainers.utility.DockerImageName
-import zio.{ZIO, ZLayer}
+import zio.{ZIO, ZLayer, durationInt}
 
 object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
 
@@ -28,17 +30,23 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
       }.retryN(4))(container => ZIO.attempt(container.stop()).orDie)
     )
 
-  private lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] =
+  private lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] = {
+    val timeout = 5.seconds
     ZLayer
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
+        env =
+          ClusterEnvironment
+            .builder()
+            .timeoutConfig(TimeoutConfig.kvTimeout(timeout).queryTimeout(timeout).connectTimeout(timeout))
+            .build()
         cluster <- ZIO.attempt(
                      Cluster.connect(
                        container.getConnectionString,
-                       container.getUsername,
-                       container.getPassword
+                       ClusterOptions.clusterOptions(container.getUsername, container.getPassword).environment(env)
                      )
                    )
       } yield cluster)
+  }
 
 }
