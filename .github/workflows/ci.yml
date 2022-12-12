@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.2.0
       - name: Setup Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.2.0
       - name: Setup Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -60,7 +60,7 @@ jobs:
         scala: [ 2.12.16, 2.13.10, 3.2.0 ]
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.2.0
         with:
           fetch-depth: 0
       - name: Setup Scala and Java
@@ -90,7 +90,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.2.0
         with:
           fetch-depth: 0
       - name: Setup Java
