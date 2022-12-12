@@ -9,7 +9,7 @@
 Support
 ---
 Sources, Sinks and Pipelines for channeling data.
-Please find more details in the [website](https://zio.github.io/zio-connect/)
+Please find more details in the [website](https://zio.dev/zio-connect/)
 
 
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-connect-file_2.13.svg "Sonatype Releases"

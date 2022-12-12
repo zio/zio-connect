@@ -88,24 +88,6 @@ def run = getAction.provide(couchbaseConnectorLiveLayer, cluster)
 
 `couchbaseConnectorLiveLayer` is a `ZLayer` that provides the `LiveCouchbaseConnector` service, and is defined in the `CouchbaseConnector` companion object.
 
-Test / Stub
------------
-A stub implementation of CouchbaseConnector is provided for testing purposes via the `couchbaseConnectorTestLayer`. It uses
-internally a `TRef[Map[couchbase.CouchbaseConnector.BucketName.Type, CouchbaseBucket]]` instead of talking to Couchbase. 
-You can create the test harness as follows:
-
-```scala
-import zio.connect.couchbase._
-
-object MyTestSpec extends ZIOSpecDefault {
-
-  override def spec =
-    suite("MyTestSpec")(???)
-      .provide(couchbaseConnectorTestLayer)
-
-}
-```
-
 Operators
 ----
 
