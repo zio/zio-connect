@@ -16,10 +16,12 @@ The following connectors are available. These are submodules and are imported in
 
 `zio-connect-couchbase` - Couchbase connector. See [couchbase-connector-examples][couchbase-connector-examples]
 
+`zio-connect-dynamodb` - DynamoDB connector. See [dynamodb-connector-examples][dynamodb-connector-examples]
+
 `zio-connect-file` - Filesystem connector. See [file-connector-examples][file-connector-examples]
 
-`zio-connect-s3` - Amazon S3 connector uses [zio-aws-s3][zio-aws] under the hood.
-See [s3-connector-examples][s3-connector-examples]
+`zio-connect-s3` - Amazon S3 connector uses [zio-aws-s3][zio-aws] under the hood. See [s3-connector-examples][s3-connector-examples]
+
 
 [zio-aws]: https://zio.github.io/zio-aws
 
@@ -29,3 +31,4 @@ See [s3-connector-examples][s3-connector-examples]
 
 [s3-connector-examples]: https://github.com/zio/zio-connect/tree/master/examples/s3-connector-examples/src/main/scala
 
+[dynamodb-connector-examples]: https://github.com/zio/zio-connect/tree/master/examples/dynamodb-connector-examples/src/main/scala

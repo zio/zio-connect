@@ -16,7 +16,8 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
   protected val dynamoDBConnectorSpec: Spec[DynamoDBConnector, AwsError] =
     batchGetItemSuite + batchWriteItemSuite + itemSuite + listTablesSuite + tableSuite + querySuite + scanSuite
 
-  private lazy val tableSuite = createTableSuite + tableExistsSuite + describeTableSuite + updateTableSuite
+  private lazy val tableSuite =
+    createTableSuite + tableExistsSuite + deleteTableSuite + describeTableSuite + updateTableSuite
   private lazy val itemSuite = putItemSuite + getItemSuite + deleteItemSuite +
     updateItemSuite
 
@@ -83,6 +84,27 @@ trait DynamoDBConnectorSpec extends ZIOSpecDefault {
       for {
         exists <- ZStream(tableName) >>> tableExists
       } yield assertTrue(!exists)
+    }
+  )
+
+  private lazy val deleteTableSuite = suite("deleteTable")(
+    test("successfully deletes table") {
+      val tableName = TableName("deleteTable1")
+      for {
+        _                 <- ZStream(createTableRequest(tableName)) >>> createTable
+        exists            <- ZStream(tableName) >>> tableExists
+        _                 <- ZStream(DeleteTableRequest(tableName)) >>> deleteTable
+        existsAfterDelete <- ZStream(tableName) >>> tableExists
+      } yield assertTrue(exists) && assertTrue(!existsAfterDelete)
+    },
+    test("fails if the table does not exist initially") {
+      val tableName = TableName("deleteTable2")
+      for {
+        exists <- ZStream(tableName) >>> tableExists
+        exit   <- (ZStream(DeleteTableRequest(tableName)) >>> deleteTable).exit
+        failsExpectedly <-
+          exit.as(false).catchSome { case GenericAwsError(_: ResourceNotFoundException) => ZIO.succeed(true) }
+      } yield assertTrue(!exists) && assertTrue(failsExpectedly)
     }
   )
 

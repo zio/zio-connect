@@ -11,6 +11,8 @@ import zio.connect.dynamodb._
 import zio.stream._
 
 object Example1 extends ZIOAppDefault {
+  // Please read https://zio.github.io/zio-aws/docs/overview/overview_config to learn more about configuring/authenticating zio-aws
+  // this configuration will work provided you have default aws credentials, i.e. access key and secret key in your `.aws` directory
   lazy val httpClient: ZLayer[Any, Throwable, HttpClient] = NettyHttpClient.default
   lazy val awsConfig: ZLayer[Any, Throwable, AwsConfig]   = httpClient >>> AwsConfig.default
 
