@@ -1,16 +1,18 @@
 ---
 id: index
-title: "Introduction to ZIO Connectors"
+title: "Introduction to ZIO Connect"
 sidebar_label: "Introduction"
 ---
 
 ZIO connectors are Sources, Sinks and Pipelines for channeling data. They are easy to use, and they are designed to be
 composable. You can use them to build pipelines that can be used to process data.
 
-Each connector is defined as a separate module and can be used independently or in combination with other connectors.
+@PROJECT_BADGES@
 
 Connectors
 --------------
+
+Each connector is defined as a separate module and can be used independently or in combination with other connectors.
 
 The following connectors are available. These are submodules and are imported individually:
 
