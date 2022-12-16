@@ -12,28 +12,42 @@ trait RedisConnectorSpec extends ZIOSpecDefault {
 
   private lazy val appendKeySpec = {
     suite("append")(
-      test("append multiple strings") {
-        val key: String = UUID.randomUUID().toString
+      test("append single key value") {
+        val key = genKey
         for {
-          result <- ZStream(Append(key, "a"), Append(key, "b")) >>> append
-        } yield assertTrue(result == ())
+          _      <- ZStream(Append(key, "a")) >>> append
+          result <- ZStream(Get(key)) >>> get
+        } yield assertTrue(result == Chunk(GetResult(key, Some("a"))))
+      },
+      test("append multiple strings") {
+        val key = genKey
+        for {
+          _      <- ZStream(Append(key, "a"), Append(key, "b")) >>> append
+          result <- ZStream(Get(key)) >>> get
+        } yield assertTrue(result == Chunk(GetResult(key, Some("ab"))))
       }
     )
   }
 
   private lazy val delKeySpec = {
     suite("del")(
-      test("delete an existing value") {
-        val key: String  = "keyToDel"
-        val key1: String = "keyToDel1"
-        (for {
+      test("delte an existing value") {
+        val key = genKey
+        for {
           _      <- ZStream(Append(key, "a")) >>> append
-          _      <- ZStream(Append(key1, "a")) >>> append
-          _      <- ZStream(Del(key), Del(key1)) >>> del
+          value  <- ZStream(Get(key)) >>> get
+          _      <- ZStream(Del(key), Del(key)) >>> del
           result <- ZStream(Get(key)) >>> get
-        } yield assertTrue(result == Chunk(GetResult(key, None)))).debug("result: ")
+        } yield assertTrue(result == Chunk(GetResult(key, None)) && value == Chunk(GetResult(key, Some("a"))))
+      },
+      test("delete an none-existing value") {
+        val key: String = genKey
+        for {
+          result <- ZStream(Get(key)) >>> get
+        } yield assertTrue(result == Chunk(GetResult(key, None)))
       }
     )
   }
 
+  def genKey: String = UUID.randomUUID().toString
 }
