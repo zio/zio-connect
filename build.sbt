@@ -39,7 +39,6 @@ lazy val root = project
     s3Connector
   )
   .enablePlugins(BuildInfoPlugin)
-  .enablePlugins(WebsitePlugin)
 
 lazy val awsLambdaConnector = project
   .in(file("connectors/aws-lambda-connector"))
@@ -301,3 +300,19 @@ lazy val s3ConnectorExamples = project
     scalacOptions -= "-Xfatal-warnings"
   )
   .dependsOn(LocalProject("s3Connector"))
+
+lazy val docs = project
+  .in(file("zio-connect-docs"))
+  .settings(
+    publish / skip := true,
+    moduleName     := "zio-connect-docs",
+    projectName    := "ZIO Connect",
+    badgeInfo := Some(
+      BadgeInfo(
+        artifact = "zio-connect-file_2.12",
+        projectStage = ProjectStage.ProductionReady
+      )
+    ),
+    docsPublishBranch := "master"
+  )
+  .enablePlugins(WebsitePlugin)
