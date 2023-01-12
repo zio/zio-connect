@@ -10,8 +10,6 @@ addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                  %
 addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"              % "2.4.6")
 addSbtPlugin("org.scoverage"                     % "sbt-scoverage"             % "1.6.1")
 addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                   % "0.4.3")
-addSbtPlugin("dev.zio"                           % "zio-sbt-website"           % "0.1.5+10-49adf3d7-SNAPSHOT")
+addSbtPlugin("dev.zio"                           % "zio-sbt-website"           % "0.3.4")
 
 libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.4"
-
-resolvers ++= Resolver.sonatypeOssRepos("snapshots")

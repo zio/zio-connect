@@ -36,7 +36,8 @@ lazy val root = project
     dynamodbConnector,
     fileConnector,
     fs2Connector,
-    s3Connector
+    s3Connector,
+    docs
   )
   .enablePlugins(BuildInfoPlugin)
 
@@ -304,15 +305,18 @@ lazy val s3ConnectorExamples = project
 lazy val docs = project
   .in(file("zio-connect-docs"))
   .settings(
-    publish / skip := true,
-    moduleName     := "zio-connect-docs",
-    projectName    := "ZIO Connect",
-    badgeInfo := Some(
-      BadgeInfo(
-        artifact = "zio-connect-file_2.12",
-        projectStage = ProjectStage.ProductionReady
-      )
-    ),
-    docsPublishBranch := "master"
+    moduleName        := "zio-connect-docs",
+    projectName       := "ZIO Connect",
+    mainModuleName    := (fileConnector / moduleName).value,
+    projectStage      := ProjectStage.ProductionReady,
+    docsPublishBranch := "master",
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
+      awsLambdaConnector,
+      couchbaseConnector,
+      dynamodbConnector,
+      fileConnector,
+      fs2Connector,
+      s3Connector
+    )
   )
   .enablePlugins(WebsitePlugin)
