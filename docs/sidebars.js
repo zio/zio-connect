@@ -12,6 +12,7 @@ const sidebars = {
 		's3-connector',
       ]
     }
+  ]
 };
 
 module.exports = sidebars;
