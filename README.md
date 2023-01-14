@@ -2,16 +2,12 @@
 [//]: # (So please do not edit it manually. Instead, change "docs/index.md" file or sbt setting keys)
 [//]: # (e.g. "readmeDocumentation" and "readmeSupport".)
 
-
 # ZIO Connect
 
 ZIO connectors are Sources, Sinks and Pipelines for channeling data. They are easy to use, and they are designed to be
 composable. You can use them to build pipelines that can be used to process data.
 
-Project Stage | CI | Release | Snapshot | Discord | Github |
---------------|----|---------|----------|---------|--------|
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages)        |![CI Badge](https://github.com/zio/zio-connect/workflows/CI/badge.svg) |[![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-connect-file_2.12.svg)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-connect-file_2.12/) |[![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-connect-file_2.12.svg)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-connect-file_2.12/) |[![Chat on Discord!](https://img.shields.io/discord/629491597070827530?logo=discord)](https://discord.gg/2ccFBr4) |[![ZIO Connect](https://img.shields.io/github/stars/zio/zio-connect?style=social)](https://github.com/zio/zio-connect) |
-
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-connect/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-connect-file_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-connect-file_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-connect-file_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-connect-file_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-connect-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-connect-docs_2.13) [![ZIO Connect](https://img.shields.io/github/stars/zio/zio-connect?style=social)](https://github.com/zio/zio-connect)
 
 Connectors
 --------------
