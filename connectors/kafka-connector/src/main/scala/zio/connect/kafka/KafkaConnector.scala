@@ -14,20 +14,6 @@ trait KafkaConnector {
 
   def listTopics(implicit trace: Trace): ZStream[Any, Throwable, TopicListing]
 
-  def read[K, V](topic: => String)(implicit
-    keyDeserializer: Deserializer[Any, K],
-    valueDeserializer: Deserializer[Any, V],
-    trace: Trace
-  ): ZStream[Any, Throwable, CommittableRecord[K, V]]
-
-  final def publishValue[V](topic: => String)(implicit
-    serializer: Serializer[Any, V],
-    trace: Trace
-  ): ZSink[Any, Throwable, V, V, Unit] = {
-    implicit val keySerde: Serde[Any, String] = Serde.string
-    publishRecord[String, V].contramap[V](v => new ProducerRecord(topic, v)).channel.mapOut(_.map(_.value)).toSink
-  }
-
   final def publishKeyValue[K, V](topic: => String)(implicit
     keySerializer: Serializer[Any, K],
     valueSerializer: Serializer[Any, V],
@@ -37,17 +23,6 @@ trait KafkaConnector {
       .contramap[KeyValue[K, V]](kv => new ProducerRecord(topic, kv.key, kv.value))
       .channel
       .mapOut(_.map(kv => KeyValue(kv.key, kv.value)))
-      .toSink
-
-  final def publishTopicKeyValue[K, V](implicit
-    keySerializer: Serializer[Any, K],
-    valueSerializer: Serializer[Any, V],
-    trace: Trace
-  ): ZSink[Any, Throwable, TopicKeyValue[K, V], TopicKeyValue[K, V], Unit] =
-    publishRecord[K, V]
-      .contramap[TopicKeyValue[K, V]](tkv => new ProducerRecord(tkv.topic, tkv.key, tkv.value))
-      .channel
-      .mapOut(_.map(tkv => TopicKeyValue(tkv.topic, tkv.key, tkv.value)))
       .toSink
 
   final def publishPartitionTopicKeyValue[K, V](implicit
@@ -68,6 +43,31 @@ trait KafkaConnector {
     valueSerializer: Serializer[Any, V],
     trace: Trace
   ): ZSink[Any, Throwable, ProducerRecord[K, V], ProducerRecord[K, V], Unit]
+
+  final def publishTopicKeyValue[K, V](implicit
+    keySerializer: Serializer[Any, K],
+    valueSerializer: Serializer[Any, V],
+    trace: Trace
+  ): ZSink[Any, Throwable, TopicKeyValue[K, V], TopicKeyValue[K, V], Unit] =
+    publishRecord[K, V]
+      .contramap[TopicKeyValue[K, V]](tkv => new ProducerRecord(tkv.topic, tkv.key, tkv.value))
+      .channel
+      .mapOut(_.map(tkv => TopicKeyValue(tkv.topic, tkv.key, tkv.value)))
+      .toSink
+
+  final def publishValue[V](topic: => String)(implicit
+    serializer: Serializer[Any, V],
+    trace: Trace
+  ): ZSink[Any, Throwable, V, V, Unit] = {
+    implicit val keySerde: Serde[Any, String] = Serde.string
+    publishRecord[String, V].contramap[V](v => new ProducerRecord(topic, v)).channel.mapOut(_.map(_.value)).toSink
+  }
+
+  def read[K, V](topic: => String)(implicit
+    keyDeserializer: Deserializer[Any, K],
+    valueDeserializer: Deserializer[Any, V],
+    trace: Trace
+  ): ZStream[Any, Throwable, CommittableRecord[K, V]]
 
 }
 

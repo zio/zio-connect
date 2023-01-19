@@ -36,6 +36,7 @@ lazy val root = project
     dynamodbConnector,
     fileConnector,
     fs2Connector,
+    kafkaConnector,
     s3Connector,
     docs
   )
@@ -145,42 +146,13 @@ lazy val fileConnector = project
   )
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
 
-lazy val kinesisDataStreamsConnector = project
-  .in(file("connectors/kinesis-data-streams-connector"))
-  .settings(stdSettings("zio-connect-kinesis-data-streams"))
+lazy val fs2Connector = project
+  .in(file("connectors/fs2-connector"))
+  .settings(stdSettings("zio-connect-fs2"))
   .settings(
     libraryDependencies ++= Seq(
-      KinesisDataStreamsDependencies.`aws-java-sdk-core`,
-      KinesisDataStreamsDependencies.localstack,
-      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
-    )
-  )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
-
-lazy val s3Connector = project
-  .in(file("connectors/s3-connector"))
-  .settings(stdSettings("zio-connect-s3"))
-  .settings(
-    libraryDependencies ++= Seq(
-      S3Dependencies.`aws-java-sdk-core`,
-      S3Dependencies.localstack,
-      S3Dependencies.`zio-aws-netty`,
-      S3Dependencies.`zio-aws-s3`,
+      FS2Dependencies.`fs2-core`,
+      FS2Dependencies.`zio-interop-cats`,
       zio,
       `zio-streams`,
       `zio-test`,
@@ -226,13 +198,42 @@ lazy val kafkaConnector = project
     Test / fork := true
   )
 
-lazy val fs2Connector = project
-  .in(file("connectors/fs2-connector"))
-  .settings(stdSettings("zio-connect-fs2"))
+lazy val kinesisDataStreamsConnector = project
+  .in(file("connectors/kinesis-data-streams-connector"))
+  .settings(stdSettings("zio-connect-kinesis-data-streams"))
   .settings(
     libraryDependencies ++= Seq(
-      FS2Dependencies.`fs2-core`,
-      FS2Dependencies.`zio-interop-cats`,
+      KinesisDataStreamsDependencies.`aws-java-sdk-core`,
+      KinesisDataStreamsDependencies.localstack,
+      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
+lazy val s3Connector = project
+  .in(file("connectors/s3-connector"))
+  .settings(stdSettings("zio-connect-s3"))
+  .settings(
+    libraryDependencies ++= Seq(
+      S3Dependencies.`aws-java-sdk-core`,
+      S3Dependencies.localstack,
+      S3Dependencies.`zio-aws-netty`,
+      S3Dependencies.`zio-aws-s3`,
       zio,
       `zio-streams`,
       `zio-test`,
@@ -316,6 +317,7 @@ lazy val docs = project
       dynamodbConnector,
       fileConnector,
       fs2Connector,
+      kafkaConnector,
       s3Connector
     )
   )
