@@ -1,6 +1,6 @@
 package zio.connect
 
-import com.couchbase.client.java.Cluster
+import com.couchbase.client.scala.Cluster
 import zio.connect.couchbase.CouchbaseConnector.{ContentQueryObject, CouchbaseException, QueryObject}
 import zio.stream.{ZSink, ZStream}
 import zio.{Trace, ZLayer}

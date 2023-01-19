@@ -1,11 +1,12 @@
 package zio.connect.couchbase
 
-import com.couchbase.client.java.Cluster
-import com.couchbase.client.java.codec.RawBinaryTranscoder
-import com.couchbase.client.java.kv.{GetOptions, InsertOptions, ReplaceOptions, UpsertOptions}
+import com.couchbase.client.scala.Cluster
+import com.couchbase.client.scala.codec.JsonSerializer.BytesConvert
+import com.couchbase.client.scala.codec.RawBinaryTranscoder
+import com.couchbase.client.scala.kv.{GetOptions, InsertOptions, ReplaceOptions, UpsertOptions}
 import zio.connect.couchbase.CouchbaseConnector._
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, Trace, ZIO, ZLayer}
+import zio.{Trace, ZIO, ZLayer}
 
 final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseConnector {
 
@@ -16,13 +17,13 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
       .mapZIO {
         case Some(query) =>
           ZIO
-            .attempt(
+            .fromTry(
               couchbase
                 .bucket(query.bucketName)
                 .scope(query.scopeName)
                 .collection(query.collectionName)
                 .exists(query.documentKey)
-                .exists
+                .map(_.exists)
             )
         case None =>
           ZIO.succeed(false)
@@ -32,14 +33,14 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
   override def get(queryObject: => QueryObject)(implicit trace: Trace): ZStream[Any, CouchbaseException, Byte] =
     ZStream
       .fromIterableZIO(
-        ZIO.attempt {
-          val result = couchbase
+        ZIO.fromTry {
+          couchbase
             .bucket(queryObject.bucketName)
             .scope(queryObject.scopeName)
             .collection(queryObject.collectionName)
-            .get(queryObject.documentKey, GetOptions.getOptions.transcoder(RawBinaryTranscoder.INSTANCE))
-
-          Chunk.fromArray(result.contentAsBytes())
+            .get(queryObject.documentKey, GetOptions().transcoder(RawBinaryTranscoder.Instance))
+            .flatMap(_.contentAs[Array[Byte]])
+            .map(_.toList)
         }
       )
       .mapError(CouchbaseException)
@@ -50,7 +51,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
         ZIO
-          .attempt(
+          .fromTry(
             couchbase
               .bucket(query.bucketName)
               .scope(query.scopeName)
@@ -58,8 +59,8 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
               .insert(
                 query.documentKey,
                 query.content.toArray,
-                InsertOptions.insertOptions().transcoder(RawBinaryTranscoder.INSTANCE)
-              )
+                InsertOptions().transcoder(RawBinaryTranscoder.Instance)
+              )(BytesConvert)
           )
       }
       .mapError(CouchbaseException)
@@ -67,7 +68,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
   override def remove(implicit trace: Trace): ZSink[Any, CouchbaseException, QueryObject, QueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, QueryObject] { query =>
-        ZIO.attempt(
+        ZIO.fromTry(
           couchbase
             .bucket(query.bucketName)
             .scope(query.scopeName)
@@ -82,7 +83,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
   ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
-        ZIO.attempt(
+        ZIO.fromTry(
           couchbase
             .bucket(query.bucketName)
             .scope(query.scopeName)
@@ -90,7 +91,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
             .replace(
               query.documentKey,
               query.content.iterator.toArray,
-              ReplaceOptions.replaceOptions().transcoder(RawBinaryTranscoder.INSTANCE)
+              ReplaceOptions().transcoder(RawBinaryTranscoder.Instance)
             )
         )
       }
@@ -101,7 +102,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
   ): ZSink[Any, CouchbaseException, ContentQueryObject, ContentQueryObject, Unit] =
     ZSink
       .foreach[Any, Throwable, ContentQueryObject] { query =>
-        ZIO.attempt {
+        ZIO.fromTry {
           couchbase
             .bucket(query.bucketName)
             .scope(query.scopeName)
@@ -109,7 +110,7 @@ final case class LiveCouchbaseConnector(couchbase: Cluster) extends CouchbaseCon
             .upsert(
               query.documentKey,
               query.content.iterator.toArray,
-              UpsertOptions.upsertOptions().transcoder(RawBinaryTranscoder.INSTANCE)
+              UpsertOptions().transcoder(RawBinaryTranscoder.Instance)
             )
         }
       }

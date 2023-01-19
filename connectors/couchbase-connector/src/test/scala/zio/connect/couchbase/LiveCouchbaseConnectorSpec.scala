@@ -1,11 +1,13 @@
 package zio.connect.couchbase
 
-import com.couchbase.client.core.env.TimeoutConfig
-import com.couchbase.client.java.env.ClusterEnvironment
-import com.couchbase.client.java.{Cluster, ClusterOptions}
+import com.couchbase.client.scala.env.TimeoutConfig
+import com.couchbase.client.scala.env.ClusterEnvironment
+import com.couchbase.client.scala.{Cluster, ClusterOptions}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import org.testcontainers.utility.DockerImageName
 import zio.{ZIO, ZLayer, durationInt}
+
+import scala.jdk.DurationConverters.JavaDurationOps
 
 object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
 
@@ -31,19 +33,19 @@ object LiveCouchbaseConnectorSpec extends CouchbaseConnectorSpec {
     )
 
   private lazy val cluster: ZLayer[CouchbaseContainer, Throwable, Cluster] = {
-    val timeout = 5.seconds
+    val timeout = 5.seconds.toScala
     ZLayer
       .fromZIO(for {
         container <- ZIO.service[CouchbaseContainer]
-        env =
-          ClusterEnvironment
-            .builder()
-            .timeoutConfig(TimeoutConfig.kvTimeout(timeout).queryTimeout(timeout).connectTimeout(timeout))
-            .build()
-        cluster <- ZIO.attempt(
+        env <- ZIO.fromTry(
+                 ClusterEnvironment.builder
+                   .timeoutConfig(TimeoutConfig().kvTimeout(timeout).queryTimeout(timeout).connectTimeout(timeout))
+                   .build
+               )
+        cluster <- ZIO.fromTry(
                      Cluster.connect(
                        container.getConnectionString,
-                       ClusterOptions.clusterOptions(container.getUsername, container.getPassword).environment(env)
+                       ClusterOptions.create(container.getUsername, container.getPassword).environment(env)
                      )
                    )
       } yield cluster)
