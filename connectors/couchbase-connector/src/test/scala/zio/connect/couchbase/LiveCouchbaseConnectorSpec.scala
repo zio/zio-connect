@@ -1,7 +1,6 @@
 package zio.connect.couchbase
 
-import com.couchbase.client.scala.env.TimeoutConfig
-import com.couchbase.client.scala.env.ClusterEnvironment
+import com.couchbase.client.scala.env.{ClusterEnvironment, TimeoutConfig}
 import com.couchbase.client.scala.{Cluster, ClusterOptions}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import org.testcontainers.utility.DockerImageName
