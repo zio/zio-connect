@@ -36,6 +36,7 @@ lazy val root = project
     dynamodbConnector,
     fileConnector,
     fs2Connector,
+    kafkaConnector,
     s3Connector,
     docs
   )
