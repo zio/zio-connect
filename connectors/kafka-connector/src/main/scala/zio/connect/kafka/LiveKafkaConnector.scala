@@ -29,15 +29,6 @@ case class LiveKafkaConnector(adminClient: AdminClient, consumer: Consumer, prod
       adminClient.listTopics().map(_.values)
     }
 
-  def read[K, V](topic: => String)(implicit
-    keyDeserializer: Deserializer[Any, K],
-    valueDeserializer: Deserializer[Any, V],
-    trace: Trace
-  ): ZStream[Any, Throwable, CommittableRecord[K, V]] =
-    consumer
-      .subscribeAnd(Subscription.Topics(Set(topic)))
-      .plainStream(keyDeserializer, valueDeserializer)
-
   override def publishRecord[K, V](implicit
     keySerde: Serializer[Any, K],
     valueSerde: Serializer[Any, V],
@@ -46,6 +37,15 @@ case class LiveKafkaConnector(adminClient: AdminClient, consumer: Consumer, prod
     ZSink.foreachChunk[Any, Throwable, ProducerRecord[K, V]] { records =>
       producer.produceChunk(records, keySerde, valueSerde)
     }
+
+  def read[K, V](topic: => String)(implicit
+    keyDeserializer: Deserializer[Any, K],
+    valueDeserializer: Deserializer[Any, V],
+    trace: Trace
+  ): ZStream[Any, Throwable, CommittableRecord[K, V]] =
+    consumer
+      .subscribeAnd(Subscription.Topics(Set(topic)))
+      .plainStream(keyDeserializer, valueDeserializer)
 }
 
 object LiveKafkaConnector {

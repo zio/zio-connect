@@ -1,5 +1,6 @@
 package zio.connect
 
+import org.apache.kafka.clients.producer.ProducerRecord
 import zio.Trace
 import zio.connect.kafka.KafkaConnector.{KeyValue, PartitionTopicKeyValue, TopicKeyValue}
 import zio.kafka.admin.AdminClient.{NewTopic, TopicListing}
@@ -15,6 +16,13 @@ package object kafka {
   def listTopics: ZStream[KafkaConnector, Throwable, TopicListing] =
     ZStream.serviceWithStream(_.listTopics)
 
+  def read[K, V](topic: => String)(implicit
+    keyDeserializer: Deserializer[Any, K],
+    valueDeserializer: Deserializer[Any, V],
+    trace: Trace
+  ): ZStream[KafkaConnector, Throwable, CommittableRecord[K, V]] =
+    ZStream.serviceWithStream(_.read(topic))
+
   def publishKeyValue[K, V](topic: => String)(implicit
     keySerializer: Serializer[Any, K],
     valueSerializer: Serializer[Any, V],
@@ -29,6 +37,13 @@ package object kafka {
   ): ZSink[KafkaConnector, Throwable, PartitionTopicKeyValue[K, V], PartitionTopicKeyValue[K, V], Unit] =
     ZSink.serviceWithSink(_.publishPartitionTopicKeyValue)
 
+  def publishRecord[K, V](implicit
+    keySerializer: Serializer[Any, K],
+    valueSerializer: Serializer[Any, V],
+    trace: Trace
+  ): ZSink[KafkaConnector, Throwable, ProducerRecord[K, V], ProducerRecord[K, V], Unit] =
+    ZSink.serviceWithSink(_.publishRecord)
+
   def publishTopicKeyValue[K, V](implicit
     keySerializer: Serializer[Any, K],
     valueSerializer: Serializer[Any, V],
@@ -41,13 +56,6 @@ package object kafka {
     trace: Trace
   ): ZSink[KafkaConnector, Throwable, V, V, Unit] =
     ZSink.serviceWithSink(_.publishValue(topic))
-
-  def read[K, V](topic: => String)(implicit
-    keyDeserializer: Deserializer[Any, K],
-    valueDeserializer: Deserializer[Any, V],
-    trace: Trace
-  ): ZStream[KafkaConnector, Throwable, CommittableRecord[K, V]] =
-    ZStream.serviceWithStream(_.read(topic))
 
   val kafkaConnectorLiveLayer = LiveKafkaConnector.layer
 
