@@ -39,11 +39,12 @@ trait KafkaConnectorSpec extends ZIOSpecDefault {
   private lazy val topicSuite =
     suite("topic")(
       test("create single topic") {
-        val newTopic1 = NewTopic("test-topic-create-single-topic", 1, 1)
+        val tempTopicName = UUID.randomUUID().toString
+        val newTopic1     = NewTopic(tempTopicName, 1, 1)
         for {
-          list1 <- listTopics.filter(_.name.startsWith("test-topic-create")).runCollect
+          list1 <- listTopics.filter(_.name == tempTopicName).runCollect
           _     <- ZStream.fromIterable(List(newTopic1)) >>> createTopic
-          list2 <- listTopics.filter(_.name.startsWith("test-topic-create")).runCollect
+          list2 <- listTopics.filter(_.name == tempTopicName).runCollect
         } yield assert(list1.size)(equalTo(0)) &&
           assert(list2.size)(equalTo(1))
       }
