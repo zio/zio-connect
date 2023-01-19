@@ -171,6 +171,32 @@ lazy val fs2Connector = project
     Test / fork := true
   )
 
+lazy val kafkaConnector = project
+  .in(file("connectors/kafka-connector"))
+  .settings(stdSettings("zio-connect-kafka"))
+  .settings(
+    libraryDependencies ++= Seq(
+      KafkaDependencies.`zio-kafka`,
+      KafkaDependencies.`zio-kafka-test-utils`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
 lazy val kinesisDataStreamsConnector = project
   .in(file("connectors/kinesis-data-streams-connector"))
   .settings(stdSettings("zio-connect-kinesis-data-streams"))
@@ -207,32 +233,6 @@ lazy val s3Connector = project
       S3Dependencies.localstack,
       S3Dependencies.`zio-aws-netty`,
       S3Dependencies.`zio-aws-s3`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
-    )
-  )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
-
-lazy val kafkaConnector = project
-  .in(file("connectors/kafka-connector"))
-  .settings(stdSettings("zio-connect-kafka"))
-  .settings(
-    libraryDependencies ++= Seq(
-      KafkaDependencies.`zio-kafka`,
-      KafkaDependencies.`zio-kafka-test-utils`,
       zio,
       `zio-streams`,
       `zio-test`,
