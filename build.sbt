@@ -317,6 +317,7 @@ lazy val docs = project
       dynamodbConnector,
       fileConnector,
       fs2Connector,
+      kafkaConnector,
       s3Connector
     )
   )
