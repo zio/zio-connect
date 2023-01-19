@@ -22,7 +22,8 @@ object LiveKafkaConnectorSpec extends KafkaConnectorSpec {
       ZLayer.fromZIO(KafkaTestUtils.adminSettings),
       AdminClient.live
     ) @@ withLiveClock @@ timeout(
-    300.seconds
-  )
+    30.seconds
+    // the flaky aspect was added because Kafka.embedded (very rarely) may hang
+  ) @@ flaky(3)
 
 }
