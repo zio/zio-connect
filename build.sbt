@@ -51,7 +51,7 @@ lazy val awsLambdaConnector = project
       AWSLambdaDependencies.`zio-aws-netty`
     )
   )
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 lazy val couchbaseConnector = project
@@ -65,8 +65,10 @@ lazy val couchbaseConnector = project
     )
   )
   .settings(enableZIO(enableStreaming = true))
-  .settings(scalaCompatSettings)
-  .settings(Test / fork := true)
+  .settings(enableScalaCompatCollection)
+  .settings(
+    Test / fork := true
+  )
 
 lazy val dynamodbConnector = project
   .in(file("connectors/dynamodb-connector"))
@@ -80,14 +82,14 @@ lazy val dynamodbConnector = project
     )
   )
   .settings(enableZIO(enableStreaming = true))
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
   .settings(stdSettings("zio-connect-file"))
   .settings(enableZIO(enableStreaming = true))
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
 
 lazy val fs2Connector = project
   .in(file("connectors/fs2-connector"))
@@ -99,7 +101,7 @@ lazy val fs2Connector = project
       FS2Dependencies.`zio-interop-cats`
     )
   )
-  .settings(addDependencyFor(scala211.value, scala212.value)(`scala-compact-collection`))
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 lazy val kafkaConnector = project
@@ -112,7 +114,7 @@ lazy val kafkaConnector = project
       KafkaDependencies.`zio-kafka-test-utils`
     )
   )
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 lazy val kinesisDataStreamsConnector = project
@@ -126,7 +128,7 @@ lazy val kinesisDataStreamsConnector = project
       KinesisDataStreamsDependencies.`zio-aws-kinesis`
     )
   )
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 lazy val s3Connector = project
@@ -141,7 +143,7 @@ lazy val s3Connector = project
       S3Dependencies.`zio-aws-s3`
     )
   )
-  .settings(scalaCompatSettings)
+  .settings(enableScalaCompatCollection)
   .settings(Test / fork := true)
 
 /**
@@ -213,10 +215,9 @@ lazy val docs = project
   )
   .enablePlugins(WebsitePlugin)
 
-lazy val scalaCompatSettings =
-  addDependencyFor(scala211.value, scala212.value)(`scala-compact-collection`)
+lazy val enableScalaCompatCollection = addDependencyFor("2.11", "2.12")(`scala-compact-collection`)
 
-def addDependencyFor(scalaVersions: String*)(dependencies: ModuleID*) =
+def addDependencyFor(scalaBinaryVersions: String*)(dependencies: ModuleID*) =
   libraryDependencies ++= {
-    if (scalaVersions.contains(scalaVersion.value)) dependencies else Seq.empty
+    if (scalaBinaryVersions.contains(scalaBinaryVersion.value)) dependencies else Seq.empty
   }
