@@ -1,7 +1,7 @@
 import sbt._
 
 object DynamoDBDependencies {
-  //required for localstack testcontainer
+  // required for localstack testcontainer
   lazy val `aws-java-sdk-core` = "com.amazonaws" % "aws-java-sdk-core" % "1.12.319" % "test"
 
   lazy val localstack = "org.testcontainers" % "localstack" % "1.17.6" % "test"
