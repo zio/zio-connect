@@ -6,7 +6,7 @@ object DynamoDBDependencies {
 
   lazy val localstack = "org.testcontainers" % "localstack" % "1.17.6" % "test"
 
-  lazy val zioAwsVersion      = "5.17.295.10"
+  lazy val zioAwsVersion      = "5.17.295.22"
   lazy val `zio-aws-netty`    = "dev.zio" %% "zio-aws-netty"    % zioAwsVersion % "test"
   lazy val `zio-aws-dynamodb` = "dev.zio" %% "zio-aws-dynamodb" % zioAwsVersion
 }
