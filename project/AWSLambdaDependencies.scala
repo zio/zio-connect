@@ -7,7 +7,7 @@ object AWSLambdaDependencies {
 
   lazy val localstack = "org.testcontainers" % "localstack" % "1.17.5" % "test"
 
-  lazy val zioAwsVersion    = "5.17.295.6"
+  lazy val zioAwsVersion    = "5.17.295.22"
   lazy val `zio-aws-netty`  = "dev.zio" %% "zio-aws-netty"  % zioAwsVersion
   lazy val `zio-aws-lambda` = "dev.zio" %% "zio-aws-lambda" % zioAwsVersion
 
