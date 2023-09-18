@@ -7,7 +7,7 @@ object S3Dependencies {
 
   lazy val localstack = "org.testcontainers" % "localstack" % "1.17.5" % "test"
 
-  lazy val zioAwsVersion   = "5.17.280.1"
+  lazy val zioAwsVersion   = "5.17.295.22"
   lazy val `zio-aws-netty` = "dev.zio" %% "zio-aws-netty" % zioAwsVersion
   lazy val `zio-aws-s3`    = "dev.zio" %% "zio-aws-s3"    % zioAwsVersion
 
