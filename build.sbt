@@ -1,14 +1,12 @@
-import BuildHelper._
 import Dependencies._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
+enablePlugins(ZioSbtCiPlugin)
+
 inThisBuild(
   List(
-    organization := "dev.zio",
-    homepage     := Some(url("https://zio.dev/zio-connect")),
-    licenses := List(
-      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
-    ),
+    name              := "ZIO Connect",
+    ciEnabledBranches := Seq("master"),
     developers := List(
       Developer(
         "jdegoes",
@@ -40,35 +38,21 @@ lazy val root = project
     s3Connector,
     docs
   )
-  .enablePlugins(BuildInfoPlugin)
 
 lazy val awsLambdaConnector = project
   .in(file("connectors/aws-lambda-connector"))
   .settings(stdSettings("zio-connect-aws-lambda"))
   .settings(
+    enableZIO(enableStreaming = true),
     libraryDependencies ++= Seq(
       AWSLambdaDependencies.`aws-java-sdk-core`,
       AWSLambdaDependencies.localstack,
       AWSLambdaDependencies.`zio-aws-lambda`,
-      AWSLambdaDependencies.`zio-aws-netty`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      AWSLambdaDependencies.`zio-aws-netty`
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 lazy val couchbaseConnector = project
   .in(file("connectors/couchbase-connector"))
@@ -77,23 +61,12 @@ lazy val couchbaseConnector = project
     libraryDependencies ++= Seq(
       CouchbaseDependencies.couchbase,
       CouchbaseDependencies.couchbaseContainer,
-      CouchbaseDependencies.`zio-prelude`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      CouchbaseDependencies.`zio-prelude`
     )
   )
+  .settings(enableZIO(enableStreaming = true))
+  .settings(enableScalaCompatCollection)
   .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     Test / fork := true
   )
 
@@ -105,153 +78,73 @@ lazy val dynamodbConnector = project
       DynamoDBDependencies.`aws-java-sdk-core`,
       DynamoDBDependencies.`zio-aws-dynamodb`,
       DynamoDBDependencies.`zio-aws-netty`,
-      DynamoDBDependencies.localstack,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      DynamoDBDependencies.localstack
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableZIO(enableStreaming = true))
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 lazy val fileConnector = project
   .in(file("connectors/file-connector"))
   .settings(stdSettings("zio-connect-file"))
-  .settings(
-    libraryDependencies ++= Seq(
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
-    )
-  )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(enableZIO(enableStreaming = true))
+  .settings(enableScalaCompatCollection)
 
 lazy val fs2Connector = project
   .in(file("connectors/fs2-connector"))
   .settings(stdSettings("zio-connect-fs2"))
+  .settings(enableZIO(enableStreaming = true))
   .settings(
     libraryDependencies ++= Seq(
       FS2Dependencies.`fs2-core`,
-      FS2Dependencies.`zio-interop-cats`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      FS2Dependencies.`zio-interop-cats`
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 lazy val kafkaConnector = project
   .in(file("connectors/kafka-connector"))
   .settings(stdSettings("zio-connect-kafka"))
+  .settings(enableZIO(enableStreaming = true))
   .settings(
     libraryDependencies ++= Seq(
       KafkaDependencies.`zio-kafka`,
-      KafkaDependencies.`zio-kafka-test-utils`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      KafkaDependencies.`zio-kafka-test-utils`
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 lazy val kinesisDataStreamsConnector = project
   .in(file("connectors/kinesis-data-streams-connector"))
   .settings(stdSettings("zio-connect-kinesis-data-streams"))
+  .settings(enableZIO(enableStreaming = true))
   .settings(
     libraryDependencies ++= Seq(
       KinesisDataStreamsDependencies.`aws-java-sdk-core`,
       KinesisDataStreamsDependencies.localstack,
-      KinesisDataStreamsDependencies.`zio-aws-kinesis`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      KinesisDataStreamsDependencies.`zio-aws-kinesis`
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 lazy val s3Connector = project
   .in(file("connectors/s3-connector"))
   .settings(stdSettings("zio-connect-s3"))
+  .settings(enableZIO(enableStreaming = true))
   .settings(
     libraryDependencies ++= Seq(
       S3Dependencies.`aws-java-sdk-core`,
       S3Dependencies.localstack,
       S3Dependencies.`zio-aws-netty`,
-      S3Dependencies.`zio-aws-s3`,
-      zio,
-      `zio-streams`,
-      `zio-test`,
-      `zio-test-sbt`
+      S3Dependencies.`zio-aws-s3`
     )
   )
-  .settings(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
-        case _                       => Seq.empty
-      }
-    }
-  )
-  .settings(
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    Test / fork := true
-  )
+  .settings(enableScalaCompatCollection)
+  .settings(Test / fork := true)
 
 /**
  * Examples Submodules
@@ -306,11 +199,10 @@ lazy val s3ConnectorExamples = project
 lazy val docs = project
   .in(file("zio-connect-docs"))
   .settings(
-    moduleName        := "zio-connect-docs",
-    projectName       := "ZIO Connect",
-    mainModuleName    := (fileConnector / moduleName).value,
-    projectStage      := ProjectStage.ProductionReady,
-    docsPublishBranch := "master",
+    moduleName     := "zio-connect-docs",
+    projectName    := (ThisBuild / name).value,
+    mainModuleName := (fileConnector / moduleName).value,
+    projectStage   := ProjectStage.ProductionReady,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       awsLambdaConnector,
       couchbaseConnector,
@@ -322,3 +214,10 @@ lazy val docs = project
     )
   )
   .enablePlugins(WebsitePlugin)
+
+lazy val enableScalaCompatCollection = addDependencyFor("2.11", "2.12")(`scala-compact-collection`)
+
+def addDependencyFor(scalaBinaryVersions: String*)(dependencies: ModuleID*) =
+  libraryDependencies ++= {
+    if (scalaBinaryVersions.contains(scalaBinaryVersion.value)) dependencies else Seq.empty
+  }

@@ -6,7 +6,7 @@ import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
 import scalafix.sbt.ScalafixPlugin.autoImport.{scalafixDependencies, scalafixScalaBinaryVersion, scalafixSemanticdb}
 
-object BuildHelper {
+object BuildHelpers {
   private val versions: Map[String, String] = {
     import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 

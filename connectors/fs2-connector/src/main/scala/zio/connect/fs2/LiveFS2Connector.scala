@@ -18,14 +18,14 @@ case class LiveFS2Connector() extends FS2Connector {
         for {
           queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](1))(_.shutdown)
           _ <- {
-            original
-              .evalTap(a => queue.offer(Take.single(a))) ++ fs2.Stream.eval(queue.offer(Take.end))
-          }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
-            .compile
-            .resource
-            .drain
-            .toScopedZIO
-            .forkScoped
+                 original
+                   .evalTap(a => queue.offer(Take.single(a))) ++ fs2.Stream.eval(queue.offer(Take.end))
+               }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
+                 .compile
+                 .resource
+                 .drain
+                 .toScopedZIO
+                 .forkScoped
         } yield ZStream.fromQueue(queue).flattenTake
       }.flatten
         .mapError(FS2Exception)
@@ -35,17 +35,17 @@ case class LiveFS2Connector() extends FS2Connector {
         for {
           queue <- ZIO.acquireRelease(zio.Queue.bounded[Take[Throwable, A]](queueSize))(_.shutdown)
           _ <- {
-            original
-              .chunkLimit(queueSize)
-              .evalTap(a => queue.offer(Take.chunk(zio.Chunk.fromIterable(a.toList))))
-              .chunkLimit(1)
-              .unchunks ++ fs2.Stream.eval(queue.offer(Take.end))
-          }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
-            .compile
-            .resource
-            .drain
-            .toScopedZIO
-            .forkScoped
+                 original
+                   .chunkLimit(queueSize)
+                   .evalTap(a => queue.offer(Take.chunk(zio.Chunk.fromIterable(a.toList))))
+                   .chunkLimit(1)
+                   .unchunks ++ fs2.Stream.eval(queue.offer(Take.end))
+               }.handleErrorWith(e => fs2.Stream.eval(queue.offer(Take.fail(e))).drain)
+                 .compile
+                 .resource
+                 .drain
+                 .toScopedZIO
+                 .forkScoped
         } yield ZStream.fromQueue(queue).flattenTake
       }.flatten
         .mapError(FS2Exception)
