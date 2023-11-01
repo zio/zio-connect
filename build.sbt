@@ -172,6 +172,35 @@ lazy val fs2Connector = project
     Test / fork := true
   )
 
+lazy val redisConnector = project
+  .in(file("connectors/redis-connector"))
+  .settings(stdSettings("zio-connect-redis"))
+  .settings(
+    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    libraryDependencies ++= Seq(
+      RedisDependencies.`zio-redis`,
+      RedisDependencies.`zio-config-typesafe`,
+      RedisDependencies.`zio-config-magnolia`,
+      RedisDependencies.`zio-schema-protobuf`,
+      zio,
+      `zio-streams`,
+      `zio-test`,
+      `zio-test-sbt`
+    )
+  )
+  .settings(
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n <= 12 => Seq(`scala-compact-collection`)
+        case _                       => Seq.empty
+      }
+    }
+  )
+  .settings(
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    Test / fork := true
+  )
+
 lazy val kafkaConnector = project
   .in(file("connectors/kafka-connector"))
   .settings(stdSettings("zio-connect-kafka"))
